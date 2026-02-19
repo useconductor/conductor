@@ -1,0 +1,91 @@
+name: Bug Report
+description: Something isn't working right
+labels: ["bug", "needs triage"]
+assignees: ["thealxlabs"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Fill out as much as you can — it helps a lot.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where is the bug?
+      options:
+        - Plugin (specify below)
+        - Installer (install.sh)
+        - CLI (conductor command)
+        - Telegram bot
+        - MCP server
+        - AI provider
+        - Authentication / OAuth
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: plugin
+    attributes:
+      label: Plugin name
+      description: If the bug is in a plugin, which one?
+      placeholder: e.g. spotify, gmail, github_actions
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Clear description of the bug.
+      placeholder: When I run X, Y happens instead of Z.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Run `conductor ...`
+        2. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error output / logs
+      description: Paste any relevant terminal output here.
+      render: shell
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: OS
+      options:
+        - macOS
+        - Linux
+        - Windows
+    validations:
+      required: true
+
+  - type: input
+    id: node
+    attributes:
+      label: Node.js version
+      placeholder: e.g. 20.11.0 (run `node --version`)
+    validations:
+      required: true
+
+  - type: input
+    id: conductor
+    attributes:
+      label: Conductor version
+      placeholder: e.g. 0.1.0 (run `conductor version`)

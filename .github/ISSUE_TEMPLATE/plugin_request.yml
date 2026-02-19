@@ -1,0 +1,71 @@
+name: Plugin Request
+description: Request a new service integration
+labels: ["plugin-request"]
+assignees: ["thealxlabs"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Conductor has 25 plugins and counting. Request the next one here.
+
+  - type: input
+    id: service
+    attributes:
+      label: Service / platform name
+      placeholder: e.g. Linear, Airtable, Discord, Stripe, Shopify
+    validations:
+      required: true
+
+  - type: input
+    id: api_docs
+    attributes:
+      label: API documentation URL
+      placeholder: https://developers.example.com/docs
+
+  - type: textarea
+    id: tools
+    attributes:
+      label: What tools should it expose?
+      description: List the specific things the AI should be able to do with this service.
+      placeholder: |
+        - List tasks
+        - Create and assign issues
+        - Update task status
+        - Search projects
+    validations:
+      required: true
+
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Your use case
+      description: How would you actually use this in Conductor / Telegram / Claude Desktop?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: auth
+    attributes:
+      label: How does the API authenticate?
+      options:
+        - API key
+        - OAuth 2.0
+        - OAuth 1.0a
+        - Bearer token
+        - Basic auth
+        - Other / not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: free_tier
+    attributes:
+      label: Does it have a free tier?
+      options:
+        - "Yes — fully free"
+        - "Yes — free tier with limits"
+        - "No — paid only"
+        - "Not sure"
+    validations:
+      required: true

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/thealxlabs/conductor#readme
+    about: Read the README before opening an issue
+  - name: Security vulnerability
+    url: https://github.com/thealxlabs/conductor/security/advisories/new
+    about: Report security issues privately — do not open a public issue
