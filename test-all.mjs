@@ -485,7 +485,7 @@ async function testConfig() {
 
     const creds = getOAuthCredentials(conductor, 'google');
     if (!creds.redirectUri.includes('localhost')) {
-      throw new Error(`Expected localhost redirect, got ${creds.redirectUri}`);
+      throw new Error('Expected localhost redirect URI');
     }
 
     delete process.env.CONDUCTOR_GOOGLE_CLIENT_ID;
