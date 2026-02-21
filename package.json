@@ -1,5 +1,5 @@
 {
-  "name": "conductor-hub",
+  "name": "@thealxlabs/conductor",
   "version": "0.1.0",
   "description": "Universal integration hub - Connect AI and services through conversation",
   "main": "dist/index.js",
@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "postbuild": "chmod +x dist/cli/index.js",
     "dev": "tsx watch src/cli/index.ts",
     "start": "node dist/cli/index.js",
     "test": "node test-all.mjs --skip-auth",
@@ -32,9 +33,11 @@
     "@google/generative-ai": "^0.24.1",
     "@modelcontextprotocol/sdk": "^1.26.0",
     "@octokit/rest": "^22.0.1",
+    "@slack/bolt": "^4.6.0",
     "chalk": "^5.6.2",
     "commander": "^14.0.3",
     "dotenv": "^17.3.1",
+    "express": "^5.2.1",
     "googleapis": "^171.4.0",
     "inquirer": "^13.2.5",
     "open": "^11.0.0",
@@ -47,6 +50,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@types/express": "^5.0.6",
     "@types/inquirer": "^9.0.9",
     "@types/node": "^25.2.3",
     "@types/spotify-web-api-node": "^5.0.11",

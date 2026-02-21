@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { AIProvider, AIMessage, AIResponse } from './base.js';
+import { PluginTool } from '../plugins/manager.js';
 import { google } from 'googleapis';
 import http from 'http';
 import { URL } from 'url';
@@ -92,7 +93,7 @@ export class GeminiProvider extends AIProvider {
     });
   }
 
-  async complete(messages: AIMessage[]): Promise<AIResponse> {
+  async complete(messages: AIMessage[], tools?: PluginTool[]): Promise<AIResponse> {
     if (!this.client) throw new Error('Gemini not initialized');
 
     const model = this.client.getGenerativeModel({
@@ -124,7 +125,7 @@ export class GeminiProvider extends AIProvider {
     };
   }
 
-  async *stream(messages: AIMessage[]): AsyncGenerator<string> {
+  async *stream(messages: AIMessage[], tools?: PluginTool[]): AsyncGenerator<string> {
     if (!this.client) throw new Error('Gemini not initialized');
 
     const model = this.client.getGenerativeModel({

@@ -46,6 +46,12 @@ export class TelegramBot {
 
     process.stderr.write('Telegram bot starting...\n');
     await this.bot.launch();
+
+    // Register this bot as the notification handler for Conductor
+    this.conductor.setNotificationHandler(this.sendMessage.bind(this));
+
+    // Start the proactive loop (every 30 mins default)
+    await this.conductor.startProactiveMode(30);
   }
 
   /** Register message handlers. */
@@ -94,24 +100,85 @@ export class TelegramBot {
         // Send typing indicator
         await ctx.sendChatAction('typing');
 
-        const response = await provider.complete([
-          {
-            role: 'system',
-            content:
-              'You are Conductor, a personal AI assistant accessible via Telegram. Be concise and helpful.',
-          },
-          { role: 'user', content: message },
-        ]);
+        const userId = String(ctx.from.id);
+        const agentResponse = await this.aiManager.handleConversation(userId, message);
 
-        await ctx.reply(response.content);
+        await this.sendAgentResponse(ctx, agentResponse);
       } catch (error: any) {
         process.stderr.write(`Telegram AI error: ${error.message}\n`);
         await ctx.reply(`❌ Error: ${error.message}`);
       }
     });
+
+    this.bot.action(/^approve:(.+)$/, async (ctx) => {
+      await ctx.answerCbQuery();
+      await ctx.editMessageReplyMarkup(undefined); // remove buttons
+
+      const toolCallId = ctx.match[1];
+      const userId = String(ctx.from?.id);
+
+      try {
+        await ctx.reply('⏳ Executing approved action...');
+        await ctx.sendChatAction('typing');
+        const agentResponse = await this.aiManager.executeApprovedTool(userId, toolCallId);
+        await this.sendAgentResponse(ctx, agentResponse);
+      } catch (error: any) {
+        process.stderr.write(`Telegram execute error: ${error.message}\n`);
+        await ctx.reply(`❌ Error: ${error.message}`);
+      }
+    });
+
+    this.bot.action(/^deny:(.+)$/, async (ctx) => {
+      await ctx.answerCbQuery();
+      await ctx.editMessageReplyMarkup(undefined); // remove buttons
+
+      const toolCallId = ctx.match[1];
+      const userId = String(ctx.from?.id);
+
+      try {
+        await ctx.reply('🛑 Action denied. Informing AI...');
+        await ctx.sendChatAction('typing');
+        const agentResponse = await this.aiManager.denyTool(userId, toolCallId);
+        await this.sendAgentResponse(ctx, agentResponse);
+      } catch (error: any) {
+        process.stderr.write(`Telegram deny error: ${error.message}\n`);
+        await ctx.reply(`❌ Error: ${error.message}`);
+      }
+    });
+  }
+
+  private async sendAgentResponse(ctx: any, res: any): Promise<void> {
+    if (res.approvalRequired) {
+      const { toolCallId, toolName, arguments: args } = res.approvalRequired;
+      const text = `*⚠️ Action Requires Approval*\n\nThe AI wants to use the \`${toolName}\` tool.\n\n*Arguments:*\n\`\`\`json\n${JSON.stringify(args, null, 2)}\n\`\`\`\n\n${res.text || 'Do you approve?'}`;
+
+      await ctx.reply(text, {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: '✅ Approve', callback_data: `approve:${toolCallId}` },
+              { text: '❌ Deny', callback_data: `deny:${toolCallId}` }
+            ]
+          ]
+        }
+      });
+    } else {
+      await ctx.reply(res.text);
+    }
   }
 
   async stop(): Promise<void> {
     this.bot?.stop();
+  }
+
+  /** Send a proactive message to the authorized user. */
+  async sendMessage(text: string): Promise<void> {
+    if (!this.bot) throw new Error('Bot not started');
+    if (!this.authorizedUserId) {
+      process.stderr.write('  ⚠ Cannot send proactive message: No authorizedUserId set.\n');
+      return;
+    }
+    await this.bot.telegram.sendMessage(this.authorizedUserId, text);
   }
 }

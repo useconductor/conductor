@@ -20,6 +20,20 @@ export class GoogleCalendarPlugin implements Plugin {
   description = 'Read and manage Google Calendar events — requires Google OAuth';
   version = '1.0.0';
 
+  configSchema = {
+    fields: [
+      {
+        key: 'access_token',
+        label: 'Google Access Token',
+        type: 'password' as const,
+        required: true,
+        secret: true,
+        service: 'google',
+        description: 'Shared with Gmail plugin. Run "conductor auth google" to setup.'
+      }
+    ]
+  };
+
   private keychain!: Keychain;
 
   async initialize(conductor: Conductor): Promise<void> {
@@ -30,7 +44,7 @@ export class GoogleCalendarPlugin implements Plugin {
 
   private async getToken(): Promise<string> {
     const token = await this.keychain.get('google', 'access_token');
-    if (!token) throw new Error('Google not authenticated. Run: conductor ai setup google');
+    if (!token) throw new Error('Google not authenticated. Run: conductor auth google');
     return token;
   }
 
@@ -46,7 +60,7 @@ export class GoogleCalendarPlugin implements Plugin {
     });
     if (!res.ok) {
       const err = await res.text().catch(() => res.statusText);
-      if (res.status === 401) throw new Error('Google token expired. Re-authenticate: conductor ai setup google');
+      if (res.status === 401) throw new Error('Google token expired. Re-authenticate: conductor auth google');
       throw new Error(`Google Calendar API ${res.status}: ${err}`);
     }
     if (res.status === 204) return {};

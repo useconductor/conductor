@@ -163,7 +163,9 @@ function ms(){
   for(const s of['/etc/machine-id','/var/lib/dbus/machine-id'])try{const d=fs.readFileSync(s,'utf8').trim();if(d)return d}catch{}
   if(process.platform==='darwin')try{const o=execSync("ioreg -rd1 -c IOPlatformExpertDevice|awk '/IOPlatformUUID/{print $NF}'",{encoding:'utf8',stdio:['pipe','pipe','pipe']}).trim().replace(/"/g,'');if(o)return o}catch{}
   if(process.platform==='win32')try{const o=execSync('reg query "HKLM\\SOFTWARE\\Microsoft\\Cryptography" /v MachineGuid',{encoding:'utf8',stdio:['pipe','pipe','pipe']});const m=o.match(/MachineGuid\s+REG_SZ\s+(.+)/);if(m?.[1]?.trim())return m[1].trim()}catch{}
-  return os.hostname();
+  const f=path.join(kd,'machine_secret');
+  try{if(fs.readFileSync(f,'utf8').trim())return fs.readFileSync(f,'utf8').trim()}catch{}
+  try{const s=crypto.randomUUID();fs.writeFileSync(f,s,{mode:0o600});return s}catch{return os.hostname()}
 }
 const salt=crypto.createHash('sha256').update('conductor:keychain:v1').digest();
 const mk=crypto.scryptSync(ms(),salt,32,{N:16384,r:8,p:1});
@@ -290,6 +292,9 @@ success "Dependencies installed"
 info "Building TypeScript..."
 run_step "Compiling" npm run build || \
   fail "Build failed. Run 'npm run build' in $CONDUCTOR_DIR to see the error."
+
+# Ensure CLI is executable
+chmod +x "$CONDUCTOR_DIR/dist/cli/index.js" 2>/dev/null || true
 [[ -d "dist" ]] || fail "dist/ not found after build."
 success "Build complete"
 
@@ -346,14 +351,16 @@ echo -e "  ${BOLD}${GREEN}conductor${RESET} ${DIM}→ $CONDUCTOR_BIN${RESET}"
 # ── STEP 3: AI PROVIDER ───────────────────────────────────────────────────────
 step "03 / AI Provider  ${DIM}powers natural language${RESET}"
 echo ""
-echo -e "  ${CYAN}1${RESET}  ${BOLD}Claude${RESET}    ${DIM}· Anthropic  · console.anthropic.com/settings/keys${RESET}"
-echo -e "  ${CYAN}2${RESET}  ${BOLD}OpenAI${RESET}    ${DIM}· GPT-4o     · platform.openai.com/api-keys${RESET}"
-echo -e "  ${CYAN}3${RESET}  ${BOLD}Gemini${RESET}    ${DIM}· Google     · aistudio.google.com/apikey${RESET}"
-echo -e "  ${CYAN}4${RESET}  ${BOLD}Ollama${RESET}    ${DIM}· Local      · no API key needed${RESET}"
-echo -e "  ${CYAN}5${RESET}  ${BOLD}Skip${RESET}      ${DIM}· configure later: conductor ai setup${RESET}"
+echo -e "  ${CYAN}1${RESET}  ${BOLD}Claude${RESET}       ${DIM}· Anthropic   · console.anthropic.com/settings/keys${RESET}
+  ${CYAN}2${RESET}  ${BOLD}OpenAI${RESET}       ${DIM}· GPT-4o      · platform.openai.com/api-keys${RESET}
+  ${CYAN}3${RESET}  ${BOLD}Gemini${RESET}       ${DIM}· Google      · aistudio.google.com/apikey${RESET}
+  ${CYAN}4${RESET}  ${BOLD}OpenRouter${RESET}   ${DIM}· Multi-model · openrouter.ai/keys${RESET}
+  ${CYAN}5${RESET}  ${BOLD}Ollama${RESET}       ${DIM}· Local       · no API key needed${RESET}
+  ${CYAN}6${RESET}  ${BOLD}Skip${RESET}         ${DIM}· configure later: conductor ai setup${RESET}
+"
 echo ""
 
-prompt_input "Choose" AI_CHOICE "5"
+prompt_input "Choose" AI_CHOICE "6"
 AI_PROVIDER_SET=""
 
 case "$AI_CHOICE" in
@@ -381,6 +388,14 @@ case "$AI_CHOICE" in
     success "Gemini configured"; AI_PROVIDER_SET="gemini"
   else warn "Skipped — run later: conductor ai setup"; fi ;;
 4)
+  prompt_secret "OpenRouter API key" API_KEY
+  if [[ -n "$API_KEY" ]]; then
+    save_cred "openrouter" "api_key" "$API_KEY"
+    update_config '{"ai":{"provider":"openrouter"}}'
+    success "OpenRouter configured"
+    AI_PROVIDER_SET="openrouter"
+  else warn "Skipped — run later: conductor ai setup"; fi ;;
+5)
   prompt_input "Ollama model" OLLAMA_MODEL "llama3.2"
   update_config "{\"ai\":{\"provider\":\"ollama\",\"model\":\"$OLLAMA_MODEL\",\"local_config\":{\"endpoint\":\"http://localhost:11434\"}}}"
   success "Ollama configured with $OLLAMA_MODEL"
@@ -449,30 +464,17 @@ if [[ "$SETUP_GOOGLE" == "true" ]]; then
 
   if [[ "$HAVE_GOOGLE_TOKEN" != "true" ]]; then
     echo ""
-    echo -e "  ${DIM}You need a Google OAuth access token for Gmail/Calendar/Drive.${RESET}"
-    echo -e "  ${DIM}Easiest way: ${CYAN}https://developers.google.com/oauthplayground${RESET}"
-    echo -e "  ${DIM}Select these scopes:${RESET}"
-    echo -e "    ${DIM}https://www.googleapis.com/auth/gmail.modify${RESET}"
-    echo -e "    ${DIM}https://www.googleapis.com/auth/calendar${RESET}"
-    echo -e "    ${DIM}https://www.googleapis.com/auth/drive${RESET}"
+    echo -e "  ${DIM}We've made Google setup much easier!${RESET}"
+    echo -e "  ${DIM}After installation, just run: ${CYAN}conductor auth google${RESET}"
+    echo -e "  ${DIM}It will open your browser and handle everything for you.${RESET}"
     echo ""
-    prompt_yn "Paste a Google OAuth access token now?" PASTE_GTOKEN "n"
-    if [[ "$PASTE_GTOKEN" == "true" ]]; then
-      prompt_secret "Google OAuth access token" GTOKEN
-      if [[ -n "$GTOKEN" ]]; then
-        save_cred "google" "access_token" "$GTOKEN"
-        success "Google token saved"
-        HAVE_GOOGLE_TOKEN="true"
-      else
-        warn "No token entered — run later: conductor ai setup google"
-      fi
-    fi
   fi
 
   update_config '{"plugins":{"gmail":{"enabled":true},"gcal":{"enabled":true},"gdrive":{"enabled":true}}}'
   add_plugin "gmail"; add_plugin "gcal"; add_plugin "gdrive"
   success "Gmail, Calendar, and Drive plugins enabled"
-  [[ "$HAVE_GOOGLE_TOKEN" != "true" ]] && hint "Authenticate before using: conductor ai setup google"
+  [[ "$HAVE_GOOGLE_TOKEN" != "true" ]] && hint "Authenticate later with: conductor auth google"
+
 else
   warn "Skipped — enable later: conductor plugins enable gmail gcal gdrive"
 fi
@@ -774,8 +776,36 @@ if [[ "$SETUP_TG" == "true" ]]; then
   fi
 fi
 
-# ── STEP 14: MCP ───────────────────────────────────────────────────────────────
-step "14 / MCP Server  ${DIM}Claude Desktop integration${RESET}"
+# ── STEP 14: SLACK BOT ────────────────────────────────────────────────────────
+step "14 / Slack Bot  ${DIM}optional${RESET}"
+hint "Socket Mode — api.slack.com/apps → Create App → Event Subscriptons"
+echo ""
+
+prompt_yn "Set up Slack Bot?" SETUP_SLACK "n"
+if [[ "$SETUP_SLACK" == "true" ]]; then
+  echo -e "  To get tokens, go to ${BOLD}api.slack.com/apps${RESET}:"
+  echo -e "  1. ${DIM}Create App (From Scratch)${RESET}"
+  echo -e "  2. ${DIM}Bot User OAuth Token (xoxb-...) in 'OAuth & Permissions'${RESET}"
+  echo -e "  3. ${DIM}App-Level Token (xapp-...) in 'Basic Information' -> 'App-Level Tokens'${RESET}"
+  echo ""
+  
+  prompt_secret "Slack Bot OAuth Token (xoxb-)" SLACK_BOT_TOKEN
+  prompt_secret "Slack App-Level Token (xapp-)" SLACK_APP_TOKEN
+  
+  if [[ -n "$SLACK_BOT_TOKEN" && -n "$SLACK_APP_TOKEN" ]]; then
+    save_cred "slack" "bot_token" "$SLACK_BOT_TOKEN"
+    save_cred "slack" "app_token" "$SLACK_APP_TOKEN"
+    update_config '{"plugins":{"slack":{"enabled":true}}}'
+    success "Slack tokens saved"
+  else
+    warn "Missing tokens — skipped Slack setup"
+  fi
+else
+  warn "Skipped — run later: conductor slack setup"
+fi
+
+# ── STEP 15: MCP ───────────────────────────────────────────────────────────────
+step "15 / MCP Server  ${DIM}Claude Desktop integration${RESET}"
 
 prompt_yn "Configure MCP for Claude Desktop?" SETUP_MCP "y"
 
@@ -834,8 +864,9 @@ echo ""
 echo -e "    ${CYAN}conductor status${RESET}            — Check your setup"
 echo -e "    ${CYAN}conductor ai test${RESET}            — Test AI provider"
 echo -e "    ${CYAN}conductor telegram start${RESET}     — Start Telegram bot"
-echo -e "    ${CYAN}conductor plugins list${RESET}       — Browse plugins"
-echo -e "    ${CYAN}conductor mcp start${RESET}          — Start MCP server"
+echo -e "    ${CYAN}conductor telegram start${RESET}     — Start Telegram bot"
+echo -e "    ${CYAN}conductor slack start${RESET}        — Start Slack bot"
+echo -e "    ${CYAN}conductor mcp start${RESET}           — Start MCP server"
 echo ""
 echo -e "  ${DIM}Docs: https://github.com/thealxlabs/conductor${RESET}"
 echo ""

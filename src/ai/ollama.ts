@@ -1,4 +1,5 @@
 import { AIProvider, AIMessage, AIResponse } from './base.js';
+import { PluginTool } from '../plugins/manager.js';
 
 export class OllamaProvider extends AIProvider {
   private endpoint: string;
@@ -19,7 +20,7 @@ export class OllamaProvider extends AIProvider {
     }
   }
 
-  async complete(messages: AIMessage[]): Promise<AIResponse> {
+  async complete(messages: AIMessage[], tools?: PluginTool[]): Promise<AIResponse> {
     const model = this.config.model || 'llama3.2';
 
     const response = await fetch(`${this.endpoint}/api/chat`, {
@@ -45,7 +46,7 @@ export class OllamaProvider extends AIProvider {
     };
   }
 
-  async *stream(messages: AIMessage[]): AsyncGenerator<string> {
+  async *stream(messages: AIMessage[], tools?: PluginTool[]): AsyncGenerator<string> {
     const model = this.config.model || 'llama3.2';
 
     const response = await fetch(`${this.endpoint}/api/chat`, {

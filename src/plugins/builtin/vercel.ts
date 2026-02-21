@@ -30,6 +30,29 @@ export class VercelPlugin implements Plugin {
     'Manage Vercel deployments, projects, domains, and environment variables — requires Vercel token';
   version = '1.0.0';
 
+  configSchema = {
+    fields: [
+      {
+        key: 'token',
+        label: 'Vercel API Token',
+        type: 'password' as const,
+        required: true,
+        secret: true,
+        service: 'vercel',
+        description: 'Copy your token from Vercel Account Settings > Tokens.'
+      },
+      {
+        key: 'team_id',
+        label: 'Vercel Team ID (Optional)',
+        type: 'string' as const,
+        required: false,
+        secret: false,
+        description: 'Enter your Team ID to scope API calls to a specific team.'
+      }
+    ],
+    setupInstructions: '1. Go to vercel.com/account/tokens and create a new token. 2. If you are part of a team, copy the Team ID from your team settings page.'
+  };
+
   private keychain!: Keychain;
 
   async initialize(conductor: Conductor): Promise<void> {
@@ -45,8 +68,8 @@ export class VercelPlugin implements Plugin {
     if (!token) {
       throw new Error(
         'Vercel token not configured.\n' +
-          'Get one at https://vercel.com/account/tokens\n' +
-          'Then run: conductor plugins config vercel token <TOKEN>'
+        'Get one at https://vercel.com/account/tokens\n' +
+        'Then run: conductor plugins config vercel token <TOKEN>'
       );
     }
     const teamId = await this.keychain.get('vercel', 'team_id');
@@ -126,20 +149,20 @@ export class VercelPlugin implements Plugin {
       nodeVersion: p.nodeVersion ?? null,
       latestDeployment: p.latestDeployments?.[0]
         ? {
-            url: `https://${p.latestDeployments[0].url}`,
-            state: p.latestDeployments[0].readyState,
-            target: p.latestDeployments[0].target,
-          }
+          url: `https://${p.latestDeployments[0].url}`,
+          state: p.latestDeployments[0].readyState,
+          target: p.latestDeployments[0].target,
+        }
         : null,
       productionUrl: p.alias?.[0]?.domain ? `https://${p.alias[0].domain}` : null,
       createdAt: p.createdAt ? new Date(p.createdAt).toISOString() : null,
       updatedAt: p.updatedAt ? new Date(p.updatedAt).toISOString() : null,
       gitRepo: p.link
         ? {
-            provider: p.link.type,
-            repo: p.link.repo ?? p.link.projectName,
-            branch: p.link.productionBranch ?? 'main',
-          }
+          provider: p.link.type,
+          repo: p.link.repo ?? p.link.projectName,
+          branch: p.link.productionBranch ?? 'main',
+        }
         : null,
     };
   }

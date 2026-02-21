@@ -32,7 +32,7 @@ export class GoogleDrivePlugin implements Plugin {
 
   private async getToken(): Promise<string> {
     const token = await this.keychain.get('google', 'access_token');
-    if (!token) throw new Error('Google not authenticated. Run: conductor ai setup google');
+    if (!token) throw new Error('Google not authenticated. Run: conductor auth google');
     return token;
   }
 
@@ -59,7 +59,7 @@ export class GoogleDrivePlugin implements Plugin {
     });
     if (!res.ok) {
       const err = await res.text().catch(() => res.statusText);
-      if (res.status === 401) throw new Error('Google token expired. Re-authenticate: conductor ai setup google');
+      if (res.status === 401) throw new Error('Google token expired. Re-authenticate: conductor auth google');
       throw new Error(`Google Drive API ${res.status}: ${err}`);
     }
     if (res.status === 204) return {};

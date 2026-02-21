@@ -82,7 +82,27 @@ export class Keychain {
       }
     }
 
-    // Last resort: hostname (weak but matches install.sh fallback)
+    // Persistent fallback: Save a random UUID to a file if hardware IDs fail.
+    // This is safer than hostname which can change.
+    const fallbackPath = path.join(this.keychainDir, 'machine_secret');
+    try {
+      if (readFileSync(fallbackPath, 'utf8').trim()) {
+        return readFileSync(fallbackPath, 'utf8').trim();
+      }
+    } catch {
+      try {
+        const secret = crypto.randomUUID();
+        // Use synchronous write since this is inside deriveMasterKey constructor path
+        const fsSync = require('fs');
+        fsSync.mkdirSync(this.keychainDir, { recursive: true, mode: 0o700 });
+        fsSync.writeFileSync(fallbackPath, secret, { mode: 0o600 });
+        return secret;
+      } catch {
+        // Absolute last resort
+        return os.hostname();
+      }
+    }
+
     return os.hostname();
   }
 
@@ -92,7 +112,7 @@ export class Keychain {
   async set(service: string, key: string, value: string): Promise<void> {
     await fs.mkdir(this.keychainDir, { recursive: true, mode: 0o700 });
     // Enforce 0700 permissions in case dir already existed with wrong perms
-    await fs.chmod(this.keychainDir, 0o700).catch(() => {});
+    await fs.chmod(this.keychainDir, 0o700).catch(() => { });
 
     const iv = crypto.randomBytes(12); // 96-bit IV for GCM
     const cipher = crypto.createCipheriv('aes-256-gcm', this.masterKey, iv);

@@ -125,5 +125,146 @@ function registerPluginCommands(parent: Command, cmdName: string): void {
 registerPluginCommands(program, 'plugins');
 registerPluginCommands(program, 'plugin');
 
+// ── Proactive (Autonomous) ──────────────────────────────────────────
+const proactive = program.command('proactive').description('Autonomous agent management');
+
+proactive.command('start')
+  .description('Start the proactive autonomous loop')
+  .option('-i, --interval <minutes>', 'Interval between cycles', '30')
+  .action(async (options: { interval: string }) => {
+    await conductor.initialize();
+    await conductor.startProactiveMode(parseInt(options.interval));
+
+    // Keep process alive
+    console.log(`\n  🤖 Proactive mode active (every ${options.interval}m). Press Ctrl+C to stop.\n`);
+    process.on('SIGINT', async () => {
+      await conductor.stopProactiveMode();
+      process.exit(0);
+    });
+  });
+
+// ── Google (Convenience Alias) ──────────────────────────────────────
+program.command('google')
+  .description('Alias for "auth google" — browser-based setup')
+  .option('-f, --file <path>', 'Import credentials from Google JSON file')
+  .action(async (options: { file?: string }) => {
+    const { GoogleAuthManager } = await import('../utils/google-auth.js');
+    await conductor.initialize();
+    const authManager = new GoogleAuthManager(conductor);
+
+    if (options.file) {
+      try {
+        await authManager.importFromJson(options.file);
+      } catch (error: any) {
+        console.error(`\n  ❌ ${error.message}\n`);
+        process.exit(1);
+      }
+    }
+
+    const scopes = [
+      'https://www.googleapis.com/auth/gmail.modify',
+      'https://www.googleapis.com/auth/calendar',
+      'https://www.googleapis.com/auth/drive'
+    ];
+
+    try {
+      await authManager.login({ scopes });
+      console.log('\n  ✅ Google authentication successful!');
+      console.log('  🔌 Gmail, Calendar, Drive, and Gemini are now ready.\n');
+    } catch (error: any) {
+      console.error(`\n  ❌ Authentication failed: ${error.message}\n`);
+      process.exit(1);
+    }
+  });
+
+// ── Slack ──────────────────────────────────────────────────────────
+const slack = program.command('slack').description('Slack bot management');
+
+slack.command('setup')
+  .description('Configure Slack Bot and App tokens')
+  .action(async () => {
+    const { Keychain } = await import('../security/keychain.js');
+    const { default: inquirer } = await import('inquirer');
+    await conductor.initialize();
+    const keychain = new Keychain(conductor.getConfig().getConfigDir());
+
+    console.log('\n  🤖 Slack Setup');
+    console.log('  To get these, create an app at: https://api.slack.com/apps');
+    console.log('  1. Bot User OAuth Token (xoxb-...) in "OAuth & Permissions"');
+    console.log('  2. App-Level Token (xapp-...) in "Basic Information"\n');
+
+    const answers = await inquirer.prompt([
+      {
+        type: 'password',
+        name: 'botToken',
+        message: 'Enter Slack Bot User OAuth Token (xoxb-):',
+        mask: '*',
+        validate: (input) => input.startsWith('xoxb-') || 'Must start with xoxb-'
+      },
+      {
+        type: 'password',
+        name: 'appToken',
+        message: 'Enter Slack App-Level Token (xapp-):',
+        mask: '*',
+        validate: (input) => input.startsWith('xapp-') || 'Must start with xapp-'
+      }
+    ]);
+
+    await keychain.set('slack', 'bot_token', answers.botToken);
+    await keychain.set('slack', 'app_token', answers.appToken);
+
+    console.log('\n  ✅ Slack tokens saved to keychain.\n');
+  });
+
+slack.command('start')
+  .description('Start the Slack bot')
+  .action(async () => {
+    const { SlackBot } = await import('../bot/slack.js');
+    await conductor.initialize();
+    const bot = new SlackBot(conductor);
+    try {
+      await bot.start();
+    } catch (error: any) {
+      console.error(`\n  ❌ ${error.message}\n`);
+      process.exit(1);
+    }
+  });
+
+// ── Auth ───────────────────────────────────────────────────────────
+const auth = program.command('auth').description('Authentication management');
+
+auth.command('google')
+  .description('Browser-based Google authentication')
+  .option('-f, --file <path>', 'Import credentials from Google JSON file')
+  .action(async (options: { file?: string }) => {
+    const { GoogleAuthManager } = await import('../utils/google-auth.js');
+    await conductor.initialize();
+    const authManager = new GoogleAuthManager(conductor);
+
+    if (options.file) {
+      try {
+        await authManager.importFromJson(options.file);
+      } catch (error: any) {
+        console.error(`\n  ❌ ${error.message}\n`);
+        process.exit(1);
+      }
+    }
+
+    const scopes = [
+      'https://www.googleapis.com/auth/gmail.modify',
+      'https://www.googleapis.com/auth/calendar',
+      'https://www.googleapis.com/auth/drive'
+    ];
+
+    try {
+      await authManager.login({ scopes });
+      console.log('\n  ✅ Google authentication successful!');
+      console.log('  🔌 Gmail, Calendar, Drive, and Gemini are now ready.\n');
+    } catch (error: any) {
+      console.error(`\n  ❌ Authentication failed: ${error.message}\n`);
+      process.exit(1);
+    }
+  });
+
 // ── Run ──────────────────────────────────────────────────────────────
 program.parse();

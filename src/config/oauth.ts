@@ -1,17 +1,4 @@
-/**
- * OAuth credentials for Conductor.
- *
- * These are the app's OAuth credentials, not user credentials.
- * Users authenticate through the OAuth flow using these credentials.
- *
- * Precedence:
- *   1. Environment variables (recommended for production)
- *   2. ~/.conductor/config.json oauth section (set by installer)
- *
- * To configure: run the installer (install.sh) or set env vars:
- *   CONDUCTOR_GOOGLE_CLIENT_ID
- *   CONDUCTOR_GOOGLE_CLIENT_SECRET
- */
+import { Conductor } from '../core/conductor.js';
 
 export interface OAuthCredentials {
   clientId: string;
@@ -19,35 +6,20 @@ export interface OAuthCredentials {
   redirectUri: string;
 }
 
-export const OAUTH_CREDENTIALS: Record<string, OAuthCredentials> = {
-  google: {
-    clientId:
-      process.env.CONDUCTOR_GOOGLE_CLIENT_ID || '',
-    clientSecret:
-      process.env.CONDUCTOR_GOOGLE_CLIENT_SECRET || '',
-    redirectUri:
-      process.env.CONDUCTOR_GOOGLE_REDIRECT_URI || 'http://localhost:3000/callback',
-  },
-  gemini: {
-    clientId:
-      process.env.CONDUCTOR_GOOGLE_CLIENT_ID || '',
-    clientSecret:
-      process.env.CONDUCTOR_GOOGLE_CLIENT_SECRET || '',
-    redirectUri:
-      process.env.CONDUCTOR_GOOGLE_REDIRECT_URI || 'http://localhost:3000/callback',
-  },
-};
+export function getOAuthCredentials(conductor: Conductor, provider: string): OAuthCredentials {
+  const config = conductor.getConfig();
+  const searchProvider = provider === 'gemini' ? 'google' : provider;
+  const oauth = config.get<any>(`oauth.${searchProvider}`) || {};
 
-export function getOAuthCredentials(provider: string): OAuthCredentials {
-  const creds = OAUTH_CREDENTIALS[provider];
-  if (!creds) {
-    throw new Error(`No OAuth credentials configured for ${provider}`);
-  }
-  if (!creds.clientId || !creds.clientSecret) {
+  const clientId = process.env.CONDUCTOR_GOOGLE_CLIENT_ID || oauth.clientId || '';
+  const clientSecret = process.env.CONDUCTOR_GOOGLE_CLIENT_SECRET || oauth.clientSecret || '';
+  const redirectUri = process.env.CONDUCTOR_GOOGLE_REDIRECT_URI || oauth.redirectUri || 'http://localhost:3000/callback';
+
+  if (!clientId || !clientSecret) {
     throw new Error(
-      `Google OAuth not configured. Set CONDUCTOR_GOOGLE_CLIENT_ID and ` +
-      `CONDUCTOR_GOOGLE_CLIENT_SECRET, or run the installer.`
+      `Google OAuth not configured. Run "conductor google" to setup your Client ID and Secret interactively.`
     );
   }
-  return creds;
+
+  return { clientId, clientSecret, redirectUri };
 }

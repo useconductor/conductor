@@ -24,7 +24,7 @@ Write-Host "  ██║     ██║   ██║██║╚██╗██║�
 Write-Host "  ╚██████╗╚██████╔╝██║ ╚████║██████╔╝╚██████╔╝╚██████╗   ██║   ╚██████╔╝██║  ██║" -ForegroundColor Cyan
 Write-Host "   ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝╚═════╝  ╚═════╝  ╚═════╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "  Your AI Integration Hub  ·  by TheAlxLabs" -ForegroundColor DarkGray
+Write-Host "  your local AI integration hub  ·  by TheAlxLabs" -ForegroundColor DarkGray
 Write-Host ""
 
 # ── Step 1: Preflight ────────────────────────────────────────
@@ -95,11 +95,12 @@ try {
 Step "03 / AI Provider"
 
 Write-Host ""
-Write-Host "  1  Claude   · console.anthropic.com/settings/keys" -ForegroundColor White
-Write-Host "  2  OpenAI   · platform.openai.com/api-keys" -ForegroundColor White
-Write-Host "  3  Gemini   · aistudio.google.com/apikey" -ForegroundColor White
-Write-Host "  4  Ollama   · local, no key needed" -ForegroundColor White
-Write-Host "  5  Skip" -ForegroundColor DarkGray
+Write-Host "  1  Claude      · console.anthropic.com/settings/keys" -ForegroundColor White
+Write-Host "  2  OpenAI      · platform.openai.com/api-keys" -ForegroundColor White
+Write-Host "  3  Gemini      · aistudio.google.com/apikey" -ForegroundColor White
+Write-Host "  4  OpenRouter  · openrouter.ai/keys" -ForegroundColor White
+Write-Host "  5  Ollama      · local, no key needed" -ForegroundColor White
+Write-Host "  6  Skip" -ForegroundColor DarkGray
 Write-Host ""
 
 $choice = Read-Host "  ? Choose [1]"
@@ -139,6 +140,17 @@ switch ($choice) {
         Warn "Skipped — run: conductor ai setup"
     }
     "4" {
+        $key = Read-Host "  ? OpenRouter API key" -AsSecureString
+        $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($key)
+        $plain = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
+        if ($plain) {
+            node -e "const crypto=require('crypto'),fs=require('fs'),os=require('os'),path=require('path'),{execSync}=require('child_process');function g(){try{const o=execSync('reg query `"HKLM\\SOFTWARE\\Microsoft\\Cryptography`" /v MachineGuid',{encoding:'utf8'});const m=o.match(/MachineGuid\s+REG_SZ\s+(.+)/);if(m)return m[1].trim()}catch{}return os.hostname()}const s=g(),salt=crypto.createHash('sha256').update('conductor:keychain:v1').digest(),mk=crypto.scryptSync(s,salt,32,{N:16384,r:8,p:1}),iv=crypto.randomBytes(12),c=crypto.createCipheriv('aes-256-gcm',mk,iv);let e=c.update(process.argv[1],'utf8','hex');e+=c.final('hex');const t=c.getAuthTag().toString('hex');fs.writeFileSync(path.join('$KeychainDir','openrouter.api_key.enc'),['v2',iv.toString('hex'),t,e].join(':'),{mode:0o600})" "$plain"
+            $config["ai"] = @{ "provider" = "openrouter" }
+            $config | ConvertTo-Json -Depth 10 | Set-Content $ConfigFile
+            Success "OpenRouter configured"
+        }
+    }
+    "5" {
         $config["ai"] = @{ "provider" = "ollama"; "model" = "llama3.2"; "local_config" = @{ "endpoint" = "http://localhost:11434" } }
         $config | ConvertTo-Json -Depth 10 | Set-Content $ConfigFile
         Success "Ollama configured"

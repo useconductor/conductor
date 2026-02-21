@@ -1,6 +1,17 @@
+import { PluginTool } from '../plugins/manager.js';
+
+export interface AIToolCall {
+  id: string;
+  name: string;
+  arguments: Record<string, any>;
+}
+
 export interface AIMessage {
-  role: 'user' | 'assistant' | 'system';
+  role: 'user' | 'assistant' | 'system' | 'tool';
   content: string;
+  tool_calls?: AIToolCall[];
+  tool_call_id?: string;
+  name?: string; // Best practice for tool responses
 }
 
 export interface AIResponse {
@@ -8,6 +19,7 @@ export interface AIResponse {
   model: string;
   tokens_used?: number;
   finish_reason?: string;
+  tool_calls?: AIToolCall[];
 }
 
 export interface AIProviderConfig {
@@ -25,10 +37,10 @@ export abstract class AIProvider {
   }
 
   /** Send a message and get a response. */
-  abstract complete(messages: AIMessage[]): Promise<AIResponse>;
+  abstract complete(messages: AIMessage[], tools?: PluginTool[]): Promise<AIResponse>;
 
   /** Stream a response (for real-time output). */
-  abstract stream(messages: AIMessage[]): AsyncGenerator<string>;
+  abstract stream(messages: AIMessage[], tools?: PluginTool[]): AsyncGenerator<string>;
 
   /** Test if the provider is configured correctly. */
   abstract test(): Promise<boolean>;

@@ -24,6 +24,21 @@ export class GmailPlugin implements Plugin {
   description = 'Read, search, send, and manage Gmail — requires Google OAuth';
   version = '1.0.0';
 
+  configSchema = {
+    fields: [
+      {
+        key: 'access_token',
+        label: 'Google Access Token',
+        type: 'password' as const,
+        required: true,
+        secret: true,
+        service: 'google',
+        description: 'Run "conductor auth google" to obtain this automatically.'
+      }
+    ],
+    setupInstructions: 'Authentication for Google services is best handled via the CLI command `conductor auth google` which manages OAuth flows securely.'
+  };
+
   private keychain!: Keychain;
   private configDir!: string;
 
@@ -40,8 +55,7 @@ export class GmailPlugin implements Plugin {
     const token = await this.keychain.get('google', 'access_token');
     if (!token) {
       throw new Error(
-        'Google not authenticated. Run: conductor ai setup google\n' +
-          'Or set your access token: conductor plugins config gmail token <YOUR_TOKEN>'
+        'Google not authenticated. Run: conductor auth google'
       );
     }
     return token;
@@ -63,7 +77,7 @@ export class GmailPlugin implements Plugin {
     if (!res.ok) {
       const err = await res.text().catch(() => res.statusText);
       if (res.status === 401) {
-        throw new Error('Google token expired. Re-authenticate: conductor ai setup google');
+        throw new Error('Google token expired. Re-authenticate: conductor auth google');
       }
       throw new Error(`Gmail API ${res.status}: ${err}`);
     }

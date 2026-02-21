@@ -47,6 +47,27 @@ export class SpotifyPlugin implements Plugin {
     'Full Spotify control — playback, search, playlists, queue, recommendations, top tracks';
   version = '1.0.0';
 
+  configSchema = {
+    fields: [
+      {
+        key: 'client_id',
+        label: 'Spotify Client ID',
+        type: 'string' as const,
+        required: true,
+        secret: false
+      },
+      {
+        key: 'client_secret',
+        label: 'Spotify Client Secret',
+        type: 'password' as const,
+        required: true,
+        secret: true,
+        service: 'spotify'
+      }
+    ],
+    setupInstructions: 'Create an app in the Spotify Developer Dashboard. Set Redirect URI to http://localhost:8888/callback'
+  };
+
   private keychain!: Keychain;
   private configDir!: string;
 
@@ -66,8 +87,8 @@ export class SpotifyPlugin implements Plugin {
     if (!token) {
       throw new Error(
         'Spotify not authenticated.\n' +
-          'Run: conductor plugins auth spotify\n' +
-          'Or manually set: conductor plugins config spotify access_token <TOKEN>'
+        'Run: conductor plugins auth spotify\n' +
+        'Or manually set: conductor plugins config spotify access_token <TOKEN>'
       );
     }
     return token;

@@ -6,7 +6,22 @@ export class GitHubPlugin implements Plugin {
   description = 'GitHub repositories, issues, stars, user info (public data free, private needs token)';
   version = '1.0.0';
 
-  async initialize(_conductor: Conductor): Promise<void> {}
+  configSchema = {
+    fields: [
+      {
+        key: 'token',
+        label: 'GitHub PAT (Personal Access Token)',
+        type: 'password' as const,
+        required: true,
+        secret: true,
+        service: 'github',
+        description: 'Create a PAT with "repo" and "workflow" scopes.'
+      }
+    ],
+    setupInstructions: 'GitHub integration requires a Personal Access Token. You can create one in your GitHub Settings > Developer Settings > Personal Access Tokens.'
+  };
+
+  async initialize(_conductor: Conductor): Promise<void> { }
   isConfigured(): boolean { return true; } // Works for public data without token
 
   private async ghFetch(path: string, token?: string): Promise<any> {

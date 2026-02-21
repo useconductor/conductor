@@ -32,6 +32,28 @@ export class N8nPlugin implements Plugin {
     'Trigger and manage n8n workflows, inspect executions, fire webhooks — requires n8n API key';
   version = '1.0.0';
 
+  configSchema = {
+    fields: [
+      {
+        key: 'api_key',
+        label: 'n8n API Key',
+        type: 'password' as const,
+        required: true,
+        secret: true,
+        service: 'n8n'
+      },
+      {
+        key: 'base_url',
+        label: 'n8n Instance URL',
+        type: 'string' as const,
+        required: true,
+        secret: false,
+        description: 'e.g. https://n8n.yourdomain.com'
+      }
+    ],
+    setupInstructions: 'Create an API Key in your n8n instance: Settings > API > Create Key.'
+  };
+
   private keychain!: Keychain;
 
   async initialize(conductor: Conductor): Promise<void> {
@@ -47,8 +69,8 @@ export class N8nPlugin implements Plugin {
     if (!apiKey) {
       throw new Error(
         'n8n API key not configured.\n' +
-          'Get one from your n8n instance: Settings → API → Create Key\n' +
-          'Then run: conductor plugins config n8n api_key <KEY>'
+        'Get one from your n8n instance: Settings → API → Create Key\n' +
+        'Then run: conductor plugins config n8n api_key <KEY>'
       );
     }
     const rawUrl = await this.keychain.get('n8n', 'base_url');

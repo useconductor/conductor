@@ -26,6 +26,21 @@ export class NotionPlugin implements Plugin {
   description = 'Read, search, and create Notion pages and databases — requires Notion API key';
   version = '1.0.0';
 
+  configSchema = {
+    fields: [
+      {
+        key: 'api_key',
+        label: 'Internal Integration Token',
+        type: 'password' as const,
+        required: true,
+        secret: true,
+        service: 'notion',
+        description: 'Copy your token (starts with ntn_) from Notion Developer portal.'
+      }
+    ],
+    setupInstructions: '1. Visit Notion Settings > My integrations. 2. Create a new "Internal Integration". 3. Copy the token. 4. Ensure you "Connect" the integration to the pages you want Conductor to access.'
+  };
+
   private keychain!: Keychain;
 
   async initialize(conductor: Conductor): Promise<void> {
@@ -39,7 +54,7 @@ export class NotionPlugin implements Plugin {
     if (!token) {
       throw new Error(
         'Notion not configured. Get your integration token from https://www.notion.so/my-integrations\n' +
-          'Then run: conductor plugins config notion token <YOUR_TOKEN>'
+        'Then run: conductor plugins config notion token <YOUR_TOKEN>'
       );
     }
     return token;
@@ -99,8 +114,8 @@ export class NotionPlugin implements Plugin {
       parent: page.parent?.type === 'database_id'
         ? { type: 'database', id: page.parent.database_id }
         : page.parent?.type === 'page_id'
-        ? { type: 'page', id: page.parent.page_id }
-        : { type: 'workspace' },
+          ? { type: 'page', id: page.parent.page_id }
+          : { type: 'workspace' },
     };
   }
 
@@ -245,13 +260,13 @@ export class NotionPlugin implements Plugin {
 
           const children = content
             ? content
-                .split('\n')
-                .filter(Boolean)
-                .map((line: string) => ({
-                  object: 'block',
-                  type: 'paragraph',
-                  paragraph: { rich_text: [{ text: { content: line } }] },
-                }))
+              .split('\n')
+              .filter(Boolean)
+              .map((line: string) => ({
+                object: 'block',
+                type: 'paragraph',
+                paragraph: { rich_text: [{ text: { content: line } }] },
+              }))
             : [];
 
           const page = await this.notionFetch('/pages', {

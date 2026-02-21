@@ -28,6 +28,7 @@ import crypto from 'crypto';
 import { Plugin, PluginTool } from '../manager.js';
 import { Conductor } from '../../core/conductor.js';
 import { Keychain } from '../../security/keychain.js';
+import { withRetry } from '../../utils/retry.js';
 
 const X_BASE = 'https://api.twitter.com/2';
 
@@ -35,6 +36,52 @@ export class XPlugin implements Plugin {
   name = 'x';
   description = 'Post tweets, search X, get timelines and user info — requires X API credentials';
   version = '1.0.0';
+
+  configSchema = {
+    fields: [
+      {
+        key: 'bearer_token',
+        label: 'X Bearer Token',
+        type: 'password' as const,
+        required: true,
+        secret: true,
+        service: 'x'
+      },
+      {
+        key: 'api_key',
+        label: 'X API Key (Consumer)',
+        type: 'password' as const,
+        required: true,
+        secret: true,
+        service: 'x'
+      },
+      {
+        key: 'api_secret',
+        label: 'X API Secret (Consumer)',
+        type: 'password' as const,
+        required: true,
+        secret: true,
+        service: 'x'
+      },
+      {
+        key: 'access_token',
+        label: 'X Access Token',
+        type: 'password' as const,
+        required: true,
+        secret: true,
+        service: 'x'
+      },
+      {
+        key: 'access_secret',
+        label: 'X Access Secret',
+        type: 'password' as const,
+        required: true,
+        secret: true,
+        service: 'x'
+      }
+    ],
+    setupInstructions: 'Create a Project and App in developer.x.com. Enable "User authentication settings" with OAuth 1.0a permissions for write access.'
+  };
 
   private keychain!: Keychain;
 
@@ -49,8 +96,8 @@ export class XPlugin implements Plugin {
     if (!token) {
       throw new Error(
         'X Bearer Token not configured.\n' +
-          'Get one at https://developer.x.com and run:\n' +
-          '  conductor plugins config x bearer_token <YOUR_TOKEN>'
+        'Get one at https://developer.x.com and run:\n' +
+        '  conductor plugins config x bearer_token <YOUR_TOKEN>'
       );
     }
     return token;
@@ -71,10 +118,10 @@ export class XPlugin implements Plugin {
     if (!apiKey || !apiSecret || !accessToken || !accessSecret) {
       throw new Error(
         'X write credentials not fully configured. Run:\n' +
-          '  conductor plugins config x api_key <KEY>\n' +
-          '  conductor plugins config x api_secret <SECRET>\n' +
-          '  conductor plugins config x access_token <TOKEN>\n' +
-          '  conductor plugins config x access_secret <SECRET>'
+        '  conductor plugins config x api_key <KEY>\n' +
+        '  conductor plugins config x api_secret <SECRET>\n' +
+        '  conductor plugins config x access_token <TOKEN>\n' +
+        '  conductor plugins config x access_secret <SECRET>'
       );
     }
     return { apiKey, apiSecret, accessToken, accessSecret };
@@ -87,14 +134,23 @@ export class XPlugin implements Plugin {
     if (params) {
       for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
     }
-    const res = await fetch(url.toString(), {
-      headers: { Authorization: `Bearer ${token}` },
+
+    return withRetry(async () => {
+      const res = await fetch(url.toString(), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        let errStr = res.statusText;
+        try {
+          const errJSON = await res.json() as any;
+          errStr = errJSON.detail ?? errJSON.title ?? res.statusText;
+        } catch { }
+        const error = new Error(`X API ${res.status}: ${errStr}`);
+        (error as any).status = res.status;
+        throw error;
+      }
+      return res.json();
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ detail: res.statusText })) as any;
-      throw new Error(`X API ${res.status}: ${err.detail ?? err.title ?? res.statusText}`);
-    }
-    return res.json();
   }
 
   /** OAuth 1.0a HMAC-SHA1 signature for write operations */
@@ -148,19 +204,27 @@ export class XPlugin implements Plugin {
     const url = `${X_BASE}${path}`;
     const authHeader = this.buildOAuthHeader('POST', url, creds);
 
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        Authorization: authHeader,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
+    return withRetry(async () => {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: authHeader,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        let errStr = res.statusText;
+        try {
+          const errJSON = await res.json() as any;
+          errStr = errJSON.detail ?? errJSON.title ?? res.statusText;
+        } catch { }
+        const error = new Error(`X API ${res.status}: ${errStr}`);
+        (error as any).status = res.status;
+        throw error;
+      }
+      return res.json();
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ detail: res.statusText })) as any;
-      throw new Error(`X API ${res.status}: ${err.detail ?? err.title ?? res.statusText}`);
-    }
-    return res.json();
   }
 
   /** Format tweet fields for output */
@@ -309,6 +373,7 @@ export class XPlugin implements Plugin {
       {
         name: 'x_post_tweet',
         description: 'Post a new tweet to X (requires OAuth 1.0a write credentials)',
+        requiresApproval: true,
         inputSchema: {
           type: 'object',
           properties: {
@@ -341,6 +406,7 @@ export class XPlugin implements Plugin {
       {
         name: 'x_delete_tweet',
         description: 'Delete one of your tweets (requires OAuth write credentials)',
+        requiresApproval: true,
         inputSchema: {
           type: 'object',
           properties: {
@@ -367,6 +433,7 @@ export class XPlugin implements Plugin {
       {
         name: 'x_like_tweet',
         description: 'Like a tweet (requires OAuth write credentials and your user ID)',
+        requiresApproval: true,
         inputSchema: {
           type: 'object',
           properties: {

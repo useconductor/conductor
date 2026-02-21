@@ -7,6 +7,20 @@ export interface Plugin {
   initialize(conductor: Conductor): Promise<void>;
   isConfigured(): boolean;
   getTools(): PluginTool[];
+  configSchema?: PluginConfigSchema;
+}
+
+export interface PluginConfigSchema {
+  fields: {
+    key: string;
+    label: string;
+    type: 'string' | 'password' | 'number' | 'boolean';
+    description?: string;
+    required: boolean;
+    secret?: boolean; // If true, stored in Keychain instead of config.json
+    service?: string; // For secret fields, the Keychain service name
+  }[];
+  setupInstructions?: string;
 }
 
 export interface PluginTool {
@@ -14,6 +28,7 @@ export interface PluginTool {
   description: string;
   inputSchema: Record<string, any>;
   handler: (input: any) => Promise<any>;
+  requiresApproval?: boolean;
 }
 
 export class PluginManager {
@@ -44,8 +59,13 @@ export class PluginManager {
     if (!plugin) return undefined;
 
     if (!this.initializedPlugins.has(name)) {
-      await plugin.initialize(this.conductor);
-      this.initializedPlugins.add(name);
+      try {
+        await plugin.initialize(this.conductor);
+        this.initializedPlugins.add(name);
+      } catch (error: any) {
+        process.stderr.write(`Error: Failed to initialize plugin "${name}": ${error.message}\n`);
+        return undefined; // Don't return a broken plugin
+      }
     }
 
     return plugin;
@@ -57,6 +77,7 @@ export class PluginManager {
     description: string;
     version: string;
     enabled: boolean;
+    configSchema?: PluginConfigSchema;
   }> {
     const enabledPlugins =
       this.conductor.getConfig().get<string[]>('plugins.enabled') || [];
@@ -66,6 +87,7 @@ export class PluginManager {
       description: plugin.description,
       version: plugin.version,
       enabled: enabledPlugins.includes(plugin.name),
+      configSchema: plugin.configSchema,
     }));
   }
 
@@ -81,8 +103,12 @@ export class PluginManager {
 
     // Initialize to verify it works
     if (!this.initializedPlugins.has(name)) {
-      await plugin.initialize(this.conductor);
-      this.initializedPlugins.add(name);
+      try {
+        await plugin.initialize(this.conductor);
+        this.initializedPlugins.add(name);
+      } catch (error: any) {
+        throw new Error(`Failed to enable plugin "${name}": initialization failed: ${error.message}`);
+      }
     }
 
     const enabled =

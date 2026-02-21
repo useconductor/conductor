@@ -9,7 +9,6 @@ export interface ConductorConfig {
     role?: string;
     projects?: string;
     services?: string[];
-    onboarding_complete?: boolean;
     verified_at?: string;
   };
   telegram?: {
