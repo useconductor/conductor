@@ -490,7 +490,8 @@ async function testConfig() {
 
     delete process.env.CONDUCTOR_GOOGLE_CLIENT_ID;
     delete process.env.CONDUCTOR_GOOGLE_CLIENT_SECRET;
-    return creds.redirectUri;
+    // Do not return the redirect URI itself to avoid logging potentially sensitive data
+    return 'ok';
   });
 }
 
