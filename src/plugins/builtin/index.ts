@@ -75,6 +75,7 @@ export function getAllBuiltinPlugins(): Plugin[] {
     new SpotifyPlugin(),
 
     // ── Smart Home ─────────────────────────────────────────────────────────
+    // ── Smart home ────────────────────────────────────────────────────────
     new HomeKitPlugin(),
   ];
 }
