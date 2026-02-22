@@ -34,6 +34,7 @@ import { N8nPlugin } from './n8n.js';
 import { NotionPlugin } from './notion.js';
 import { XPlugin } from './x.js';
 import { SpotifyPlugin } from './spotify.js';
+import { HomeKitPlugin } from './homekit.js';
 
 /** Returns all builtin plugins (not initialized — just constructed). */
 export function getAllBuiltinPlugins(): Plugin[] {
@@ -72,5 +73,8 @@ export function getAllBuiltinPlugins(): Plugin[] {
     new NotionPlugin(),
     new XPlugin(),
     new SpotifyPlugin(),
+
+    // ── Smart home ────────────────────────────────────────────────────────
+    new HomeKitPlugin(),
   ];
 }
