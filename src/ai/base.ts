@@ -72,7 +72,7 @@ Examples:
 "show status" → { "type": "get_status" }
 "hello" → { "type": "chat", "message": "hello" }
 
-Respond with JSON only. If unclear, use type "chat".`;
+Respond with JSON only. If unclear, use type "chat". Always use English for any string values.`;
 
     const response = await this.complete([
       { role: 'system', content: systemPrompt },
