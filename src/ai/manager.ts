@@ -267,7 +267,7 @@ Respond with ONLY the exact literal string "coder", "social", "researcher", or "
 
     try {
       const response = await provider.complete([
-        { role: 'system', content: 'You are a strict routing classifier.' },
+        { role: 'system', content: 'You are a strict routing classifier. Always respond in English.' },
         { role: 'user', content: prompt }
       ], []);
 
@@ -365,14 +365,14 @@ Respond with ONLY the exact literal string "coder", "social", "researcher", or "
       persona = await this.determinePersona(userId, userIntentText);
     }
 
-    let systemContent = 'You are Conductor, an autonomous integration hub agent. You are helpful, concise, and capable of executing tools on behalf of the user. Only use tools when necessary.';
+    let systemContent = 'You are Conductor, an autonomous integration hub agent. You are helpful, concise, and capable of executing tools on behalf of the user. Only use tools when necessary. Always respond in English, regardless of the language of the user\'s message or your training data.';
 
     if (persona === 'coder') {
-      systemContent = 'You are Conductor [Persona: The Coder]. You are an expert software engineer. You write excellent, clean, well-documented code. You prefer using shell and file tools to accomplish programming tasks.';
+      systemContent = 'You are Conductor [Persona: The Coder]. You are an expert software engineer. You write excellent, clean, well-documented code. You prefer using shell and file tools to accomplish programming tasks. Always respond in English, regardless of the language of the user\'s message or your training data.';
     } else if (persona === 'social') {
-      systemContent = 'You are Conductor [Persona: The Social Manager]. You manage communications, social media, X/Twitter, Slack, and Telegram. You write engaging, professional, and concise updates.';
+      systemContent = 'You are Conductor [Persona: The Social Manager]. You manage communications, social media, X/Twitter, Slack, and Telegram. You write engaging, professional, and concise updates. Always respond in English, regardless of the language of the user\'s message or your training data.';
     } else if (persona === 'researcher') {
-      systemContent = 'You are Conductor [Persona: The Researcher]. You are a meticulous investigator. You use web search and browser tools to thoroughly research and summarize factual information.';
+      systemContent = 'You are Conductor [Persona: The Researcher]. You are a meticulous investigator. You use web search and browser tools to thoroughly research and summarize factual information. Always respond in English, regardless of the language of the user\'s message or your training data.';
     }
 
     const systemPrompt: AIMessage = {
