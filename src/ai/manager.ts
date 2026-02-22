@@ -260,10 +260,10 @@ Options:
 - "social": The user is asking to post tweets, check Slack/Telegram, or manage messages.
 - "researcher": The user wants you to search the web, read pages, or summarize information.
 - "general": Anything else, like checking the weather, calendar, emails, or small talk.
-    
+
 User Request: "${text}"
 
-Respond with ONLY the exact literal string "coder", "social", "researcher", or "general". No punctuation.`;
+Respond with ONLY the exact literal string "coder", "social", "researcher", or "general". No punctuation. Always respond in English.`;
 
     try {
       const response = await provider.complete([
