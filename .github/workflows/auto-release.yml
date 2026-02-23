@@ -17,33 +17,20 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Get version from package.json
+      - name: Get version from commit
         id: version
         run: |
-          VERSION=$(node -p "require('./package.json').version")
-          echo "version=v$VERSION" >> $GITHUB_OUTPUT
-          echo "raw_version=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Check if release already exists
-        id: check
-        run: |
-          if gh release view "${{ steps.version.outputs.version }}" --json tagName -q .tagName &>/dev/null; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-            echo "⚠️ Release ${{ steps.version.outputs.version }} already exists — skipping."
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          DATE=$(date +'%Y.%m.%d')
+          echo "version=v${DATE}-${SHORT_SHA}" >> $GITHUB_OUTPUT
 
       - name: Generate changelog
         id: changelog
-        if: steps.check.outputs.exists == 'false'
         run: |
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
 
           if [ -z "$LAST_TAG" ]; then
-            echo "No previous tags found — using full commit history."
+            echo "No previous tags — using full commit history."
             COMMITS=$(git log --pretty=format:"%s|%h|%an" --no-merges | head -50)
           else
             echo "Generating changelog since $LAST_TAG"
@@ -51,12 +38,10 @@ jobs:
           fi
 
           if [ -z "$COMMITS" ]; then
-            echo "No commits found since last release."
             echo "_No changes recorded._" > release_notes.md
             exit 0
           fi
 
-          # Parse commits into categories
           FEATS=""
           FIXES=""
           PERF=""
@@ -74,9 +59,12 @@ jobs:
             esac
           done <<< "$COMMITS"
 
-          # Build release notes
           {
             echo "## What's Changed"
+            echo ""
+            echo "> Commit: \`${{ github.sha }}\`"
+            echo "> Branch: \`${{ github.ref_name }}\`"
+            echo "> Author: ${{ github.actor }}"
             echo ""
 
             if [ -n "$FEATS" ]; then
@@ -101,14 +89,12 @@ jobs:
             fi
 
             if [ -n "$LAST_TAG" ]; then
-              REPO="${{ github.repository }}"
               echo "---"
-              echo "**Full diff:** https://github.com/${REPO}/compare/${LAST_TAG}...${{ steps.version.outputs.version }}"
+              echo "**Full diff:** https://github.com/${{ github.repository }}/compare/${LAST_TAG}...${{ steps.version.outputs.version }}"
             fi
           } > release_notes.md
 
       - name: Create GitHub Release
-        if: steps.check.outputs.exists == 'false'
         run: |
           gh release create "${{ steps.version.outputs.version }}" \
             --title "Conductor ${{ steps.version.outputs.version }}" \
@@ -120,12 +106,7 @@ jobs:
       - name: Summary
         if: always()
         run: |
-          if [ "${{ steps.check.outputs.exists }}" == "true" ]; then
-            echo "### ⏭️ Skipped" >> $GITHUB_STEP_SUMMARY
-            echo "Release \`${{ steps.version.outputs.version }}\` already exists." >> $GITHUB_STEP_SUMMARY
-          else
-            echo "### ✅ Released" >> $GITHUB_STEP_SUMMARY
-            echo "**Conductor \`${{ steps.version.outputs.version }}\`** has been published." >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            cat release_notes.md >> $GITHUB_STEP_SUMMARY
-          fi
+          echo "### ✅ Released" >> $GITHUB_STEP_SUMMARY
+          echo "**Conductor \`${{ steps.version.outputs.version }}\`** has been published." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          cat release_notes.md >> $GITHUB_STEP_SUMMARY
