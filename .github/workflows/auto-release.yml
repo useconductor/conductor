@@ -15,54 +15,117 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # full history for changelog generation
+          fetch-depth: 0
 
       - name: Get version from package.json
         id: version
         run: |
           VERSION=$(node -p "require('./package.json').version")
           echo "version=v$VERSION" >> $GITHUB_OUTPUT
+          echo "raw_version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Check if release already exists
         id: check
         run: |
-          EXISTS=$(gh release view ${{ steps.version.outputs.version }} --json tagName -q .tagName 2>/dev/null || echo "")
-          echo "exists=$EXISTS" >> $GITHUB_OUTPUT
+          if gh release view "${{ steps.version.outputs.version }}" --json tagName -q .tagName &>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "⚠️ Release ${{ steps.version.outputs.version }} already exists — skipping."
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Generate changelog from commits
+      - name: Generate changelog
         id: changelog
-        if: steps.check.outputs.exists == ''
+        if: steps.check.outputs.exists == 'false'
         run: |
-          # Get commits since last tag (or all commits if no tags)
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
           if [ -z "$LAST_TAG" ]; then
-            COMMITS=$(git log --pretty=format:"- %s" --no-merges | head -30)
+            echo "No previous tags found — using full commit history."
+            COMMITS=$(git log --pretty=format:"%s|%h|%an" --no-merges | head -50)
           else
-            COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s" --no-merges)
+            echo "Generating changelog since $LAST_TAG"
+            COMMITS=$(git log "${LAST_TAG}..HEAD" --pretty=format:"%s|%h|%an" --no-merges)
           fi
 
-          # Categorise into feat / fix / other
-          FEATS=$(echo "$COMMITS" | grep -iE "^- (feat|add|new)" || true)
-          FIXES=$(echo "$COMMITS" | grep -iE "^- (fix|bug|patch)" || true)
-          OTHER=$(echo "$COMMITS" | grep -ivE "^- (feat|add|new|fix|bug|patch)" || true)
+          if [ -z "$COMMITS" ]; then
+            echo "No commits found since last release."
+            echo "_No changes recorded._" > release_notes.md
+            exit 0
+          fi
 
-          BODY=""
-          if [ -n "$FEATS" ]; then BODY="$BODY\n### New\n$FEATS"; fi
-          if [ -n "$FIXES" ]; then BODY="$BODY\n### Fixed\n$FIXES"; fi
-          if [ -n "$OTHER" ]; then BODY="$BODY\n### Changes\n$OTHER"; fi
+          # Parse commits into categories
+          FEATS=""
+          FIXES=""
+          PERF=""
+          CHORE=""
+          OTHER=""
 
-          # Write to file to preserve newlines
-          printf "%b" "$BODY" > release_notes.md
-          echo "notes_file=release_notes.md" >> $GITHUB_OUTPUT
+          while IFS='|' read -r subject hash author; do
+            ENTRY="- ${subject} (\`${hash}\`) — ${author}"
+            case "$subject" in
+              feat*|add*|new*)     FEATS="$FEATS\n$ENTRY" ;;
+              fix*|bug*|patch*)    FIXES="$FIXES\n$ENTRY" ;;
+              perf*|optim*)        PERF="$PERF\n$ENTRY" ;;
+              chore*|ci*|build*|docs*|refactor*|test*|style*) CHORE="$CHORE\n$ENTRY" ;;
+              *)                   OTHER="$OTHER\n$ENTRY" ;;
+            esac
+          done <<< "$COMMITS"
+
+          # Build release notes
+          {
+            echo "## What's Changed"
+            echo ""
+
+            if [ -n "$FEATS" ]; then
+              echo "### ✨ New Features"
+              printf "%b\n\n" "$FEATS"
+            fi
+            if [ -n "$FIXES" ]; then
+              echo "### 🐛 Bug Fixes"
+              printf "%b\n\n" "$FIXES"
+            fi
+            if [ -n "$PERF" ]; then
+              echo "### ⚡ Performance"
+              printf "%b\n\n" "$PERF"
+            fi
+            if [ -n "$OTHER" ]; then
+              echo "### 🔀 Other Changes"
+              printf "%b\n\n" "$OTHER"
+            fi
+            if [ -n "$CHORE" ]; then
+              echo "### 🔧 Maintenance"
+              printf "%b\n\n" "$CHORE"
+            fi
+
+            if [ -n "$LAST_TAG" ]; then
+              REPO="${{ github.repository }}"
+              echo "---"
+              echo "**Full diff:** https://github.com/${REPO}/compare/${LAST_TAG}...${{ steps.version.outputs.version }}"
+            fi
+          } > release_notes.md
 
       - name: Create GitHub Release
-        if: steps.check.outputs.exists == ''
+        if: steps.check.outputs.exists == 'false'
         run: |
-          gh release create ${{ steps.version.outputs.version }} \
+          gh release create "${{ steps.version.outputs.version }}" \
             --title "Conductor ${{ steps.version.outputs.version }}" \
             --notes-file release_notes.md \
             --latest
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        if: always()
+        run: |
+          if [ "${{ steps.check.outputs.exists }}" == "true" ]; then
+            echo "### ⏭️ Skipped" >> $GITHUB_STEP_SUMMARY
+            echo "Release \`${{ steps.version.outputs.version }}\` already exists." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ✅ Released" >> $GITHUB_STEP_SUMMARY
+            echo "**Conductor \`${{ steps.version.outputs.version }}\`** has been published." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            cat release_notes.md >> $GITHUB_STEP_SUMMARY
+          fi
