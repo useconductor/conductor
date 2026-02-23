@@ -54,6 +54,12 @@ irm https://raw.githubusercontent.com/thealxlabs/conductor/main/install.ps1 | ie
 
 The 14-step interactive installer configures AI providers, Google OAuth, Slack/Telegram tokens, and Claude Desktop MCP. Every step is optional and skippable.
 
+**Requirements:**
+- Node.js >= 18.0.0
+- npm
+
+The installer checks for Node.js automatically and guides you through setup. It is fully idempotent — re-running it is safe.
+
 ---
 
 ## Supported AI Providers
@@ -73,6 +79,10 @@ conductor ai switch gemini
 conductor ai switch claude
 conductor ai switch ollama
 ```
+
+**Ollama (fully local, no API key):**
+
+Conductor connects to your local Ollama server at `http://localhost:11434` by default. Start Ollama first with `ollama serve`, then run `conductor ai setup` and choose Ollama.
 
 ---
 
@@ -107,6 +117,52 @@ conductor mcp setup           # Auto-configure Claude Desktop
 conductor ai switch gemini    # Swap your primary AI model
 conductor proactive start     # Start autonomous mode (every 30 min)
 ```
+
+---
+
+## Architecture
+
+Conductor is built around four core components:
+
+### 1. Core (`src/core/`)
+
+- **`Conductor`** — The central orchestrator. Initializes configuration, the database, plugins, and AI on startup. Owns the proactive reasoning loop and notification dispatch.
+- **`ConfigManager`** — Reads and writes `~/.conductor/config.json`. Supports dot-path key access (e.g., `plugins.enabled`). Config writes are atomic (write to `.tmp`, then rename).
+- **`DatabaseManager`** — SQLite database via `sql.js`. Stores conversation history, plugin registry, activity logs, and credentials metadata.
+
+### 2. AI Layer (`src/ai/`)
+
+- **`AIManager`** — Loads the configured provider, runs the agent loop, and manages Persona Routing. The `handleConversation()` method drives up to 15 tool-calling iterations per request before halting.
+- Provider implementations: `ClaudeProvider`, `OpenAIProvider`, `GeminiProvider`, `OllamaProvider`, `OpenRouterProvider` — each implements a common `AIProvider` interface with `complete()`, `test()`, and `parseIntent()`.
+
+### 3. Plugin System (`src/plugins/`)
+
+- **`PluginManager`** — Loads all builtin plugins at startup, checks `config.json` for which are enabled, and exposes `getEnabledTools()` to the AI layer.
+- Each plugin exports a `Plugin` object with a name, description, and array of `PluginTool` entries. Tools declare an `inputSchema` (JSON Schema) and an async `execute()` / `handler()` function.
+- Tools can declare `requiresApproval: true` — when an AI tries to call such a tool, execution pauses and the user is notified for manual approval via Slack or Telegram.
+
+### 4. Interfaces
+
+- **MCP Server** (`src/mcp/`) — Implements the Model Context Protocol so Conductor's tools appear natively in Claude Desktop. Runs in stdio mode.
+- **Slack Bot** (`src/bot/slack.ts`) — Uses `@slack/bolt`. Listens for `@conductor` mentions and DMs.
+- **Telegram Bot** (`src/bot/telegram.ts`) — Uses `telegraf`. Handles `/start`, `/approve`, `/deny`, and conversational messages.
+
+### Agent Loop
+
+Each conversation turn runs a loop (max 15 iterations):
+
+```
+1. User message → stored in SQLite conversation history
+2. Persona detection → classifies request into coder / social / researcher / general
+3. System prompt set → per-persona instructions injected
+4. AI provider called with full history + available tools
+5. If tool calls returned → execute each tool, append results
+6. If requiresApproval tool → pause loop, notify user
+7. Repeat from step 4 until AI returns a plain text response
+8. Final response returned to the user interface
+```
+
+Conductor keeps the last 30 messages of conversation history per user for context.
 
 ---
 
@@ -174,6 +230,10 @@ conductor proactive start     # Start autonomous mode (every 30 min)
 "Schedule a meeting with Alex tomorrow at 2pm and add it to my calendar."
 "Play my Discover Weekly on Spotify and queue 5 more similar tracks."
 "Search GitHub for trending TypeScript projects and give me the top 5."
+"Generate a UUID and a secure 20-character password."
+"Check if my website is responding and show me the response headers."
+"Show me my top CPU-consuming processes."
+"Convert 250 USD to EUR."
 ```
 
 ---
@@ -210,7 +270,20 @@ When you send a message, Conductor classifies it into one of four personas befor
 | **Researcher** | Web search, page reading, summarization | weather, translate, url-tools, network |
 | **General** | Calendar, emails, small talk, everything else | gcal, gmail, memory, notes, cron |
 
-Routing happens automatically. You don't need to specify a persona — Conductor infers it from your message.
+Routing happens automatically. You don't need to specify a persona — Conductor infers it from your message using a fast AI classification call before the main conversation loop begins.
+
+---
+
+## Approval Gates
+
+Tools can require human approval before execution. When an AI attempts to use an approval-gated tool:
+
+1. The agent loop pauses immediately.
+2. A notification is sent to you via Slack or Telegram with the tool name and arguments.
+3. You reply with `/approve <tool_call_id>` to allow it, or `/deny <tool_call_id>` to block it.
+4. Conductor resumes the conversation loop with the result.
+
+This is especially useful for Proactive Mode, where the AI acts autonomously — approval gates ensure destructive or irreversible actions always go through you first.
 
 ---
 
@@ -277,6 +350,27 @@ conductor plugins enable slack  # Enable Slack (will prompt for tokens)
 
 No raw secrets are stored in `config.json`. All credentials are encrypted in `~/.conductor/keychain/` using AES-256-GCM with a key derived from your machine's hardware ID.
 
+### `config.json` structure
+
+```json
+{
+  "user": { "id": "...", "name": "...", "role": "..." },
+  "ai": {
+    "provider": "claude",
+    "model": "claude-3-5-sonnet-20241022"
+  },
+  "plugins": {
+    "installed": ["gmail", "spotify", "github"],
+    "enabled": ["gmail", "spotify"]
+  },
+  "security": {
+    "filesystem_access": { "enabled": false, "allowed_paths": [] },
+    "system_commands": false,
+    "desktop_control": false
+  }
+}
+```
+
 ---
 
 ## Security
@@ -288,14 +382,35 @@ Credentials are encrypted using **AES-256-GCM**. The master key is derived via `
 - **No raw secrets** stored in `config.json`
 - **Approval gates** for sensitive proactive actions (configurable)
 
+Report vulnerabilities privately via [GitHub Security Advisories](https://github.com/thealxlabs/conductor/security/advisories/new) — do not open a public issue.
+
 ---
 
 ## Development
 
+**Requirements:** Node.js >= 18, TypeScript 5.x
+
 ```bash
-npm run dev    # Start in watch mode
-npm run build  # Transpile TypeScript
+npm run dev    # Start in watch mode (tsx watch)
+npm run build  # Transpile TypeScript to dist/
 npm start      # Run production build
+npm test       # Run all tests (skips auth-required plugins)
+npm run test:full  # Run all tests including auth plugins
+```
+
+### Project Structure
+
+```
+src/
+├── ai/           # AI provider implementations (Claude, OpenAI, Gemini, Ollama, OpenRouter)
+├── bot/          # Slack and Telegram bot interfaces
+├── cli/          # Commander.js CLI commands
+├── config/       # OAuth credential helpers
+├── core/         # Conductor orchestrator, ConfigManager, DatabaseManager
+├── mcp/          # MCP server and tool registration
+├── plugins/      # Plugin manager + 27 builtin plugins
+├── security/     # AES-256-GCM keychain implementation
+└── utils/        # Shared utilities
 ```
 
 ### Adding a Plugin
@@ -345,4 +460,4 @@ Your plugin will be available via `conductor plugins enable my-plugin` and will 
 
 ## License
 
-[MIT](LICENSE) — [Alexander Wondwossen](https://github.com/thealxlabs) / TheAlxLabs
+[Apache-2.0](LICENSE) — [Alexander Wondwossen](https://github.com/thealxlabs) / TheAlxLabs
