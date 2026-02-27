@@ -7,7 +7,7 @@ on:
     paths:
       - 'install.sh'
       - 'install.ps1'
-  workflow_dispatch:          # lets you trigger it manually from GitHub UI
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -19,33 +19,29 @@ jobs:
       - name: Checkout conductor repo
         uses: actions/checkout@v4
 
-      - name: Push install.sh to website repo
+      - name: Push install scripts to website repo
         env:
           TOKEN: ${{ secrets.WEBSITE_REPO_TOKEN }}
         run: |
-          # --- config ---
           WEBSITE_REPO="thealxlabs/conductor-website"
-          DEST_PATH="install.sh"
-          # --------------
 
           git config --global user.name  "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Clone the website repo
           git clone https://x-access-token:${TOKEN}@github.com/${WEBSITE_REPO}.git website-repo
 
-          # Copy both files
-          cp install.sh website-repo/${DEST_PATH}
+          cp install.sh website-repo/install.sh
           cp install.ps1 website-repo/install.ps1
 
           cd website-repo
 
-          # Only commit if something actually changed
-          if git diff --quiet; then
+          git add install.sh install.ps1
+
+          # Only commit if there are staged changes
+          if git diff --cached --quiet; then
             echo "No changes, skipping commit."
             exit 0
           fi
 
-          git add ${DEST_PATH} install.ps1
           git commit -m "sync: update install scripts from conductor@${{ github.sha }}"
           git push
