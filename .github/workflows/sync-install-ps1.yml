@@ -1,0 +1,48 @@
+name: Sync install.sh to website
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'install.sh'
+      - 'install.ps1'
+  workflow_dispatch:          # lets you trigger it manually from GitHub UI
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout conductor repo
+        uses: actions/checkout@v4
+
+      - name: Push install.sh to website repo
+        env:
+          TOKEN: ${{ secrets.WEBSITE_REPO_TOKEN }}
+        run: |
+          # --- config: update these two values ---
+          WEBSITE_REPO="thealxlabs/conductor-site"   # your website repo name
+          DEST_PATH="install.sh"                      # path inside the website repo
+          # ---------------------------------------
+
+          git config --global user.name  "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Clone the website repo
+          git clone https://x-access-token:${TOKEN}@github.com/${WEBSITE_REPO}.git website-repo
+
+          # Copy the files
+          cp install.sh website-repo/${DEST_PATH}
+          cp install.ps1 website-repo/install.ps1
+
+          cd website-repo
+
+          # Only commit if something actually changed
+          if git diff --quiet; then
+            echo "No changes to install.sh, skipping commit."
+            exit 0
+          fi
+
+          git add ${DEST_PATH} install.ps1
+          git commit -m "sync: update install.sh from conductor@${{ github.sha }}"
+          git push
