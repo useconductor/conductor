@@ -9,6 +9,9 @@ on:
       - 'install.ps1'
   workflow_dispatch:          # lets you trigger it manually from GitHub UI
 
+permissions:
+  contents: read
+
 jobs:
   sync:
     runs-on: ubuntu-latest
@@ -20,29 +23,29 @@ jobs:
         env:
           TOKEN: ${{ secrets.WEBSITE_REPO_TOKEN }}
         run: |
-          # --- config: update these two values ---
-          WEBSITE_REPO="thealxlabs/conductor-website"  # your website repo name
-          DEST_PATH="install.sh"                      # path inside the website repo
-          # ---------------------------------------
+          # --- config ---
+          WEBSITE_REPO="thealxlabs/conductor-website"
+          DEST_PATH="install.sh"
+          # --------------
 
           git config --global user.name  "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
           # Clone the website repo
-          git clone https://x-access-token:${TOKEN}@github.com/${WEBSITE_REPO}.git conductor-website
+          git clone https://x-access-token:${TOKEN}@github.com/${WEBSITE_REPO}.git website-repo
 
-          # Copy the files
+          # Copy both files
           cp install.sh website-repo/${DEST_PATH}
           cp install.ps1 website-repo/install.ps1
 
-          cd conductor-website
+          cd website-repo
 
           # Only commit if something actually changed
           if git diff --quiet; then
-            echo "No changes to install.sh, skipping commit."
+            echo "No changes, skipping commit."
             exit 0
           fi
 
           git add ${DEST_PATH} install.ps1
-          git commit -m "sync: update install.sh from conductor@${{ github.sha }}"
+          git commit -m "sync: update install scripts from conductor@${{ github.sha }}"
           git push
