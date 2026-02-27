@@ -29,13 +29,13 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
           # Clone the website repo
-          git clone https://x-access-token:${TOKEN}@github.com/${WEBSITE_REPO}.git website-repo
+          git clone https://x-access-token:${TOKEN}@github.com/${WEBSITE_REPO}.git conductor-website
 
           # Copy the files
           cp install.sh website-repo/${DEST_PATH}
           cp install.ps1 website-repo/install.ps1
 
-          cd website-repo
+          cd conductor-website
 
           # Only commit if something actually changed
           if git diff --quiet; then
