@@ -43,13 +43,12 @@ Conductor works the same way whether you talk to it through a Slack message, a T
 **macOS / Linux:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/thealxlabs/conductor/main/install.sh | bash
-```
+curl -fsSL https://conductor.thealxlabs.ca/install.sh | bash
 
 **Windows (PowerShell):**
 
 ```powershell
-irm https://raw.githubusercontent.com/thealxlabs/conductor/main/install.ps1 | iex
+irm https://conductor.thealxlabs.ca/install.ps1 | iex
 ```
 
 The 14-step interactive installer configures AI providers, Google OAuth, Slack/Telegram tokens, and Claude Desktop MCP. Every step is optional and skippable.
