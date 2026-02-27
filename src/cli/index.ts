@@ -266,5 +266,54 @@ auth.command('google')
     }
   });
 
+// ── Marketplace ───────────────────────────────────────────────────────────────
+program.command('install')
+  .argument('<plugin>', 'Plugin ID to install (e.g. gmail, github, slack)')
+  .description('Install a plugin from the Conductor marketplace')
+  .action(async (pluginId: string) => {
+    const { installPlugin } = await import('./commands/marketplace.js');
+    await conductor.initialize();
+    await installPlugin(conductor, pluginId);
+  });
+
+program.command('uninstall')
+  .argument('<plugin>', 'Plugin ID to uninstall')
+  .description('Uninstall a marketplace plugin')
+  .action(async (pluginId: string) => {
+    const { uninstallPlugin } = await import('./commands/marketplace.js');
+    await conductor.initialize();
+    await uninstallPlugin(conductor, pluginId);
+  });
+
+const marketplace = program.command('marketplace').description('Browse the Conductor plugin marketplace');
+
+marketplace
+  .option('-s, --search <query>', 'Search plugins')
+  .option('-c, --category <category>', 'Filter by category')
+  .action(async (opts: { search?: string; category?: string }) => {
+    const { listMarketplace } = await import('./commands/marketplace.js');
+    await conductor.initialize();
+    await listMarketplace(conductor, opts);
+  });
+
+marketplace.command('info')
+  .argument('<plugin>', 'Plugin ID')
+  .description('Show details about a plugin')
+  .action(async (pluginId: string) => {
+    const { pluginInfo } = await import('./commands/marketplace.js');
+    await conductor.initialize();
+    await pluginInfo(conductor, pluginId);
+  });
+
+// ── Dashboard ─────────────────────────────────────────────────────────
+program.command('dashboard')
+  .description('Open the Conductor web dashboard')
+  .option('-p, --port <port>', 'Port to run on', '4242')
+  .option('--no-open', 'Do not auto-open browser')
+  .action(async (opts: { port?: string; open?: boolean }) => {
+    const { dashboardCommand } = await import('../dashboard/cli.js');
+    await dashboardCommand(conductor, opts);
+  });
+
 // ── Run ──────────────────────────────────────────────────────────────
 program.parse();

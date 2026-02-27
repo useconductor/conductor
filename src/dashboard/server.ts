@@ -13,7 +13,7 @@ const __dirname  = path.dirname(__filename);
 const ALL_PLUGINS: readonly string[] = [
   'calculator', 'colors', 'cron', 'crypto', 'fun', 'gcal', 'gdrive',
   'github', 'github-actions', 'gmail', 'hash', 'homekit', 'memory',
-  'n8n', 'network', 'notes', 'notion', 'spotify', 'system', 'text-tools',
+  'n8n', 'network', 'notes', 'notion', 'slack', 'spotify', 'system', 'text-tools',
   'timezone', 'translate', 'url-tools', 'vercel', 'weather', 'x',
 ] as const;
 
@@ -30,6 +30,7 @@ const PLUGIN_REQUIRED_CREDS: Record<string, { service: string; key: string }[]> 
   'weather':        [{ service: 'weather',  key: 'api_key'      }],
   'x':              [{ service: 'x',        key: 'api_key'      }],
   'homekit':        [{ service: 'homekit',  key: 'base_url'     }],
+  'slack':          [{ service: 'slack',    key: 'bot_token'    }],
 };
 
 interface CredentialEntry { service: string; key: string }
@@ -48,6 +49,7 @@ const KNOWN_CREDENTIALS: CredentialEntry[] = [
   { service: 'weather',  key: 'api_key'       },
   { service: 'x',        key: 'api_key'       },
   { service: 'google',   key: 'access_token'  },
+  { service: 'slack',    key: 'bot_token'     },
 ];
 
 // Bundled Google OAuth app — users never need to create their own

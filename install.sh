@@ -853,6 +853,24 @@ if [[ "$SETUP_MCP" == "true" ]]; then
   fi
 fi
 
+# ── Dashboard ─────────────────────────────────────────────────────────────────
+echo ""
+prompt_yn "Open the Conductor dashboard now?" OPEN_DASHBOARD "y"
+if [[ "$OPEN_DASHBOARD" == "true" ]]; then
+  info "Launching dashboard…"
+  "$CONDUCTOR_CLI" dashboard &
+  DASH_PID=$!
+  sleep 1
+  if kill -0 "$DASH_PID" 2>/dev/null; then
+    success "Dashboard running at http://localhost:4242"
+    hint "Stop it with: kill $DASH_PID  (or Ctrl+C in its terminal)"
+  else
+    warn "Dashboard did not start — run manually: conductor dashboard"
+  fi
+else
+  hint "Run later: conductor dashboard"
+fi
+
 # ── DONE ──────────────────────────────────────────────────────────────────────
 echo ""
 echo -e "  ${BOLD}${CYAN}┌──────────────────────────────────────────────${RESET}"
@@ -861,11 +879,11 @@ echo -e "  ${BOLD}${CYAN}└─────────────────�
 echo ""
 echo -e "  ${BOLD}Get started:${RESET}"
 echo ""
-echo -e "    ${CYAN}conductor status${RESET}            — Check your setup"
-echo -e "    ${CYAN}conductor ai test${RESET}            — Test AI provider"
+echo -e "    ${CYAN}conductor dashboard${RESET}          — Open web dashboard"
+echo -e "    ${CYAN}conductor status${RESET}             — Check your setup"
+echo -e "    ${CYAN}conductor ai test${RESET}             — Test AI provider"
 echo -e "    ${CYAN}conductor telegram start${RESET}     — Start Telegram bot"
-echo -e "    ${CYAN}conductor telegram start${RESET}     — Start Telegram bot"
-echo -e "    ${CYAN}conductor slack start${RESET}        — Start Slack bot"
+echo -e "    ${CYAN}conductor slack start${RESET}         — Start Slack bot"
 echo -e "    ${CYAN}conductor mcp start${RESET}           — Start MCP server"
 echo ""
 echo -e "  ${DIM}Docs: https://github.com/thealxlabs/conductor${RESET}"

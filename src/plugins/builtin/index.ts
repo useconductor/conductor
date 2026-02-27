@@ -35,6 +35,7 @@ import { NotionPlugin } from './notion.js';
 import { XPlugin } from './x.js';
 import { SpotifyPlugin } from './spotify.js';
 import { HomeKitPlugin } from './homekit.js';
+import { SlackPlugin } from './slack.js';
 
 /** Returns all builtin plugins (not initialized — just constructed). */
 export function getAllBuiltinPlugins(): Plugin[] {
@@ -74,8 +75,10 @@ export function getAllBuiltinPlugins(): Plugin[] {
     new XPlugin(),
     new SpotifyPlugin(),
 
-    // ── Smart Home ─────────────────────────────────────────────────────────
     // ── Smart home ────────────────────────────────────────────────────────
     new HomeKitPlugin(),
+
+    // ── Messaging ─────────────────────────────────────────────────────────
+    new SlackPlugin(),
   ];
 }
