@@ -5,7 +5,8 @@ on:
     branches:
       - main
     paths:
-      - 'install.sh'          # only triggers when install.sh actually changes
+      - 'install.sh'
+      - 'install.ps1'
   workflow_dispatch:          # lets you trigger it manually from GitHub UI
 
 jobs:
@@ -20,7 +21,7 @@ jobs:
           TOKEN: ${{ secrets.WEBSITE_REPO_TOKEN }}
         run: |
           # --- config: update these two values ---
-          WEBSITE_REPO="thealxlabs/conductor-website"   # your website repo name
+          WEBSITE_REPO="thealxlabs/conductor-website"  # your website repo name
           DEST_PATH="install.sh"                      # path inside the website repo
           # ---------------------------------------
 
@@ -30,8 +31,9 @@ jobs:
           # Clone the website repo
           git clone https://x-access-token:${TOKEN}@github.com/${WEBSITE_REPO}.git website-repo
 
-          # Copy the file
+          # Copy the files
           cp install.sh website-repo/${DEST_PATH}
+          cp install.ps1 website-repo/install.ps1
 
           cd website-repo
 
@@ -41,6 +43,6 @@ jobs:
             exit 0
           fi
 
-          git add ${DEST_PATH}
+          git add ${DEST_PATH} install.ps1
           git commit -m "sync: update install.sh from conductor@${{ github.sha }}"
           git push
