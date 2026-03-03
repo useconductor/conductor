@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build output
+dist/
+
+# Environment variables
+.env
+.env.local
+
+# Logs
+logs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing
+coverage/
+
+# Local conductor data (for testing)
+.conductor/
+conductor.db
+
+# Credentials — never commit these
+keychain/
+*.key
+*.pem
+*.enc
+.env*
+client_secret*.json
+credentials.json

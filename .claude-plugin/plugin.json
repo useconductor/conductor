@@ -1,0 +1,23 @@
+{
+  "name": "conductor",
+  "version": "0.1.0",
+  "description": "Universal AI integration hub — connect Claude Code to GitHub, Google, Slack, Notion, Spotify, Vercel, HomeKit, and 25+ more services.",
+  "author": {
+    "name": "Alexander Wondwossen",
+    "email": "alex@thealxlabs.ca",
+    "url": "https://thealxlabs.ca"
+  },
+  "repository": "https://github.com/thealxlabs/conductor",
+  "homepage": "https://github.com/thealxlabs/conductor",
+  "license": "Apache-2.0",
+  "keywords": [
+    "integration", "mcp", "github", "google", "slack",
+    "notion", "spotify", "vercel", "homekit", "automation", "ai-hub"
+  ],
+  "category": "integrations",
+  "components": {
+    "skills": ["skills/"],
+    "commands": ["commands/"],
+    "mcpServers": ".mcp.json"
+  }
+}

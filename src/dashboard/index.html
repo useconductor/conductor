@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Conductor Dashboard</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:        #0d0d0d;
+  --card:      #1a1a1a;
+  --card2:     #1f1f1f;
+  --border:    #2a2a2a;
+  --accent:    #6366f1;
+  --accent-bg: rgba(99,102,241,0.12);
+  --accent-t:  #a5b4fc;
+  --text:      #e8e8e8;
+  --muted:     #777;
+  --ok:        #22c55e;
+  --warn:      #f59e0b;
+  --err:       #ef4444;
+  --mono:      'SF Mono','Fira Code','Cascadia Code',monospace;
+}
+body { background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,sans-serif; font-size:14px; line-height:1.5; }
+
+/* Header */
+header { display:flex; align-items:center; gap:10px; padding:13px 24px; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--bg); z-index:20; }
+header h1 { font-size:16px; font-weight:600; letter-spacing:-.3px; }
+.badge { background:var(--card); border:1px solid var(--border); border-radius:4px; padding:2px 7px; font-size:11px; font-family:var(--mono); color:var(--muted); }
+.hlinks { margin-left:auto; display:flex; align-items:center; gap:14px; }
+.gh-link { display:flex; align-items:center; gap:5px; color:var(--muted); font-size:12px; text-decoration:none; transition:color .15s; }
+.gh-link:hover { color:var(--text); }
+.gh-link svg { width:15px; height:15px; fill:currentColor; flex-shrink:0; }
+.dot { width:8px; height:8px; border-radius:50%; background:var(--muted); transition:background .3s; flex-shrink:0; }
+.dot.online  { background:var(--ok);  box-shadow:0 0 5px var(--ok); }
+.dot.offline { background:var(--err); }
+
+/* Layout */
+main { max-width:980px; margin:0 auto; padding:28px 24px; display:flex; flex-direction:column; gap:36px; }
+section { display:flex; flex-direction:column; gap:12px; }
+section > h2 { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--muted); }
+.card { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:16px; }
+
+/* Toggle */
+.tog { position:relative; width:30px; height:17px; flex-shrink:0; cursor:pointer; display:inline-block; }
+.tog input { position:absolute; opacity:0; width:0; height:0; }
+.tog-track { position:absolute; inset:0; background:#2e2e2e; border-radius:999px; transition:background .18s; pointer-events:none; }
+.tog-thumb { position:absolute; top:2.5px; left:2.5px; width:12px; height:12px; background:#555; border-radius:50%; transition:left .15s,background .15s; pointer-events:none; }
+.tog input:checked ~ .tog-track { background:rgba(99,102,241,.35); }
+.tog input:checked ~ .tog-thumb { left:15.5px; background:var(--accent); }
+
+/* Provider */
+.prov-row { display:flex; flex-wrap:wrap; gap:8px; }
+.prov-btn { background:var(--card); border:1px solid var(--border); color:var(--muted); padding:7px 14px; border-radius:6px; cursor:pointer; font-size:13px; font-family:inherit; transition:border-color .15s,color .15s,background .15s; }
+.prov-btn:hover { border-color:#444; color:var(--text); }
+.prov-btn.active { border-color:var(--accent); background:var(--accent-bg); color:var(--accent-t); }
+.prov-meta { margin-top:10px; font-size:12px; font-family:var(--mono); color:var(--muted); min-height:18px; }
+
+/* Google auth row */
+.google-row { display:flex; align-items:center; gap:10px; margin-top:14px; padding-top:14px; border-top:1px solid var(--border); flex-wrap:wrap; }
+.google-lbl { font-size:12px; color:var(--muted); flex:1; }
+.google-lbl.connected { color:var(--ok); }
+.btn-google { display:flex; align-items:center; gap:6px; background:var(--card2); border:1px solid var(--border); color:var(--text); padding:6px 13px; border-radius:6px; cursor:pointer; font-size:12px; font-family:inherit; transition:border-color .15s; white-space:nowrap; }
+.btn-google:hover { border-color:var(--accent); }
+.btn-google svg { width:13px; height:13px; }
+.btn-dis { display:flex; align-items:center; gap:6px; background:transparent; border:1px solid var(--border); color:var(--muted); padding:6px 13px; border-radius:6px; cursor:pointer; font-size:12px; font-family:inherit; transition:border-color .15s,color .15s; }
+.btn-dis:hover { border-color:var(--err); color:var(--err); }
+
+/* Onboarding */
+#onboarding-overlay { position:fixed; inset:0; background:var(--bg); z-index:100; display:flex; align-items:center; justify-content:center; }
+.ob-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:32px; max-width:480px; width:90%; }
+.ob-step { display:none; flex-direction:column; gap:20px; }
+.ob-step.active { display:flex; }
+.ob-title { font-size:18px; font-weight:600; }
+.ob-desc { font-size:13px; color:var(--muted); line-height:1.6; }
+.ob-btns { display:flex; gap:8px; justify-content:flex-end; margin-top:8px; }
+.ob-btn { background:var(--accent); border:none; color:#fff; padding:8px 18px; border-radius:6px; cursor:pointer; font-size:13px; font-family:inherit; transition:opacity .15s; }
+.ob-btn:hover { opacity:.85; }
+.ob-btn.skip { background:transparent; border:1px solid var(--border); color:var(--muted); }
+.ob-btn.skip:hover { border-color:#555; color:var(--text); opacity:1; }
+.ob-prov-row { display:flex; flex-wrap:wrap; gap:8px; }
+.ob-inp { width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:8px 12px; border-radius:6px; font-family:var(--mono); font-size:13px; outline:none; transition:border-color .14s; }
+.ob-inp:focus { border-color:var(--accent); }
+.ob-steps-indicator { display:flex; gap:6px; margin-bottom:4px; }
+.ob-pip { width:6px; height:6px; border-radius:50%; background:var(--border); transition:background .2s; }
+.ob-pip.active { background:var(--accent); }
+
+/* Plugins */
+.plugin-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(148px,1fr)); gap:7px; }
+.plug-card { background:var(--card); border:1px solid var(--border); border-radius:6px; padding:10px 12px; display:flex; align-items:center; justify-content:space-between; gap:8px; cursor:pointer; user-select:none; transition:border-color .15s,background .15s; position:relative; }
+.plug-card:hover:not(.locked) { background:var(--card2); }
+.plug-card.on { border-color:rgba(99,102,241,.4); background:rgba(99,102,241,.06); }
+.plug-card.locked { opacity:.5; cursor:not-allowed; }
+.plug-name { font-size:12px; font-family:var(--mono); color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.plug-card.on .plug-name { color:var(--accent-t); }
+.warn-dot { position:absolute; top:5px; right:5px; width:5px; height:5px; border-radius:50%; background:var(--warn); }
+
+/* Credentials */
+.cred-wrap { background:var(--card); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+table { width:100%; border-collapse:collapse; }
+thead th { text-align:left; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:var(--muted); padding:10px 14px; }
+tbody td { padding:9px 14px; border-top:1px solid var(--border); vertical-align:middle; }
+tbody tr:hover td { background:rgba(255,255,255,.018); }
+.svc  { font-family:var(--mono); font-size:12px; }
+.ckey { font-family:var(--mono); font-size:11px; color:var(--muted); }
+.st-ok   { color:var(--ok);  font-size:12px; }
+.st-miss { color:var(--err); font-size:12px; }
+.acts { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.btn { background:transparent; border:1px solid var(--border); color:var(--muted); padding:4px 10px; border-radius:4px; font-size:11px; font-family:inherit; cursor:pointer; transition:border-color .14s,color .14s; white-space:nowrap; }
+.btn:hover     { border-color:#555; color:var(--text); }
+.btn.set:hover { border-color:var(--accent); color:var(--accent-t); }
+.btn.del:hover { border-color:var(--err); color:var(--err); }
+.btn.save      { border-color:var(--accent); color:var(--accent-t); }
+.btn.save:hover { background:var(--accent-bg); }
+.irow { display:flex; gap:6px; align-items:center; padding:6px 14px 10px; border-top:1px solid var(--border); background:rgba(99,102,241,.04); }
+.irow input { flex:1; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:5px 10px; border-radius:4px; font-family:var(--mono); font-size:12px; outline:none; transition:border-color .14s; }
+.irow input:focus { border-color:var(--accent); }
+
+/* Security */
+.sec-row { display:flex; align-items:flex-start; justify-content:space-between; padding:13px 0; border-bottom:1px solid var(--border); gap:16px; }
+.sec-row:last-child { border-bottom:none; }
+.sec-lbl { font-size:13px; }
+.sec-desc { font-size:11px; color:var(--muted); margin-top:2px; }
+.paths-inp { width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:7px 10px; border-radius:4px; font-family:var(--mono); font-size:12px; outline:none; margin-top:8px; transition:border-color .14px; }
+.paths-inp:focus { border-color:var(--accent); }
+
+/* Toast */
+#toast { position:fixed; bottom:22px; right:22px; background:var(--card); border:1px solid var(--border); border-radius:6px; padding:9px 15px; font-size:12px; opacity:0; transform:translateY(6px); transition:opacity .2s,transform .2s; pointer-events:none; z-index:99; max-width:320px; }
+#toast.show { opacity:1; transform:translateY(0); }
+#toast.ok   { border-color:rgba(34,197,94,.35);  color:var(--ok); }
+#toast.err  { border-color:rgba(239,68,68,.35);  color:var(--err); }
+#toast.warn { border-color:rgba(245,158,11,.35); color:var(--warn); }
+</style>
+</head>
+<body>
+
+<!-- Onboarding Overlay -->
+<div id="onboarding-overlay" style="display:none">
+  <div class="ob-card">
+    <div class="ob-steps-indicator" id="ob-pips"></div>
+
+    <!-- Step 1: Welcome -->
+    <div class="ob-step active" id="ob-step-1">
+      <div class="ob-title">Welcome to Conductor</div>
+      <div class="ob-desc">Let's get you set up in a few quick steps. You can skip any step and come back later.</div>
+      <div class="ob-btns">
+        <button class="ob-btn skip" onclick="finishOnboarding()">Skip setup</button>
+        <button class="ob-btn" onclick="obNext(2)">Get started →</button>
+      </div>
+    </div>
+
+    <!-- Step 2: AI Provider -->
+    <div class="ob-step" id="ob-step-2">
+      <div class="ob-title">Choose an AI Provider</div>
+      <div class="ob-desc">Select your preferred AI backend. You can change this anytime.</div>
+      <div class="ob-prov-row" id="ob-prov-row">
+        <button class="prov-btn" data-p="claude">Claude</button>
+        <button class="prov-btn" data-p="openai">OpenAI</button>
+        <button class="prov-btn" data-p="gemini">Gemini</button>
+        <button class="prov-btn" data-p="ollama">Ollama</button>
+        <button class="prov-btn" data-p="openrouter">OpenRouter</button>
+      </div>
+      <input class="ob-inp" id="ob-apikey" type="password" placeholder="API key (optional — set later in Credentials)" autocomplete="new-password">
+      <div class="ob-btns">
+        <button class="ob-btn skip" onclick="obNext(3)">Skip</button>
+        <button class="ob-btn" onclick="obSaveProvider()">Save & continue →</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Google -->
+    <div class="ob-step" id="ob-step-3">
+      <div class="ob-title">Connect Google</div>
+      <div class="ob-desc">Connect your Google account to enable Gmail, Calendar, and Drive plugins. This uses OAuth — your password is never shared.</div>
+      <div id="ob-google-status" style="font-size:12px;color:var(--muted)">Not connected</div>
+      <div class="ob-btns">
+        <button class="ob-btn skip" onclick="obNext(4)">Skip</button>
+        <button class="ob-btn" id="ob-google-btn" onclick="obConnectGoogle()">Connect Google</button>
+      </div>
+    </div>
+
+    <!-- Step 4: Done -->
+    <div class="ob-step" id="ob-step-4">
+      <div class="ob-title">You're all set ✓</div>
+      <div class="ob-desc">Conductor is ready. Enable plugins, manage credentials, and configure security from the dashboard.</div>
+      <div class="ob-btns">
+        <button class="ob-btn" onclick="finishOnboarding()">Open dashboard →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<header>
+  <h1>Conductor</h1>
+  <span class="badge" id="ver">v…</span>
+  <div class="hlinks">
+    <a class="gh-link" href="https://github.com/thealxlabs/conductor" target="_blank" rel="noopener">
+      <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      thealxlabs/conductor
+    </a>
+    <div class="dot" id="dot" title="connecting…"></div>
+  </div>
+</header>
+
+<main>
+
+  <!-- AI Provider -->
+  <section>
+    <h2>AI Provider</h2>
+    <div class="card">
+      <div class="prov-row" id="prov-row">
+        <button class="prov-btn" data-p="claude">Claude</button>
+        <button class="prov-btn" data-p="openai">OpenAI</button>
+        <button class="prov-btn" data-p="gemini">Gemini</button>
+        <button class="prov-btn" data-p="ollama">Ollama</button>
+        <button class="prov-btn" data-p="openrouter">OpenRouter</button>
+        <button class="prov-btn" data-p="other">Other</button>
+      </div>
+      <div class="prov-meta" id="prov-meta"></div>
+      <div class="google-row">
+        <span class="google-lbl" id="google-lbl">Google (Gmail · Calendar · Drive): checking…</span>
+        <button class="btn-google" id="btn-google-connect" onclick="connectGoogle()">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+          Connect Google
+        </button>
+        <button class="btn-dis" id="btn-google-disconnect" style="display:none" onclick="disconnectGoogle()">Disconnect</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Plugins -->
+  <section>
+    <h2>Plugins <span id="plug-count" style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0"></span></h2>
+    <div class="plugin-grid" id="plug-grid"></div>
+  </section>
+
+  <!-- Credentials -->
+  <section>
+    <h2>Credentials</h2>
+    <div class="cred-wrap">
+      <table>
+        <thead><tr><th>Service</th><th>Key</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="cred-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Security -->
+  <section>
+    <h2>Security</h2>
+    <div class="card">
+      <div class="sec-row">
+        <div><div class="sec-lbl">System Commands</div><div class="sec-desc">Allow AI to run shell commands</div></div>
+        <label class="tog"><input type="checkbox" id="chk-syscmd"><div class="tog-track"></div><div class="tog-thumb"></div></label>
+      </div>
+      <div class="sec-row">
+        <div><div class="sec-lbl">Desktop Control</div><div class="sec-desc">Allow AI to control the desktop</div></div>
+        <label class="tog"><input type="checkbox" id="chk-desktop"><div class="tog-track"></div><div class="tog-thumb"></div></label>
+      </div>
+      <div class="sec-row" style="flex-direction:column;align-items:stretch">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:16px">
+          <div><div class="sec-lbl">Filesystem Access</div><div class="sec-desc">Allow AI to read/write files in allowed paths</div></div>
+          <label class="tog"><input type="checkbox" id="chk-fs"><div class="tog-track"></div><div class="tog-thumb"></div></label>
+        </div>
+        <input class="paths-inp" id="paths-inp" type="text" placeholder="Allowed paths, comma-separated — e.g. /home/user/docs, /tmp">
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+const BASE = 'http://localhost:4242';
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+async function api(method, path, body) {
+  const init = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body !== undefined) init.body = JSON.stringify(body);
+  const r = await fetch(BASE + path, init);
+  if (!r.ok) { const t = await r.text().catch(() => r.statusText); throw new Error(t || r.statusText); }
+  return r.json();
+}
+
+let _toastTimer;
+function toast(msg, type) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show ' + (type || 'ok');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+// ── Onboarding ────────────────────────────────────────────────────────────────
+let obCurrentStep = 1;
+const OB_TOTAL = 4;
+let obSelectedProvider = null;
+
+function obShowStep(n) {
+  document.querySelectorAll('.ob-step').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById('ob-step-' + n);
+  if (el) el.classList.add('active');
+  obCurrentStep = n;
+  // Update pips
+  const pips = document.getElementById('ob-pips');
+  pips.innerHTML = '';
+  for (let i = 1; i <= OB_TOTAL; i++) {
+    const d = document.createElement('div');
+    d.className = 'ob-pip' + (i === n ? ' active' : '');
+    pips.appendChild(d);
+  }
+}
+
+function obNext(n) { obShowStep(n); }
+
+document.getElementById('ob-prov-row').addEventListener('click', function(e) {
+  const btn = e.target.closest('.prov-btn');
+  if (!btn) return;
+  document.querySelectorAll('#ob-prov-row .prov-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  obSelectedProvider = btn.dataset.p;
+});
+
+async function obSaveProvider() {
+  if (obSelectedProvider) {
+    try {
+      await api('POST', '/api/config', { key: 'ai.provider', value: obSelectedProvider });
+      const keyVal = document.getElementById('ob-apikey').value.trim();
+      if (keyVal) {
+        const svcMap = { claude: 'claude', openai: 'openai', gemini: 'gemini', openrouter: 'openrouter' };
+        const svc = svcMap[obSelectedProvider];
+        if (svc) await api('POST', '/api/credentials', { service: svc, key: 'api_key', value: keyVal });
+      }
+    } catch(e) { /* continue anyway */ }
+  }
+  obNext(3);
+}
+
+async function obConnectGoogle() {
+  try {
+    const { url } = await api('GET', '/api/auth/google/url');
+    const popup = window.open(url, 'google-auth', 'width=500,height=640,scrollbars=yes');
+    const poll = setInterval(async function() {
+      if (!popup || popup.closed) {
+        clearInterval(poll);
+        try {
+          const s = await api('GET', '/api/auth/google/status');
+          if (s.connected) {
+            document.getElementById('ob-google-status').textContent = '✓ Connected';
+            document.getElementById('ob-google-status').style.color = 'var(--ok)';
+            document.getElementById('ob-google-btn').textContent = 'Connected ✓';
+            document.getElementById('ob-google-btn').disabled = true;
+          }
+        } catch(e) { /* ignore */ }
+      }
+    }, 800);
+  } catch(e) { toast(e.message || 'Failed to start Google auth', 'err'); }
+}
+
+async function finishOnboarding() {
+  await api('POST', '/api/config', { key: 'dashboard.onboarding_complete', value: true }).catch(() => {});
+  document.getElementById('onboarding-overlay').style.display = 'none';
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+let cachedCfg = {};
+let pluginRequiredCreds = {};
+let credStatus = {};
+
+async function init() {
+  try {
+    const [status, cfg, plugins, creds, googleStatus] = await Promise.all([
+      api('GET', '/api/status'),
+      api('GET', '/api/config'),
+      api('GET', '/api/plugins'),
+      api('GET', '/api/credentials'),
+      api('GET', '/api/auth/google/status'),
+    ]);
+
+    cachedCfg = cfg;
+    pluginRequiredCreds = plugins.requiredCreds || {};
+
+    credStatus = {};
+    creds.forEach(function(c) { credStatus[c.service + '/' + c.key] = c.hasValue; });
+
+    document.getElementById('ver').textContent = 'v' + status.version;
+    const dot = document.getElementById('dot');
+    dot.className = 'dot online';
+    dot.title = 'Connected · Node ' + status.nodeVersion + ' · ' + status.configDir;
+
+    renderProvider(cfg);
+    renderGoogleStatus(googleStatus.connected);
+    renderPlugins(plugins);
+    renderCredentials(creds);
+    renderSecurity(cfg);
+
+    // Show onboarding if not completed
+    if (!cfg.dashboard || !cfg.dashboard.onboarding_complete) {
+      // Pre-fill provider if already set
+      if (cfg.ai && cfg.ai.provider) {
+        obSelectedProvider = cfg.ai.provider.toLowerCase();
+        document.querySelectorAll('#ob-prov-row .prov-btn').forEach(b => {
+          b.classList.toggle('active', b.dataset.p === obSelectedProvider);
+        });
+      }
+      // Update Google status in onboarding
+      if (googleStatus.connected) {
+        document.getElementById('ob-google-status').textContent = '✓ Already connected';
+        document.getElementById('ob-google-status').style.color = 'var(--ok)';
+        document.getElementById('ob-google-btn').textContent = 'Connected ✓';
+        document.getElementById('ob-google-btn').disabled = true;
+      }
+      obShowStep(1);
+      document.getElementById('onboarding-overlay').style.display = 'flex';
+    }
+
+  } catch (e) {
+    document.getElementById('dot').className = 'dot offline';
+    toast('Cannot connect — is the server running on port 4242?', 'err');
+    console.error(e);
+  }
+}
+
+// ── Provider ──────────────────────────────────────────────────────────────────
+function renderProvider(cfg) {
+  const cur = cfg.ai && cfg.ai.provider ? cfg.ai.provider.toLowerCase() : '';
+  document.querySelectorAll('.prov-btn').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.p === cur);
+  });
+  const model = cfg.ai && cfg.ai.model;
+  document.getElementById('prov-meta').textContent = model ? 'Model: ' + model : '';
+}
+
+document.getElementById('prov-row').addEventListener('click', async function(e) {
+  const btn = e.target.closest('.prov-btn');
+  if (!btn) return;
+  try {
+    await api('POST', '/api/config', { key: 'ai.provider', value: btn.dataset.p });
+    if (!cachedCfg.ai) cachedCfg.ai = {};
+    cachedCfg.ai.provider = btn.dataset.p;
+    renderProvider(cachedCfg);
+    toast('Switched to ' + btn.dataset.p);
+  } catch(e) { toast('Failed to update provider', 'err'); }
+});
+
+// ── Google Auth ───────────────────────────────────────────────────────────────
+function renderGoogleStatus(connected) {
+  const lbl = document.getElementById('google-lbl');
+  const btnCon = document.getElementById('btn-google-connect');
+  const btnDis = document.getElementById('btn-google-disconnect');
+  if (connected) {
+    lbl.textContent = '✓ Google connected (Gmail · Calendar · Drive)';
+    lbl.className = 'google-lbl connected';
+    btnCon.style.display = 'none';
+    btnDis.style.display = '';
+    credStatus['google/access_token'] = true;
+  } else {
+    lbl.textContent = 'Google (Gmail · Calendar · Drive): not connected';
+    lbl.className = 'google-lbl';
+    btnCon.style.display = '';
+    btnDis.style.display = 'none';
+    credStatus['google/access_token'] = false;
+  }
+  if (document.getElementById('plug-grid').children.length > 0) {
+    refreshPluginLockState();
+  }
+}
+
+async function connectGoogle() {
+  try {
+    const { url } = await api('GET', '/api/auth/google/url');
+    const popup = window.open(url, 'google-auth', 'width=500,height=640,scrollbars=yes');
+    const poll = setInterval(async function() {
+      if (!popup || popup.closed) {
+        clearInterval(poll);
+        try {
+          const s = await api('GET', '/api/auth/google/status');
+          renderGoogleStatus(s.connected);
+          const creds = await api('GET', '/api/credentials');
+          creds.forEach(function(c) { credStatus[c.service + '/' + c.key] = c.hasValue; });
+          renderCredentials(creds);
+          if (s.connected) toast('Google connected!');
+        } catch(e) { /* ignore */ }
+      }
+    }, 800);
+  } catch(e) { toast(e.message || 'Failed to start Google auth', 'err'); }
+}
+
+async function disconnectGoogle() {
+  if (!confirm('Disconnect Google? This will remove access tokens for Gmail, Calendar, and Drive.')) return;
+  try {
+    await api('DELETE', '/api/auth/google');
+    renderGoogleStatus(false);
+    const creds = await api('GET', '/api/credentials');
+    creds.forEach(function(c) { credStatus[c.service + '/' + c.key] = c.hasValue; });
+    renderCredentials(creds);
+    toast('Google disconnected');
+  } catch(e) { toast('Failed to disconnect', 'err'); }
+}
+
+// ── Plugins ───────────────────────────────────────────────────────────────────
+function pluginHasCreds(name) {
+  const reqs = pluginRequiredCreds[name];
+  if (!reqs || reqs.length === 0) return true;
+  return reqs.every(function(r) { return credStatus[r.service + '/' + r.key]; });
+}
+
+function renderPlugins(plugins) {
+  const enabled = new Set(plugins.enabled || []);
+  const grid = document.getElementById('plug-grid');
+  grid.innerHTML = '';
+  let enabledCount = 0;
+
+  plugins.all.forEach(function(name) {
+    const on       = enabled.has(name);
+    const hasCreds = pluginHasCreds(name);
+    if (on) enabledCount++;
+
+    const card = document.createElement('div');
+    card.className = 'plug-card' + (on ? ' on' : '') + (!hasCreds && !on ? ' locked' : '');
+    card.dataset.plugin  = name;
+    card.dataset.enabled = on ? '1' : '0';
+    card.title = !hasCreds && !on ? 'Missing required credentials' : '';
+
+    card.innerHTML =
+      '<span class="plug-name">' + name + '</span>' +
+      (!hasCreds && !on ? '<div class="warn-dot" title="Missing credentials"></div>' : '') +
+      '<label class="tog" onclick="event.stopPropagation()">' +
+        '<input type="checkbox"' + (on ? ' checked' : '') + ((!hasCreds && !on) ? ' disabled' : '') + '>' +
+        '<div class="tog-track"></div><div class="tog-thumb"></div>' +
+      '</label>';
+
+    grid.appendChild(card);
+  });
+
+  document.getElementById('plug-count').textContent =
+    '— ' + enabledCount + ' / ' + plugins.all.length + ' enabled';
+}
+
+function refreshPluginLockState() {
+  document.querySelectorAll('.plug-card').forEach(function(card) {
+    const name = card.dataset.plugin;
+    const on   = card.dataset.enabled === '1';
+    const hasCreds = pluginHasCreds(name);
+    card.classList.toggle('locked', !hasCreds && !on);
+    card.title = !hasCreds && !on ? 'Missing required credentials' : '';
+    const inp = card.querySelector('input');
+    if (inp) inp.disabled = !hasCreds && !on;
+    const dot = card.querySelector('.warn-dot');
+    if (!hasCreds && !on && !dot) {
+      const d = document.createElement('div');
+      d.className = 'warn-dot';
+      d.title = 'Missing credentials';
+      card.insertBefore(d, card.querySelector('.tog'));
+    } else if ((hasCreds || on) && dot) {
+      dot.remove();
+    }
+  });
+}
+
+document.getElementById('plug-grid').addEventListener('click', async function(e) {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'LABEL') return;
+  const card = e.target.closest('.plug-card');
+  if (!card || card.classList.contains('locked')) return;
+  await togglePlugin(card);
+});
+
+document.getElementById('plug-grid').addEventListener('change', async function(e) {
+  if (e.target.tagName !== 'INPUT') return;
+  const card = e.target.closest('.plug-card');
+  if (!card) return;
+  await togglePlugin(card);
+});
+
+async function togglePlugin(card) {
+  const plugin = card.dataset.plugin;
+  const nowOn  = card.dataset.enabled !== '1';
+
+  card.dataset.enabled = nowOn ? '1' : '0';
+  card.classList.toggle('on', nowOn);
+  const inp = card.querySelector('input');
+  if (inp) inp.checked = nowOn;
+
+  try {
+    await api('POST', '/api/plugins/toggle', { plugin, enabled: nowOn });
+    toast(plugin + (nowOn ? ' enabled' : ' disabled'));
+    const enabled = Array.from(document.querySelectorAll('.plug-card[data-enabled="1"]')).length;
+    const total   = document.querySelectorAll('.plug-card').length;
+    document.getElementById('plug-count').textContent = '— ' + enabled + ' / ' + total + ' enabled';
+  } catch(err) {
+    card.dataset.enabled = nowOn ? '0' : '1';
+    card.classList.toggle('on', !nowOn);
+    if (inp) inp.checked = !nowOn;
+    let msg = err.message || 'Failed to toggle ' + plugin;
+    try { const parsed = JSON.parse(err.message); msg = parsed.error || msg; } catch(e2) { /* ignore */ }
+    toast(msg, 'warn');
+  }
+}
+
+// ── Credentials ───────────────────────────────────────────────────────────────
+function credRowId(s, k)  { return 'cr-'  + s + '-' + k; }
+function credFormId(s, k) { return 'crf-' + s + '-' + k; }
+
+function renderCredentials(creds) {
+  const tbody = document.getElementById('cred-body');
+  tbody.innerHTML = '';
+  creds.forEach(function(c) {
+    if (c.service === 'google' && c.key === 'access_token') return;
+    const tr = document.createElement('tr');
+    tr.id = credRowId(c.service, c.key);
+    tr.innerHTML =
+      '<td class="svc">'  + c.service + '</td>' +
+      '<td class="ckey">' + c.key     + '</td>' +
+      '<td class="' + (c.hasValue ? 'st-ok' : 'st-miss') + '">' + (c.hasValue ? '✓ stored' : '✗ missing') + '</td>' +
+      '<td class="acts">' +
+        '<button class="btn set" onclick="showCredForm(\'' + c.service + '\',\'' + c.key + '\')">Set</button>' +
+        (c.hasValue ? '<button class="btn del" onclick="deleteCred(\'' + c.service + '\',\'' + c.key + '\')">Delete</button>' : '') +
+      '</td>';
+    tbody.appendChild(tr);
+  });
+}
+
+function showCredForm(s, k) {
+  const existing = document.getElementById(credFormId(s, k));
+  if (existing) { existing.remove(); return; }
+  const anchor = document.getElementById(credRowId(s, k));
+  if (!anchor) return;
+  const uid = 'ci-' + s + '-' + k;
+  const row = document.createElement('tr');
+  row.id = credFormId(s, k);
+  row.innerHTML =
+    '<td colspan="4" style="padding:0;border-top:none">' +
+      '<div class="irow">' +
+        '<input type="password" id="' + uid + '" placeholder="Enter value…" autocomplete="new-password">' +
+        '<button class="btn save" onclick="saveCred(\'' + s + '\',\'' + k + '\')">Save</button>' +
+        '<button class="btn" onclick="document.getElementById(\'' + credFormId(s,k) + '\').remove()">Cancel</button>' +
+      '</div>' +
+    '</td>';
+  anchor.insertAdjacentElement('afterend', row);
+  document.getElementById(uid).focus();
+}
+
+async function saveCred(s, k) {
+  const inp = document.getElementById('ci-' + s + '-' + k);
+  const val = inp ? inp.value.trim() : '';
+  if (!val) { toast('Value cannot be empty', 'err'); return; }
+  try {
+    await api('POST', '/api/credentials', { service: s, key: k, value: val });
+    document.getElementById(credFormId(s, k))?.remove();
+    credStatus[s + '/' + k] = true;
+    const creds = await api('GET', '/api/credentials');
+    creds.forEach(function(c) { credStatus[c.service + '/' + c.key] = c.hasValue; });
+    renderCredentials(creds);
+    refreshPluginLockState();
+    toast(s + ' / ' + k + ' saved');
+  } catch(e) { toast('Failed to save', 'err'); }
+}
+
+async function deleteCred(s, k) {
+  if (!confirm('Delete ' + s + ' / ' + k + '?')) return;
+  try {
+    await api('DELETE', '/api/credentials/' + s + '/' + k);
+    credStatus[s + '/' + k] = false;
+    const creds = await api('GET', '/api/credentials');
+    creds.forEach(function(c) { credStatus[c.service + '/' + c.key] = c.hasValue; });
+    renderCredentials(creds);
+    refreshPluginLockState();
+    toast(s + ' / ' + k + ' deleted');
+  } catch(e) { toast('Failed to delete', 'err'); }
+}
+
+// ── Security ──────────────────────────────────────────────────────────────────
+function renderSecurity(cfg) {
+  const sec = cfg.security || {};
+  document.getElementById('chk-syscmd').checked  = !!sec.system_commands;
+  document.getElementById('chk-desktop').checked = !!sec.desktop_control;
+  document.getElementById('chk-fs').checked      = !!(sec.filesystem_access && sec.filesystem_access.enabled);
+  const paths = sec.filesystem_access && Array.isArray(sec.filesystem_access.allowed_paths)
+    ? sec.filesystem_access.allowed_paths.join(', ') : '';
+  document.getElementById('paths-inp').value = paths;
+}
+
+function wireTog(id, cfgKey, lbl) {
+  document.getElementById(id).addEventListener('change', async function() {
+    const v = this.checked;
+    try {
+      await api('POST', '/api/config', { key: cfgKey, value: v });
+      toast(lbl + (v ? ' enabled' : ' disabled'));
+    } catch(e) { this.checked = !v; toast('Failed', 'err'); }
+  });
+}
+wireTog('chk-syscmd',  'security.system_commands',           'System commands');
+wireTog('chk-desktop', 'security.desktop_control',           'Desktop control');
+wireTog('chk-fs',      'security.filesystem_access.enabled', 'Filesystem access');
+
+let _pathsTimer;
+document.getElementById('paths-inp').addEventListener('input', function() {
+  clearTimeout(_pathsTimer);
+  const raw = this.value;
+  _pathsTimer = setTimeout(async function() {
+    const paths = raw.split(',').map(function(s){return s.trim();}).filter(Boolean);
+    try { await api('POST', '/api/config', { key: 'security.filesystem_access.allowed_paths', value: paths }); }
+    catch(e) { toast('Failed to save paths', 'err'); }
+  }, 800);
+});
+
+init();
+</script>
+</body>
+</html>
