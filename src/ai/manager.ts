@@ -4,6 +4,7 @@ import { OpenAIProvider } from './openai.js';
 import { GeminiProvider } from './gemini.js';
 import { OllamaProvider } from './ollama.js';
 import { OpenRouterProvider } from './openrouter.js';
+import { MaestroProvider } from './maestro.js';
 import { Conductor } from '../core/conductor.js';
 import { Keychain } from '../security/keychain.js';
 
@@ -42,7 +43,6 @@ export class AIManager {
     switch (providerName.toLowerCase()) {
       case 'claude':
       case 'anthropic': {
-        // install.sh stores under "anthropic", CLI may store under "claude"
         const apiKey =
           (await this.keychain.get('anthropic', 'api_key')) ||
           (await this.keychain.get('claude', 'api_key'));
@@ -69,7 +69,6 @@ export class AIManager {
       }
 
       case 'gemini': {
-        // Try centralized Google tokens first (from 'conductor auth google')
         const googleTokens = await this.keychain.get('google', 'access_token');
         if (googleTokens) {
           const provider = new GeminiProvider({
@@ -80,7 +79,6 @@ export class AIManager {
           return provider;
         }
 
-        // Try API key next
         const apiKey = await this.keychain.get('gemini', 'api_key');
         if (apiKey) {
           const provider = new GeminiProvider({
@@ -91,7 +89,6 @@ export class AIManager {
           return provider;
         }
 
-        // Try Gemini-specific OAuth access token (legacy)
         const accessToken = await this.keychain.get('gemini', 'access_token');
         if (accessToken) {
           const provider = new GeminiProvider({
@@ -129,6 +126,18 @@ export class AIManager {
         return provider;
       }
 
+      case 'maestro': {
+        const endpoint =
+          this.conductor.getConfig().get<string>('ai.local_config.endpoint') ||
+          'http://localhost:11434';
+        const model =
+          this.conductor.getConfig().get<string>('ai.model') || 'maestro';
+        const provider = new MaestroProvider({ endpoint, model });
+        await provider.initialize();
+        this.currentProvider = provider;
+        return provider;
+      }
+
       default:
         throw new Error(`Unknown provider: ${providerName}`);
     }
@@ -136,7 +145,6 @@ export class AIManager {
 
   /** Setup Claude with API key. */
   async setupClaude(apiKey: string, model?: string): Promise<void> {
-    // Store under "anthropic" to match install.sh convention
     await this.keychain.set('anthropic', 'api_key', apiKey);
     await this.conductor.getConfig().set('ai.provider', 'claude');
     if (model) {
@@ -234,6 +242,27 @@ export class AIManager {
     const works = await provider.test();
     if (!works) {
       throw new Error('Ollama is not running. Start it with: ollama serve');
+    }
+
+    this.currentProvider = provider;
+  }
+
+  /** Setup Maestro (local, via Ollama). */
+  async setupMaestro(
+    model: string = 'maestro',
+    endpoint: string = 'http://localhost:11434'
+  ): Promise<void> {
+    await this.conductor.getConfig().set('ai.provider', 'maestro');
+    await this.conductor.getConfig().set('ai.model', model);
+    await this.conductor.getConfig().set('ai.local_config.endpoint', endpoint);
+
+    const provider = new MaestroProvider({ endpoint, model });
+    const works = await provider.test();
+    if (!works) {
+      throw new Error(
+        'Maestro not found. Make sure Ollama is running and pull the model:\n' +
+        'ollama pull thealxlabs/maestro'
+      );
     }
 
     this.currentProvider = provider;
@@ -353,7 +382,6 @@ Respond with ONLY the exact literal string "coder", "social", "researcher", or "
 
     let history = await db.getHistory(userId, 30);
 
-    // Determine Persona
     let userIntentText = text;
     if (!userIntentText && history.length > 0) {
       const lastUser = [...history].reverse().find(m => m.role === 'user');
@@ -384,14 +412,12 @@ Respond with ONLY the exact literal string "coder", "social", "researcher", or "
     let loopCount = 0;
     const maxLoops = 15;
 
-    // Resume pending execution if needed
     const pendingProcess = await this.processToolCalls(userId, messages, tools);
     if (pendingProcess.newMessages.length > 0) messages.push(...pendingProcess.newMessages);
     if (pendingProcess.approvalRequired) {
       return { text: "Action still requires approval.", approvalRequired: pendingProcess.approvalRequired };
     }
 
-    // Only ask AI if the last message is NOT an assistant message without tool_calls
     const lastMsg = messages[messages.length - 1];
     if (lastMsg.role === 'assistant' && !lastMsg.tool_calls) {
       return { text: lastMsg.content };
