@@ -94,7 +94,7 @@ async function executeTool(name: string, args: any): Promise<string> {
   return JSON.stringify({ error: `Unknown tool: ${name}` });
 }
 
-async function runLumenAgent(
+export async function runLumenAgent(
   task: string,
   endpoint: string,
   model: string,
