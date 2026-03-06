@@ -1,6 +1,6 @@
 import { Conductor } from '../core/conductor.js';
 import { startDashboard } from './server.js';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 
 export async function dashboardCommand(
   conductor: Conductor,
@@ -24,10 +24,13 @@ export async function dashboardCommand(
 
     // Auto-open browser unless --no-open passed
     if (opts.open !== false) {
-      const opener =
-        process.platform === 'darwin' ? 'open' :
-        process.platform === 'win32'  ? 'start' : 'xdg-open';
-      exec(`${opener} ${url}`, () => {/* ignore errors */});
+      if (process.platform === 'win32') {
+        // 'start' is a shell built-in; invoke via cmd.exe with args as array
+        execFile('cmd', ['/c', 'start', '', url], () => {/* ignore errors */});
+      } else {
+        const opener = process.platform === 'darwin' ? 'open' : 'xdg-open';
+        execFile(opener, [url], () => {/* ignore errors */});
+      }
     }
 
     // Keep alive
