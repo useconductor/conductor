@@ -1,9 +1,19 @@
 import express, { Request, Response, NextFunction } from 'express';
+import { rateLimit } from 'express-rate-limit';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
 import { ConfigManager } from '../core/config.js';
 import { Keychain } from '../security/keychain.js';
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
@@ -84,6 +94,15 @@ export async function startDashboard(port = 4242): Promise<DashboardServer> {
   const app = express();
   app.use(express.json());
 
+  // Rate limiting — prevents DoS against file-system-heavy API endpoints (CWE-400)
+  const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 200,
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+  app.use('/api/', apiLimiter);
+
   // CORS
   app.use((_req: Request, res: Response, next: NextFunction): void => {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -138,7 +157,7 @@ export async function startDashboard(port = 4242): Promise<DashboardServer> {
       res.status(400).json({ error: '`enabled` must be a boolean' }); return;
     }
 
-    if (body.enabled && PLUGIN_REQUIRED_CREDS[body.plugin]) {
+    if (body.enabled && Object.hasOwn(PLUGIN_REQUIRED_CREDS, body.plugin)) {
       const missing: string[] = [];
       for (const { service, key } of PLUGIN_REQUIRED_CREDS[body.plugin]) {
         if (!(await keychain.has(service, key))) missing.push(`${service} / ${key}`);
@@ -228,7 +247,7 @@ export async function startDashboard(port = 4242): Promise<DashboardServer> {
           <script>setTimeout(()=>{window.close();},1800);</script>
         </body></html>`);
     } catch (e: unknown) {
-      res.status(500).send(`<h2 style="color:#ef4444">Auth failed: ${(e as Error).message}</h2>`);
+      res.status(500).send(`<h2 style="color:#ef4444">Auth failed: ${escapeHtml((e as Error).message)}</h2>`);
     }
   });
 

@@ -107,9 +107,21 @@ export class Keychain {
   }
 
   /**
+   * Validate that a service or key identifier only contains safe characters,
+   * preventing path traversal attacks (CWE-22).
+   */
+  private static validateIdent(value: string, field: string): void {
+    if (!/^[a-zA-Z0-9_\-.]+$/.test(value)) {
+      throw new Error(`Invalid ${field}: must only contain alphanumeric characters, hyphens, underscores, or periods`);
+    }
+  }
+
+  /**
    * Store an encrypted credential (v2 format: AES-256-GCM).
    */
   async set(service: string, key: string, value: string): Promise<void> {
+    Keychain.validateIdent(service, 'service');
+    Keychain.validateIdent(key, 'key');
     await fs.mkdir(this.keychainDir, { recursive: true, mode: 0o700 });
     // Enforce 0700 permissions in case dir already existed with wrong perms
     await fs.chmod(this.keychainDir, 0o700).catch(() => { });
@@ -133,6 +145,8 @@ export class Keychain {
    * Handles both v2 (GCM) and legacy v1 (CBC) formats.
    */
   async get(service: string, key: string): Promise<string | null> {
+    Keychain.validateIdent(service, 'service');
+    Keychain.validateIdent(key, 'key');
     try {
       const filepath = path.join(this.keychainDir, `${service}.${key}.enc`);
       const data = await fs.readFile(filepath, 'utf-8');
@@ -146,6 +160,8 @@ export class Keychain {
    * Delete a credential.
    */
   async delete(service: string, key: string): Promise<void> {
+    Keychain.validateIdent(service, 'service');
+    Keychain.validateIdent(key, 'key');
     const filepath = path.join(this.keychainDir, `${service}.${key}.enc`);
     try {
       await fs.unlink(filepath);
@@ -158,6 +174,8 @@ export class Keychain {
    * Check if a credential exists.
    */
   async has(service: string, key: string): Promise<boolean> {
+    Keychain.validateIdent(service, 'service');
+    Keychain.validateIdent(key, 'key');
     try {
       const filepath = path.join(this.keychainDir, `${service}.${key}.enc`);
       await fs.access(filepath);
@@ -171,6 +189,7 @@ export class Keychain {
    * List all credential keys for a service.
    */
   async list(service: string): Promise<string[]> {
+    Keychain.validateIdent(service, 'service');
     try {
       const files = await fs.readdir(this.keychainDir);
       return files
