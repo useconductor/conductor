@@ -1,0 +1,33 @@
+{
+  "name": "conductor",
+  "owner": {
+    "name": "Alexander Wondwossen",
+    "email": "alex@thealxlabs.ca",
+    "url": "https://thealxlabs.ca"
+  },
+  "metadata": {
+    "description": "Conductor — Universal AI integration hub for Claude Code. Connect to GitHub, Google, Slack, Notion, Spotify, Vercel, HomeKit, and 25+ services.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "conductor",
+      "source": ".",
+      "version": "0.1.0",
+      "description": "Universal AI integration hub — connect Claude Code to 25+ services including GitHub, Gmail, Google Calendar, Drive, Slack, Notion, Spotify, Vercel, HomeKit, weather, system info, and more.",
+      "author": {
+        "name": "Alexander Wondwossen",
+        "url": "https://thealxlabs.ca"
+      },
+      "homepage": "https://github.com/thealxlabs/conductor",
+      "repository": "https://github.com/thealxlabs/conductor",
+      "license": "Apache-2.0",
+      "category": "integrations",
+      "keywords": [
+        "mcp", "github", "google", "gmail", "calendar", "drive",
+        "slack", "notion", "spotify", "vercel", "homekit",
+        "automation", "integration", "ai-hub", "weather", "n8n"
+      ]
+    }
+  ]
+}

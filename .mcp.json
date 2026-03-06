@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "conductor": {
+      "command": "node",
+      "args": ["./dist/cli/index.js", "mcp", "start"],
+      "env": {}
+    }
+  }
+}

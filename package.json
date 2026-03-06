@@ -1,0 +1,61 @@
+{
+  "name": "@thealxlabs/conductor",
+  "version": "0.1.0",
+  "description": "Universal integration hub - Connect AI and services through conversation",
+  "main": "dist/index.js",
+  "bin": {
+    "conductor": "./dist/cli/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "postbuild": "chmod +x dist/cli/index.js",
+    "dev": "tsx watch src/cli/index.ts",
+    "start": "node dist/cli/index.js",
+    "test": "node test-all.mjs --skip-auth",
+    "test:full": "node test-all.mjs",
+    "test:plugins": "node test.mjs --skip-auth"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "ai",
+    "mcp",
+    "integration",
+    "automation",
+    "telegram"
+  ],
+  "author": "Alexander Wondwossen",
+  "license": "Apache-2.0",
+  "type": "module",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.74.0",
+    "@google/generative-ai": "^0.24.1",
+    "@modelcontextprotocol/sdk": "^1.26.0",
+    "@octokit/rest": "^22.0.1",
+    "@slack/bolt": "^4.6.0",
+    "chalk": "^5.6.2",
+    "commander": "^14.0.3",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "googleapis": "^171.4.0",
+    "inquirer": "^13.2.5",
+    "open": "^11.0.0",
+    "openai": "^6.22.0",
+    "ora": "^9.3.0",
+    "spotify-web-api-node": "^5.0.2",
+    "sql.js": "^1.14.0",
+    "systeminformation": "^5.31.0",
+    "telegraf": "^4.16.3",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/inquirer": "^9.0.9",
+    "@types/node": "^25.2.3",
+    "@types/spotify-web-api-node": "^5.0.11",
+    "@types/sql.js": "^1.4.9",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

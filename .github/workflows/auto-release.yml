@@ -1,0 +1,112 @@
+name: Auto Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version from commit
+        id: version
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          DATE=$(date +'%Y.%m.%d')
+          echo "version=v${DATE}-${SHORT_SHA}" >> $GITHUB_OUTPUT
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+          if [ -z "$LAST_TAG" ]; then
+            echo "No previous tags — using full commit history."
+            COMMITS=$(git log --pretty=format:"%s|%h|%an" --no-merges | head -50)
+          else
+            echo "Generating changelog since $LAST_TAG"
+            COMMITS=$(git log "${LAST_TAG}..HEAD" --pretty=format:"%s|%h|%an" --no-merges)
+          fi
+
+          if [ -z "$COMMITS" ]; then
+            echo "_No changes recorded._" > release_notes.md
+            exit 0
+          fi
+
+          FEATS=""
+          FIXES=""
+          PERF=""
+          CHORE=""
+          OTHER=""
+
+          while IFS='|' read -r subject hash author; do
+            ENTRY="- ${subject} (\`${hash}\`) — ${author}"
+            case "$subject" in
+              feat*|add*|new*)     FEATS="$FEATS\n$ENTRY" ;;
+              fix*|bug*|patch*)    FIXES="$FIXES\n$ENTRY" ;;
+              perf*|optim*)        PERF="$PERF\n$ENTRY" ;;
+              chore*|ci*|build*|docs*|refactor*|test*|style*) CHORE="$CHORE\n$ENTRY" ;;
+              *)                   OTHER="$OTHER\n$ENTRY" ;;
+            esac
+          done <<< "$COMMITS"
+
+          {
+            echo "## What's Changed"
+            echo ""
+            echo "> Commit: \`${{ github.sha }}\`"
+            echo "> Branch: \`${{ github.ref_name }}\`"
+            echo "> Author: ${{ github.actor }}"
+            echo ""
+
+            if [ -n "$FEATS" ]; then
+              echo "### ✨ New Features"
+              printf "%b\n\n" "$FEATS"
+            fi
+            if [ -n "$FIXES" ]; then
+              echo "### 🐛 Bug Fixes"
+              printf "%b\n\n" "$FIXES"
+            fi
+            if [ -n "$PERF" ]; then
+              echo "### ⚡ Performance"
+              printf "%b\n\n" "$PERF"
+            fi
+            if [ -n "$OTHER" ]; then
+              echo "### 🔀 Other Changes"
+              printf "%b\n\n" "$OTHER"
+            fi
+            if [ -n "$CHORE" ]; then
+              echo "### 🔧 Maintenance"
+              printf "%b\n\n" "$CHORE"
+            fi
+
+            if [ -n "$LAST_TAG" ]; then
+              echo "---"
+              echo "**Full diff:** https://github.com/${{ github.repository }}/compare/${LAST_TAG}...${{ steps.version.outputs.version }}"
+            fi
+          } > release_notes.md
+
+      - name: Create GitHub Release
+        run: |
+          gh release create "${{ steps.version.outputs.version }}" \
+            --title "Conductor ${{ steps.version.outputs.version }}" \
+            --notes-file release_notes.md \
+            --latest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### ✅ Released" >> $GITHUB_STEP_SUMMARY
+          echo "**Conductor \`${{ steps.version.outputs.version }}\`** has been published." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          cat release_notes.md >> $GITHUB_STEP_SUMMARY
