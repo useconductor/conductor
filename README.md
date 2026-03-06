@@ -237,6 +237,84 @@ Conductor keeps the last 30 messages of conversation history per user for contex
 
 ---
 
+## Lumen AI API
+
+Conductor exposes your local **Lumen/Ollama** instance as an authenticated HTTP endpoint. This lets scripts, CI pipelines, or other machines on your network forward coding tasks to your machine's AI — without giving them shell access.
+
+### How it works
+
+```
+Remote client
+     │  POST /api/lumen/ask
+     │  Authorization: Bearer cnd_...
+     ▼
+Conductor (port 4242, your machine)
+     │  validates API key
+     ▼
+Ollama (localhost:11434) → Lumen model
+     │  runs shell / reads files / writes code
+     ▼
+JSON result back to caller
+```
+
+### Generate an API key
+
+Open the Conductor dashboard (`conductor status` → follow the link) and click **Generate Lumen API Key**, or use `curl`:
+
+```bash
+# Generate a key (run this on your local machine)
+curl -s -X POST http://localhost:4242/api/lumen/key | jq -r .key
+# → cnd_a1b2c3d4e5f6...
+```
+
+Save this key. It is shown only once. Store it wherever you call the API from (e.g. a GitHub Actions secret, a `.env` file, etc.).
+
+### Call Lumen remotely
+
+```bash
+# From any machine that can reach your Conductor server
+curl -s -X POST http://YOUR-IP:4242/api/lumen/ask \
+  -H "Authorization: Bearer cnd_a1b2c3d4e5f6..." \
+  -H "Content-Type: application/json" \
+  -d '{"task": "check git status and show changed files"}'
+```
+
+**Response:**
+
+```json
+{
+  "result": "On branch main, 2 files changed: src/index.ts, package.json",
+  "iterations": 3,
+  "toolCalls": ["run_shell({\"command\":\"git status\"})"]
+}
+```
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `task` | string | yes | Natural language task for Lumen to complete |
+| `max_iterations` | number | no | Agentic loop limit (default: 10) |
+
+### Manage your API key
+
+```bash
+# Check if a key exists
+curl http://localhost:4242/api/lumen/key/status
+
+# Revoke the current key
+curl -X DELETE http://localhost:4242/api/lumen/key
+```
+
+### Security notes
+
+- The API key is encrypted in `~/.conductor/keychain/` using AES-256-GCM (same as all other credentials).
+- The key is compared using a timing-safe comparison to prevent timing attacks.
+- Lumen runs **on your machine** with full shell and filesystem access — treat your API key like a root password.
+- Conductor's dashboard server (`port 4242`) only binds to `localhost` by default. To expose it to the network, run it behind a reverse proxy (nginx, Caddy) with HTTPS.
+
+---
+
 ## Proactive Mode
 
 Proactive Mode starts an autonomous reasoning loop that runs every N minutes without any user prompts.

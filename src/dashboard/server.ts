@@ -2,6 +2,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
+import crypto from 'crypto';
 import { ConfigManager } from '../core/config.js';
 import { Keychain } from '../security/keychain.js';
 
@@ -36,6 +37,7 @@ const PLUGIN_REQUIRED_CREDS: Record<string, { service: string; key: string }[]> 
 interface CredentialEntry { service: string; key: string }
 
 const KNOWN_CREDENTIALS: CredentialEntry[] = [
+  { service: 'conductor', key: 'api_key'      },
   { service: 'claude',   key: 'api_key'       },
   { service: 'openai',   key: 'api_key'       },
   { service: 'gemini',   key: 'api_key'       },
@@ -257,6 +259,64 @@ export async function startDashboard(port = 4242): Promise<DashboardServer> {
       res.json({ entries: entries.slice(-20) });
     } catch {
       res.json({ entries: [] });
+    }
+  });
+
+  // ── Lumen API key management ──────────────────────────────────────────────
+
+  // Generate a new API key and store it in the keychain.
+  // Returns the plaintext key once — caller must save it.
+  app.post('/api/lumen/key', async (_req: Request, res: Response): Promise<void> => {
+    const newKey = 'cnd_' + crypto.randomBytes(24).toString('hex');
+    await keychain.set('conductor', 'api_key', newKey);
+    res.json({ ok: true, key: newKey });
+  });
+
+  // Check whether an API key exists (does not reveal the key itself).
+  app.get('/api/lumen/key/status', async (_req: Request, res: Response): Promise<void> => {
+    const hasKey = await keychain.has('conductor', 'api_key');
+    res.json({ hasKey });
+  });
+
+  // Revoke the current API key.
+  app.delete('/api/lumen/key', async (_req: Request, res: Response): Promise<void> => {
+    await keychain.delete('conductor', 'api_key');
+    res.json({ ok: true });
+  });
+
+  // ── Lumen AI endpoint (requires API key) ──────────────────────────────────
+  //
+  // Allows remote callers to forward a task to the local Lumen/Ollama instance.
+  // Authentication: Authorization: Bearer <api-key>
+  app.post('/api/lumen/ask', async (req: Request, res: Response): Promise<void> => {
+    // Validate Bearer token
+    const authHeader = req.headers['authorization'];
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      res.status(401).json({ error: 'Missing Authorization header. Use: Authorization: Bearer <api-key>' });
+      return;
+    }
+    const providedKey = authHeader.slice(7);
+    const storedKey = await keychain.get('conductor', 'api_key');
+    if (!storedKey || !crypto.timingSafeEqual(Buffer.from(providedKey), Buffer.from(storedKey))) {
+      res.status(401).json({ error: 'Invalid API key' });
+      return;
+    }
+
+    const body = req.body as { task?: string; max_iterations?: number };
+    if (!body.task || typeof body.task !== 'string' || body.task.trim() === '') {
+      res.status(400).json({ error: '`task` is required' });
+      return;
+    }
+
+    const endpoint = config.get<string>('plugins.lumen.endpoint') || 'http://localhost:11434';
+    const model    = config.get<string>('plugins.lumen.model')    || 'lumen';
+
+    try {
+      const { runLumenAgent } = await import('../plugins/builtin/lumen.js');
+      const result = await runLumenAgent(body.task.trim(), endpoint, model, body.max_iterations ?? 10);
+      res.json(result);
+    } catch (e: unknown) {
+      res.status(500).json({ error: (e as Error).message });
     }
   });
 
