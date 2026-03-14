@@ -1,4 +1,5 @@
 import { Conductor } from '../core/conductor.js';
+export type { ToolContext } from '../core/interfaces.js';
 
 export interface Plugin {
   name: string;
@@ -8,6 +9,8 @@ export interface Plugin {
   isConfigured(): boolean;
   getTools(): PluginTool[];
   configSchema?: PluginConfigSchema;
+  /** Optional: return a short context string for the proactive reasoning cycle. */
+  getContext?(): Promise<string | null>;
 }
 
 export interface PluginConfigSchema {
@@ -23,10 +26,18 @@ export interface PluginConfigSchema {
   setupInstructions?: string;
 }
 
+/** The canonical input type for all tool handlers at runtime. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type ToolInput = Record<string, any>;
+/** Tool handlers should return a string or a plain-object result. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type ToolOutput = string | Record<string, any>;
+
 export interface PluginTool {
   name: string;
   description: string;
-  inputSchema: Record<string, any>;
+  inputSchema: Record<string, unknown>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   handler: (input: any) => Promise<any>;
   requiresApproval?: boolean;
 }

@@ -13,7 +13,8 @@ export interface AgentResponse {
   approvalRequired?: {
     toolCallId: string;
     toolName: string;
-    arguments: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    arguments: Record<string, any>;
   };
 }
 
@@ -373,6 +374,15 @@ Respond with ONLY the exact literal string "coder", "social", "researcher", or "
     }
 
     const db = this.conductor.getDatabase();
+
+    // Propagate userId to the memory plugin so search_past_conversations is scoped correctly
+    try {
+      const memPlugin = await this.conductor.getPluginsManager().getPlugin('memory');
+      if (memPlugin && typeof (memPlugin as any).setUserId === 'function') {
+        (memPlugin as any).setUserId(userId);
+      }
+    } catch { /* memory plugin may not be enabled */ }
+
     const tools = await this.conductor.getPluginsManager().getEnabledTools();
 
     if (text) {

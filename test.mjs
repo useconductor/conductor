@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Conductor Test Suite
- * Tests all 25 plugins and 146 tools.
+ * Tests all 29 plugins and 146 tools.
  *
  * Usage:
  *   node test.mjs                    # Run all tests
@@ -148,8 +148,8 @@ async function testLoader() {
   const { getAllBuiltinPlugins } = await import('./dist/plugins/builtin/index.js');
   const plugins = getAllBuiltinPlugins();
 
-  await run('25 plugins loaded', () => {
-    if (plugins.length !== 25) throw new Error(`Expected 25, got ${plugins.length}`);
+  await run('29 plugins loaded', () => {
+    if (plugins.length !== 29) throw new Error(`Expected 29, got ${plugins.length}`);
     return { count: plugins.length };
   });
   await run('all have name', () => {
@@ -296,7 +296,7 @@ async function testTextTools() {
   const t = await loadPlugin('text-tools');
 
   await run('json_format', () => t.json_format({ json: '{"name":"conductor","plugins":25}' }));
-  await run('text_stats', () => t.text_stats({ text: 'Conductor by TheAlxLabs. 25 plugins. 146 tools.' }));
+  await run('text_stats', () => t.text_stats({ text: 'Conductor by TheAlxLabs. 29 plugins. 146 tools.' }));
   // regex_test needs the 'g' flag for matchAll
   await run('regex_test', () => t.regex_test({ pattern: '[a-z]+', flags: 'gi', text: 'Conductor' }));
   // text_transform valid values: uppercase, lowercase, title, camel, snake, slug, reverse
@@ -375,7 +375,7 @@ async function testMemory() {
   let memId;
   // memory_store expects { text } not { content }
   await run('memory_store', async () => {
-    const r = await t.memory_store({ text: 'Conductor has 25 plugins and 146 tools', category: 'fact' });
+    const r = await t.memory_store({ text: 'Conductor has 29 plugins and 146 tools', category: 'fact' });
     memId = r.id;
     return r;
   });
@@ -566,7 +566,7 @@ async function testSpotify() {
 async function main() {
   console.log(`\n${c.bold}${c.cyan}╔══════════════════════════════════════════╗${c.reset}`);
   console.log(`${c.bold}${c.cyan}║   Conductor Test Suite                   ║${c.reset}`);
-  console.log(`${c.bold}${c.cyan}║   25 plugins · 146 tools                 ║${c.reset}`);
+  console.log(`${c.bold}${c.cyan}║   29 plugins                 ║${c.reset}`);
   console.log(`${c.bold}${c.cyan}╚══════════════════════════════════════════╝${c.reset}`);
 
   if (args['skip-auth']) console.log(`\n${c.yellow}  ⚠ --skip-auth: skipping all auth plugins${c.reset}`);

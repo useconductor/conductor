@@ -2,6 +2,7 @@ import { ConfigManager } from './config.js';
 import { DatabaseManager } from './database.js';
 import { PluginManager } from '../plugins/manager.js';
 import { AIManager } from '../ai/manager.js';
+import type { ConductorNotification } from './interfaces.js';
 
 export interface ConductorOptions {
   /** Suppress stdout output (required for MCP mode where stdout is protocol). */
@@ -16,7 +17,9 @@ export class Conductor {
   private initialized: boolean = false;
   private quiet: boolean;
   private proactiveTimer?: NodeJS.Timeout;
-  private notificationHandler?: (text: string) => Promise<void>;
+  private notificationHandler?: (notification: ConductorNotification) => Promise<void>;
+  /** Prevents overlapping proactive reasoning cycles. */
+  private _cycleRunning = false;
 
   constructor(configPath?: string, options?: ConductorOptions) {
     this.config = new ConfigManager(configPath);
@@ -91,16 +94,16 @@ export class Conductor {
   }
 
   /** Set a handler for proactive notifications (e.g. from the heartbeat loop). */
-  setNotificationHandler(handler: (text: string) => Promise<void>): void {
+  setNotificationHandler(handler: (notification: ConductorNotification) => Promise<void>): void {
     this.notificationHandler = handler;
   }
 
-  /** Send a proactive notification to the user. */
-  async notifyUser(text: string): Promise<void> {
+  /** Send a proactive notification to the user via the registered handler. */
+  async notifyUser(notification: ConductorNotification): Promise<void> {
     if (this.notificationHandler) {
-      await this.notificationHandler(text);
+      await this.notificationHandler(notification);
     } else {
-      process.stderr.write(`  ⚠ No notification handler set. Message: ${text}\n`);
+      process.stderr.write(`  [Proactive] ${notification.title}: ${notification.body}\n`);
     }
   }
 
@@ -140,7 +143,8 @@ export class Conductor {
       if (sysPlugin) {
         const infoTool = sysPlugin.getTools().find(t => t.name === 'system_info');
         if (infoTool) {
-          const stats = await infoTool.handler({});
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const stats = await infoTool.handler({}) as any;
           contextLines.push(`[SYSTEM] CPU: ${stats.cpu?.load || 'unknown'}%, RAM: ${stats.memory?.usedPercent || 'unknown'}%, Disk: ${stats.disk?.usedPercent || 'unknown'}%`);
         }
       }
@@ -157,47 +161,15 @@ export class Conductor {
     const enabled = this.config.get<string[]>('plugins.enabled') || [];
     contextLines.push(`[PLUGINS] Enabled: ${enabled.join(', ')}`);
 
-    // Gmail: Unread count
-    if (enabled.includes('gmail')) {
+    // Dynamic context from any enabled plugin that implements getContext()
+    for (const pluginName of enabled) {
       try {
-        const gmail = await this.plugins.getPlugin('gmail');
-        if (gmail) {
-          const listTool = gmail.getTools().find(t => t.name === 'gmail_list');
-          if (listTool) {
-            const unread = await listTool.handler({ labelIds: ['UNREAD'], maxResults: 5 });
-            if (unread.messages?.length > 0) {
-              contextLines.push(`[GMAIL] You have ${unread.messages.length} unread messages.`);
-            }
-          }
+        const plugin = await this.plugins.getPlugin(pluginName);
+        if (plugin && typeof plugin.getContext === 'function') {
+          const ctx = await plugin.getContext();
+          if (ctx) contextLines.push(ctx);
         }
-      } catch { /* ignore */ }
-    }
-
-    // Calendar: Upcoming
-    if (enabled.includes('gcal')) {
-      try {
-        const gcal = await this.plugins.getPlugin('gcal');
-        if (gcal) {
-          const calendarList = gcal.getTools().find(t => t.name === 'gcal_list_calendars');
-          const listEvents = gcal.getTools().find(t => t.name === 'gcal_list_events');
-          if (calendarList && listEvents) {
-            const calendars = await calendarList.handler({});
-            const primary = calendars.calendars?.find((c: any) => c.primary) || calendars.calendars?.[0];
-            if (primary) {
-              const now = new Date();
-              const events = await listEvents.handler({
-                calendarId: primary.id,
-                timeMin: now.toISOString(),
-                maxResults: 3
-              });
-              if (events.events?.length > 0) {
-                contextLines.push('[CALENDAR] Upcoming events:');
-                events.events.forEach((e: any) => contextLines.push(`- ${e.summary} (${e.start.dateTime || e.start.date})`));
-              }
-            }
-          }
-        }
-      } catch { /* ignore */ }
+      } catch { /* ignore — plugin context is best-effort */ }
     }
 
     return contextLines.join('\n');
@@ -206,6 +178,12 @@ export class Conductor {
   public async runReasoningCycle(): Promise<void> {
     if (!this.initialized) return;
 
+    if (this._cycleRunning) {
+      process.stderr.write('[Proactive] Skipping cycle — previous cycle still running\n');
+      return;
+    }
+
+    this._cycleRunning = true;
     await this.db.logActivity('system', 'proactive_cycle_start');
 
     try {
@@ -231,16 +209,23 @@ ${context}`;
 
         if (agentResponse.approvalRequired) {
           const { toolName, arguments: args } = agentResponse.approvalRequired;
-          const alert = `🔔 *Autonomous Proactive Action Requires Approval*\n\nThe AI attempted to use \`${toolName}\` autonomously.\n\n*Arguments:*\n\`\`\`json\n${JSON.stringify(args, null, 2)}\n\`\`\`\n\nTo approve this, please reply in this chat with the tool approval.`;
-          await this.notifyUser(alert);
+          await this.notifyUser({
+            title: 'Approval Required',
+            body: `The AI attempted to use "${toolName}" autonomously. Reply to approve or deny.`,
+            codeBlock: JSON.stringify(args, null, 2),
+          });
         } else if (agentResponse.text && !agentResponse.text.toLowerCase().includes('no action needed')) {
-          await this.notifyUser(`🔔 *Autonomous Proactive Action*\n\n${agentResponse.text}`);
+          await this.notifyUser({
+            title: 'Autonomous Action',
+            body: agentResponse.text,
+          });
         }
       }
     } catch (err: any) {
       process.stderr.write(`  ✗ [Proactive Error] ${err.message}\n`);
+    } finally {
+      this._cycleRunning = false;
+      await this.db.logActivity('system', 'proactive_cycle_end');
     }
-
-    await this.db.logActivity('system', 'proactive_cycle_end');
   }
 }

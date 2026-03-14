@@ -4,8 +4,47 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import { dirname } from 'path';
+import { z } from 'zod';
 
 const execAsync = promisify(exec);
+
+// ── Zod schemas for executeTool args ─────────────────────────────────────────
+
+const RunShellArgsSchema = z.object({
+  command: z.string().min(1, 'command is required'),
+  working_dir: z.string().optional(),
+  timeout: z.number().int().positive().optional(),
+});
+
+const ReadFileArgsSchema = z.object({
+  path: z.string().min(1, 'path is required'),
+});
+
+const WriteFileArgsSchema = z.object({
+  path: z.string().min(1, 'path is required'),
+  content: z.string(),
+});
+
+// ── Ollama API response types ─────────────────────────────────────────────────
+
+interface OllamaToolCallFunction {
+  name: string;
+  arguments: string | Record<string, unknown>;
+}
+
+interface OllamaToolCall {
+  function: OllamaToolCallFunction;
+}
+
+interface OllamaMessage {
+  role: string;
+  content: string | null;
+  tool_calls?: OllamaToolCall[];
+}
+
+interface OllamaResponse {
+  message: OllamaMessage;
+}
 
 const LUMEN_TOOLS = [
   {
@@ -55,39 +94,54 @@ const LUMEN_TOOLS = [
 
 const LUMEN_SYSTEM = `You are Lumen, an agentic AI coding assistant built by Alexander (TheAlxLabs). You run inside Conductor. You have access to tools: run_shell, read_file, write_file. Think step-by-step. Always use tools to verify your work. Be concise in explanations but thorough in execution.`;
 
-async function executeTool(name: string, args: any): Promise<string> {
+async function executeTool(name: string, args: unknown): Promise<string> {
   if (name === 'run_shell') {
+    const parsed = RunShellArgsSchema.safeParse(args);
+    if (!parsed.success) {
+      return JSON.stringify({ error: `Invalid run_shell args: ${parsed.error.issues.map(i => i.message).join(', ')}`, returncode: 1 });
+    }
+    const { command, working_dir, timeout } = parsed.data;
     try {
-      const { stdout, stderr } = await execAsync(args.command, {
-        cwd: args.working_dir || process.cwd(),
-        timeout: (args.timeout || 30) * 1000,
+      const { stdout, stderr } = await execAsync(command, {
+        cwd: working_dir || process.cwd(),
+        timeout: (timeout ?? 30) * 1000,
       });
       return JSON.stringify({ stdout, stderr, returncode: 0 });
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const err = e as { stdout?: string; stderr?: string; message?: string; code?: number };
       return JSON.stringify({
-        stdout: e.stdout || '',
-        stderr: e.stderr || e.message,
-        returncode: e.code || 1,
+        stdout: err.stdout || '',
+        stderr: err.stderr || err.message,
+        returncode: err.code || 1,
       });
     }
   }
 
   if (name === 'read_file') {
+    const parsed = ReadFileArgsSchema.safeParse(args);
+    if (!parsed.success) {
+      return JSON.stringify({ error: `Invalid read_file args: ${parsed.error.issues.map(i => i.message).join(', ')}`, success: false });
+    }
     try {
-      const content = await readFile(args.path, 'utf8');
+      const content = await readFile(parsed.data.path, 'utf8');
       return JSON.stringify({ content, success: true });
-    } catch (e: any) {
-      return JSON.stringify({ error: e.message, success: false });
+    } catch (e: unknown) {
+      return JSON.stringify({ error: (e as Error).message, success: false });
     }
   }
 
   if (name === 'write_file') {
+    const parsed = WriteFileArgsSchema.safeParse(args);
+    if (!parsed.success) {
+      return JSON.stringify({ error: `Invalid write_file args: ${parsed.error.issues.map(i => i.message).join(', ')}`, success: false });
+    }
+    const { path, content } = parsed.data;
     try {
-      await mkdir(dirname(args.path), { recursive: true });
-      await writeFile(args.path, args.content, 'utf8');
-      return JSON.stringify({ success: true, path: args.path });
-    } catch (e: any) {
-      return JSON.stringify({ error: e.message, success: false });
+      await mkdir(dirname(path), { recursive: true });
+      await writeFile(path, content, 'utf8');
+      return JSON.stringify({ success: true, path });
+    } catch (e: unknown) {
+      return JSON.stringify({ error: (e as Error).message, success: false });
     }
   }
 
@@ -100,7 +154,7 @@ export async function runLumenAgent(
   model: string,
   maxIterations = 10
 ): Promise<{ result: string; iterations: number; toolCalls: string[] }> {
-  const messages: any[] = [
+  const messages: OllamaMessage[] = [
     { role: 'system', content: LUMEN_SYSTEM },
     { role: 'user', content: task },
   ];
@@ -126,7 +180,7 @@ export async function runLumenAgent(
       throw new Error(`Lumen API error: ${response.status} ${response.statusText}`);
     }
 
-    const data = (await response.json()) as any;
+    const data = (await response.json()) as OllamaResponse;
     const message = data.message;
     messages.push(message);
 
@@ -238,8 +292,8 @@ Lumen Setup:
   private async listModels(): Promise<string[]> {
     try {
       const res = await fetch(`${this.endpoint}/api/tags`);
-      const data = (await res.json()) as any;
-      return data.models?.map((m: any) => m.name) || [];
+      const data = (await res.json()) as { models?: { name: string }[] };
+      return data.models?.map((m) => m.name) ?? [];
     } catch {
       return [];
     }
@@ -266,6 +320,7 @@ Lumen Setup:
           },
           required: ['task'],
         },
+        requiresApproval: true,
         handler: async (input: { task: string; max_iterations?: number }) => {
           const { result, iterations, toolCalls } = await runLumenAgent(
             input.task,
@@ -354,6 +409,7 @@ Lumen Setup:
           },
           required: ['description'],
         },
+        requiresApproval: true,
         handler: async (input: { description: string; working_dir?: string }) => {
           const cwd = input.working_dir || process.cwd();
           const { result, toolCalls } = await runLumenAgent(
@@ -376,6 +432,7 @@ Lumen Setup:
           },
           required: ['path', 'requirements'],
         },
+        requiresApproval: true,
         handler: async (input: { path: string; requirements: string }) => {
           const { result, toolCalls } = await runLumenAgent(
             `Write a file at "${input.path}" with these requirements: ${input.requirements}`,
@@ -398,6 +455,7 @@ Lumen Setup:
           },
           required: ['task'],
         },
+        requiresApproval: true,
         handler: async (input: { task: string; working_dir?: string }) => {
           const cwd = input.working_dir || process.cwd();
           const { result, toolCalls } = await runLumenAgent(

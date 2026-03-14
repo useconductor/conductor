@@ -38,9 +38,15 @@ export class MemoryPlugin implements Plugin {
   version = '2.0.0';
 
   private conductor!: Conductor;
+  private currentUserId: string = 'global';
 
   async initialize(conductor: Conductor): Promise<void> {
     this.conductor = conductor;
+  }
+
+  /** Called by AIManager at the start of each conversation to scope queries correctly. */
+  setUserId(userId: string): void {
+    this.currentUserId = userId || 'global';
   }
 
   isConfigured(): boolean {
@@ -174,10 +180,8 @@ export class MemoryPlugin implements Plugin {
         },
         handler: async ({ query, limit = 10 }: any) => {
           const db = this.conductor.getDatabase();
-          // We search the exact user 'global' or fallback if it's tied to real user ids.
-          // In AIManager, messages are saved per userId (e.g. telegram user id). 
-          // Since tools don't receive userId yet, we can do a global LIKE search across all users.
-          const results = await db.searchMessages('%', query, limit);
+          // Use the stored userId set by setUserId(). Falls back to 'global' if not set.
+          const results = await db.searchMessages(this.currentUserId, query, limit);
 
           if (results.length === 0) return { found: 0, messages: [] };
 

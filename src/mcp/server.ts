@@ -1,124 +1,73 @@
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import {
+  ListToolsRequestSchema,
+  CallToolRequestSchema,
+} from '@modelcontextprotocol/sdk/types.js';
+import { createRequire } from 'module';
 import { Conductor } from '../core/conductor.js';
 import { PluginManager } from '../plugins/manager.js';
 import { getAllTools } from './tools/misc.js';
 
+const _require = createRequire(import.meta.url);
+const { version } = _require('../../package.json') as { version: string };
+
 /**
- * Start the MCP server in stdio mode.
- * Reads JSON-RPC from stdin, writes responses to stdout.
- * All logging goes to stderr to avoid protocol corruption.
+ * Start the MCP server using the official @modelcontextprotocol/sdk.
+ * Uses StdioServerTransport — reads from stdin, writes to stdout.
+ * All logging goes to stderr so stdout remains protocol-clean.
  */
 export async function startMCPServer(conductor: Conductor): Promise<void> {
   const pluginManager = new PluginManager(conductor);
   const tools = await getAllTools(conductor, pluginManager);
 
-  process.stderr.write(`MCP server started with ${tools.length} tools\n`);
+  process.stderr.write(`MCP server starting with ${tools.length} tools\n`);
 
-  // Read from stdin
-  let buffer = '';
-  process.stdin.setEncoding('utf-8');
+  const server = new Server(
+    { name: 'conductor', version },
+    { capabilities: { tools: {} } },
+  );
 
-  process.stdin.on('data', async (chunk: string) => {
-    buffer += chunk;
+  // ── tools/list ─────────────────────────────────────────────────────────────
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({
+    tools: tools.map((t) => ({
+      name: t.name,
+      description: t.description,
+      inputSchema: t.inputSchema as Record<string, unknown>,
+    })),
+  }));
 
-    // Process complete JSON-RPC messages (newline-delimited)
-    const lines = buffer.split('\n');
-    buffer = lines.pop() || '';
+  // ── tools/call ─────────────────────────────────────────────────────────────
+  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    const { name, arguments: args = {} } = request.params;
 
-    for (const line of lines) {
-      if (!line.trim()) continue;
+    const tool = tools.find((t) => t.name === name);
+    if (!tool) {
+      return {
+        content: [{ type: 'text' as const, text: `Unknown tool: ${name}` }],
+        isError: true,
+      };
+    }
 
-      try {
-        const request = JSON.parse(line);
-        const response = await handleRequest(request, tools);
-        if (response) {
-          // Only write to stdout for protocol messages
-          process.stdout.write(JSON.stringify(response) + '\n');
-        }
-      } catch (error: any) {
-        process.stderr.write(`MCP parse error: ${error.message}\n`);
-      }
+    try {
+      process.stderr.write(`  MCP tool call: ${name}\n`);
+      const result = await tool.handler(args);
+      const text = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+      return {
+        content: [{ type: 'text' as const, text }],
+      };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      return {
+        content: [{ type: 'text' as const, text: `Error executing ${name}: ${message}` }],
+        isError: true,
+      };
     }
   });
 
-  process.stdin.on('end', () => {
-    process.stderr.write('MCP server stdin closed\n');
-    process.exit(0);
-  });
-}
+  // ── Transport ──────────────────────────────────────────────────────────────
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
 
-async function handleRequest(
-  request: any,
-  tools: Awaited<ReturnType<typeof getAllTools>>
-): Promise<any> {
-  const { id, method, params } = request;
-
-  switch (method) {
-    case 'initialize':
-      return {
-        jsonrpc: '2.0',
-        id,
-        result: {
-          protocolVersion: '2024-11-05',
-          serverInfo: { name: 'conductor', version: '0.1.0' },
-          capabilities: { tools: {} },
-        },
-      };
-
-    case 'tools/list':
-      return {
-        jsonrpc: '2.0',
-        id,
-        result: {
-          tools: tools.map((t) => ({
-            name: t.name,
-            description: t.description,
-            inputSchema: t.inputSchema,
-          })),
-        },
-      };
-
-    case 'tools/call': {
-      const tool = tools.find((t) => t.name === params?.name);
-      if (!tool) {
-        return {
-          jsonrpc: '2.0',
-          id,
-          error: { code: -32602, message: `Unknown tool: ${params?.name}` },
-        };
-      }
-
-      try {
-        const result = await tool.handler(params?.arguments || {});
-        return {
-          jsonrpc: '2.0',
-          id,
-          result: {
-            content: [
-              { type: 'text', text: JSON.stringify(result, null, 2) },
-            ],
-          },
-        };
-      } catch (error: any) {
-        return {
-          jsonrpc: '2.0',
-          id,
-          result: {
-            content: [{ type: 'text', text: `Error: ${error.message}` }],
-            isError: true,
-          },
-        };
-      }
-    }
-
-    case 'notifications/initialized':
-      // Notification, no response needed
-      return null;
-
-    default:
-      return {
-        jsonrpc: '2.0',
-        id,
-        error: { code: -32601, message: `Method not found: ${method}` },
-      };
-  }
+  process.stderr.write(`MCP server connected via stdio\n`);
 }

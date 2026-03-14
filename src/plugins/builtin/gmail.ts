@@ -51,6 +51,17 @@ export class GmailPlugin implements Plugin {
     return true; // checked at tool call time
   }
 
+  async getContext(): Promise<string | null> {
+    try {
+      const data = await this.gmailFetch('/messages?labelIds=UNREAD&maxResults=1');
+      const count = data?.resultSizeEstimate ?? 0;
+      if (count > 0) return `[GMAIL] ${count} unread message${count !== 1 ? 's' : ''}`;
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
   private async getToken(): Promise<string> {
     const token = await this.keychain.get('google', 'access_token');
     if (!token) {

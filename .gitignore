@@ -35,6 +35,8 @@ keychain/
 *.key
 *.pem
 *.enc
+*.token
 .env*
 client_secret*.json
 credentials.json
+google-creds.json

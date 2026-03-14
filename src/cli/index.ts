@@ -1,9 +1,13 @@
 #!/usr/bin/env node
 
+import { createRequire } from 'module';
 import { Command } from 'commander';
 import { Conductor } from '../core/conductor.js';
 import { PluginManager } from '../plugins/manager.js';
 import { registerLifecycleCommands } from './commands/lifecycle.js';
+
+const _require = createRequire(import.meta.url);
+const { version: pkgVersion } = _require('../../package.json') as { version: string };
 
 const program = new Command();
 const conductor = new Conductor();
@@ -11,7 +15,7 @@ const conductor = new Conductor();
 program
   .name('conductor')
   .description('Universal integration hub — Connect AI and services through conversation')
-  .version('0.1.0');
+  .version(pkgVersion);
 
 registerLifecycleCommands(program, conductor);
 

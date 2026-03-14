@@ -2,6 +2,7 @@ import { Telegraf, Context } from 'telegraf';
 import { Conductor } from '../core/conductor.js';
 import { Keychain } from '../security/keychain.js';
 import { AIManager } from '../ai/manager.js';
+import type { ConductorNotification } from '../core/interfaces.js';
 
 export class TelegramBot {
   private conductor: Conductor;
@@ -172,13 +173,18 @@ export class TelegramBot {
     this.bot?.stop();
   }
 
-  /** Send a proactive message to the authorized user. */
-  async sendMessage(text: string): Promise<void> {
+  /** Send a proactive notification to the authorized user. */
+  async sendMessage(notification: ConductorNotification): Promise<void> {
     if (!this.bot) throw new Error('Bot not started');
     if (!this.authorizedUserId) {
-      process.stderr.write('  ⚠ Cannot send proactive message: No authorizedUserId set.\n');
+      process.stderr.write('  [Telegram] Cannot send proactive message: No authorizedUserId set.\n');
       return;
     }
-    await this.bot.telegram.sendMessage(this.authorizedUserId, text);
+    // Format as Telegram Markdown
+    let text = `*${notification.title}*\n\n${notification.body}`;
+    if (notification.codeBlock) {
+      text += `\n\n\`\`\`json\n${notification.codeBlock}\n\`\`\``;
+    }
+    await this.bot.telegram.sendMessage(this.authorizedUserId, text, { parse_mode: 'Markdown' });
   }
 }

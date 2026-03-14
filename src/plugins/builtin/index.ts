@@ -36,6 +36,7 @@ import { XPlugin } from './x.js';
 import { SpotifyPlugin } from './spotify.js';
 import { HomeKitPlugin } from './homekit.js';
 import { SlackPlugin } from './slack.js';
+import { TodoistPlugin } from './todoist.js';
 
 // ── Lumen — agentic AI coding assistant ───────────────────────────────────
 import { LumenPlugin } from './lumen.js';
@@ -77,6 +78,7 @@ export function getAllBuiltinPlugins(): Plugin[] {
     new NotionPlugin(),
     new XPlugin(),
     new SpotifyPlugin(),
+    new TodoistPlugin(),
 
     // ── Smart home ────────────────────────────────────────────────────────
     new HomeKitPlugin(),

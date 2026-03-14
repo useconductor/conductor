@@ -1,14 +1,73 @@
 import initSqlJs, { Database } from 'sql.js';
 import fs from 'fs/promises';
+import { writeFileSync, renameSync } from 'fs';
 import path from 'path';
 import { AIMessage } from '../ai/base.js';
 
 export class DatabaseManager {
   private db: Database | null = null;
   private dbPath: string;
+  /** Pending debounced flush timer */
+  private flushTimer: NodeJS.Timeout | null = null;
+  /** True when in-memory state has outpaced what's on disk */
+  private dirty = false;
+  /** Debounce interval in ms — flush at most this often */
+  private static readonly DEBOUNCE_MS = 500;
 
   constructor(configDir: string) {
     this.dbPath = path.join(configDir, 'conductor.db');
+
+    // Ensure flush on process exit
+    const onExit = (): void => { this.flushSync(); };
+    process.on('exit', onExit);
+    process.on('SIGINT', () => { this.flushSync(); process.exit(0); });
+    process.on('SIGTERM', () => { this.flushSync(); process.exit(0); });
+  }
+
+  /**
+   * Mark the database dirty and arm the debounce timer.
+   * Multiple writes within DEBOUNCE_MS coalesce into a single disk write.
+   */
+  private scheduleFlush(): void {
+    this.dirty = true;
+    if (this.flushTimer) return; // timer already armed — do nothing more
+    this.flushTimer = setTimeout(() => {
+      this.flushTimer = null;
+      this.save().catch(err => {
+        process.stderr.write(`DatabaseManager: flush error: ${(err as Error).message}\n`);
+      });
+    }, DatabaseManager.DEBOUNCE_MS);
+  }
+
+  /**
+   * Synchronous flush used by signal handlers — no async I/O allowed after
+   * SIGINT/SIGTERM because the event loop may already be draining.
+   * Uses the top-level `writeFileSync`/`renameSync` imports (not require()).
+   */
+  private flushSync(): void {
+    if (!this.db || !this.dirty) return;
+    try {
+      if (this.flushTimer) {
+        clearTimeout(this.flushTimer);
+        this.flushTimer = null;
+      }
+      const data = this.db.export();
+      const tmp = this.dbPath + '.tmp';
+      writeFileSync(tmp, data);
+      renameSync(tmp, this.dbPath);
+      this.dirty = false;
+    } catch { /* best-effort on shutdown */ }
+  }
+
+  /** Cancel the debounce timer and flush immediately (async). */
+  async flush(): Promise<void> {
+    if (this.flushTimer) {
+      clearTimeout(this.flushTimer);
+      this.flushTimer = null;
+    }
+    if (this.dirty) {
+      await this.save();
+    }
   }
 
   async initialize(): Promise<void> {
@@ -88,6 +147,7 @@ export class DatabaseManager {
       )
     `);
 
+    // Immediate save on fresh database creation
     await this.save();
   }
 
@@ -106,7 +166,7 @@ export class DatabaseManager {
       [userId, action, plugin ?? null, details ?? null, success ? 1 : 0]
     );
 
-    await this.save();
+    this.scheduleFlush();
   }
 
   async getRecentActivity(limit: number = 50): Promise<any[]> {
@@ -142,7 +202,7 @@ export class DatabaseManager {
         message.name || null,
       ]
     );
-    await this.save();
+    this.scheduleFlush();
   }
 
   async getHistory(userId: string, limit: number = 20): Promise<AIMessage[]> {
@@ -174,7 +234,7 @@ export class DatabaseManager {
       `INSERT INTO core_memory (id, user_id, text, category, importance, tags) VALUES (?, ?, ?, ?, ?, ?)`,
       [entry.id, entry.userId, entry.text, entry.category, entry.importance, entry.tags ? JSON.stringify(entry.tags) : null]
     );
-    await this.save();
+    this.scheduleFlush();
   }
 
   async searchCoreMemory(userId: string, query: string, limit: number = 5, category?: string): Promise<any[]> {
@@ -205,7 +265,7 @@ export class DatabaseManager {
   async deleteCoreMemory(id: string): Promise<boolean> {
     if (!this.db) throw new Error('Database not initialized');
     this.db.run(`DELETE FROM core_memory WHERE id = ?`, [id]);
-    await this.save();
+    this.scheduleFlush();
     // SQLite run() doesn't return changes cleanly in sql.js without extra steps, we assume it succeeds
     return true;
   }
@@ -225,6 +285,23 @@ export class DatabaseManager {
     const stmt = this.db.prepare(sql);
     stmt.bind(params);
 
+    const results: any[] = [];
+    while (stmt.step()) {
+      results.push(stmt.getAsObject());
+    }
+    stmt.free();
+    return results;
+  }
+
+  /** Get recent messages across all users for the dashboard conversations view. */
+  async getRecentMessages(limit: number = 100): Promise<any[]> {
+    if (!this.db) throw new Error('Database not initialized');
+    const stmt = this.db.prepare(
+      `SELECT user_id, role, content, timestamp FROM messages
+       WHERE role IN ('user', 'assistant')
+       ORDER BY id DESC LIMIT ?`
+    );
+    stmt.bind([limit]);
     const results: any[] = [];
     while (stmt.step()) {
       results.push(stmt.getAsObject());
@@ -275,7 +352,7 @@ export class DatabaseManager {
       ]
     );
 
-    await this.save();
+    this.scheduleFlush();
   }
 
   async getPlugins(): Promise<any[]> {
@@ -298,12 +375,15 @@ export class DatabaseManager {
       [enabled ? 1 : 0, pluginId]
     );
 
-    await this.save();
+    this.scheduleFlush();
   }
 
   async save(): Promise<void> {
     if (!this.db) throw new Error('Database not initialized');
-
+    // Clear dirty before the I/O so a write that arrives mid-save
+    // will re-arm the flag and schedule another flush rather than
+    // being silently dropped.
+    this.dirty = false;
     const data = this.db.export();
     const tmp = this.dbPath + '.tmp';
     await fs.writeFile(tmp, data);
@@ -312,7 +392,7 @@ export class DatabaseManager {
 
   async close(): Promise<void> {
     if (this.db) {
-      await this.save();
+      await this.flush();
       this.db.close();
       this.db = null;
     }

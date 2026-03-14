@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import fs from 'fs/promises';
-import { readFileSync } from 'fs';
+import { readFileSync, mkdirSync, writeFileSync } from 'fs';
 import { execSync } from 'child_process';
 import path from 'path';
 import os from 'os';
@@ -93,9 +93,8 @@ export class Keychain {
       try {
         const secret = crypto.randomUUID();
         // Use synchronous write since this is inside deriveMasterKey constructor path
-        const fsSync = require('fs');
-        fsSync.mkdirSync(this.keychainDir, { recursive: true, mode: 0o700 });
-        fsSync.writeFileSync(fallbackPath, secret, { mode: 0o600 });
+        mkdirSync(this.keychainDir, { recursive: true, mode: 0o700 });
+        writeFileSync(fallbackPath, secret, { mode: 0o600 });
         return secret;
       } catch {
         // Absolute last resort

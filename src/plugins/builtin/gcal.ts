@@ -42,6 +42,24 @@ export class GoogleCalendarPlugin implements Plugin {
 
   isConfigured(): boolean { return true; }
 
+  async getContext(): Promise<string | null> {
+    try {
+      const now = new Date();
+      const endOfDay = new Date(now);
+      endOfDay.setHours(23, 59, 59, 999);
+      const data = await this.calFetch(
+        `/calendars/primary/events?timeMin=${encodeURIComponent(now.toISOString())}&timeMax=${encodeURIComponent(endOfDay.toISOString())}&singleEvents=true&orderBy=startTime&maxResults=5`
+      );
+      const events = data?.items ?? [];
+      if (events.length === 0) return null;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const summaries = events.map((e: any) => e.summary ?? 'Untitled').join(', ');
+      return `[CALENDAR] Today: ${summaries}`;
+    } catch {
+      return null;
+    }
+  }
+
   private async getToken(): Promise<string> {
     const token = await this.keychain.get('google', 'access_token');
     if (!token) throw new Error('Google not authenticated. Run: conductor auth google');

@@ -40,7 +40,7 @@ export class ClaudeProvider extends AIProvider {
             ],
           };
         } else if (m.role === 'assistant' && m.tool_calls) {
-          const content: any[] = [];
+          const content: Anthropic.Messages.ContentBlockParam[] = [];
           if (m.content) content.push({ type: 'text', text: m.content });
           m.tool_calls.forEach((tc) => {
             content.push({
@@ -64,21 +64,21 @@ export class ClaudeProvider extends AIProvider {
       model,
       max_tokens: this.config.maxTokens || 4096,
       system: systemMessage?.content,
-      messages: anthropicMessages as any,
+      messages: anthropicMessages as Anthropic.Messages.MessageParam[],
       tools: requestTools,
     });
 
     const toolCalls = response.content
-      .filter((c) => c.type === 'tool_use')
-      .map((c: any) => ({
+      .filter((c): c is Anthropic.Messages.ToolUseBlock => c.type === 'tool_use')
+      .map((c) => ({
         id: c.id,
         name: c.name,
-        arguments: c.input as Record<string, any>,
+        arguments: c.input as Record<string, unknown>,
       }));
 
     const textContent = response.content
-      .filter((c) => c.type === 'text')
-      .map((c: any) => c.text)
+      .filter((c): c is Anthropic.Messages.TextBlock => c.type === 'text')
+      .map((c) => c.text)
       .join('\n');
 
     return {
@@ -116,7 +116,7 @@ export class ClaudeProvider extends AIProvider {
             ],
           };
         } else if (m.role === 'assistant' && m.tool_calls) {
-          const content: any[] = [];
+          const content: Anthropic.Messages.ContentBlockParam[] = [];
           if (m.content) content.push({ type: 'text', text: m.content });
           m.tool_calls.forEach((tc) => {
             content.push({
@@ -140,7 +140,7 @@ export class ClaudeProvider extends AIProvider {
       model,
       max_tokens: this.config.maxTokens || 4096,
       system: systemMessage?.content,
-      messages: anthropicMessages as any,
+      messages: anthropicMessages as Anthropic.Messages.MessageParam[],
       tools: requestTools,
     });
 

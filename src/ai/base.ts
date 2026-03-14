@@ -3,6 +3,7 @@ import { PluginTool } from '../plugins/manager.js';
 export interface AIToolCall {
   id: string;
   name: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   arguments: Record<string, any>;
 }
 
