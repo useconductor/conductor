@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Conductor</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%233b82f6'/%3E%3Ctext x='16' y='23' text-anchor='middle' font-family='system-ui,sans-serif' font-size='20' font-weight='700' fill='white'%3EC%3C/text%3E%3C/svg%3E">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -213,6 +214,36 @@ input[type="checkbox"]{accent-color:var(--accent);}
 
 /* INLINE INPUT */
 .inline-input-row{display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--elevated);border-top:1px solid var(--border);}
+
+/* SIDEBAR COLLAPSE */
+#sidebar{transition:width 0.2s ease;}
+#sidebar.collapsed{width:40px;overflow:hidden;}
+#sidebar.collapsed .sb-wordmark,#sidebar.collapsed .sb-version,#sidebar.collapsed .conn-status,#sidebar.collapsed .nav-item span:not(.nav-icon){display:none;}
+#sidebar.collapsed .nav-item{padding:7px 0;justify-content:center;}
+#sidebar.collapsed .sb-header{padding:10px 0;display:flex;justify-content:center;}
+#sidebar.collapsed .sb-footer{justify-content:center;}
+#sidebar.collapsed .sb-collapse-btn{transform:rotate(180deg);}
+
+/* COMMAND PALETTE */
+#cmd-palette-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;align-items:flex-start;justify-content:center;padding-top:80px;}
+#cmd-palette-overlay.open{display:flex;}
+#cmd-palette{background:var(--surface);border:1px solid var(--border);border-radius:8px;width:520px;max-width:90vw;box-shadow:0 16px 48px rgba(0,0,0,0.5);overflow:hidden;}
+#cmd-input{width:100%;background:transparent;border:none;outline:none;color:var(--text);font-family:var(--mono);font-size:14px;padding:14px 16px;border-bottom:1px solid var(--border);}
+#cmd-results{max-height:320px;overflow-y:auto;}
+.cmd-item{display:flex;align-items:center;gap:10px;padding:9px 16px;cursor:pointer;font-size:13px;color:var(--text2);}
+.cmd-item:hover,.cmd-item.selected{background:var(--elevated);color:var(--text);}
+.cmd-item-icon{font-family:var(--mono);font-size:11px;color:var(--muted);width:20px;flex-shrink:0;}
+.cmd-item-label{flex:1;}
+.cmd-item-hint{font-family:var(--mono);font-size:10px;color:var(--muted);}
+
+/* KEYBOARD SHORTCUT HELP */
+#kb-help-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10001;align-items:center;justify-content:center;}
+#kb-help-overlay.open{display:flex;}
+#kb-help-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px 28px;min-width:340px;max-width:90vw;box-shadow:0 16px 48px rgba(0,0,0,0.5);}
+#kb-help-card h3{font-size:13px;font-weight:600;color:var(--text);margin-bottom:14px;letter-spacing:0.05em;text-transform:uppercase;}
+.kb-row{display:flex;align-items:center;gap:12px;padding:4px 0;font-size:12px;}
+.kb-key{font-family:var(--mono);font-size:11px;background:var(--elevated);border:1px solid var(--border);border-radius:4px;padding:2px 7px;color:var(--text);white-space:nowrap;}
+.kb-desc{color:var(--text2);}
 </style>
 </head>
 <body>
@@ -221,7 +252,7 @@ input[type="checkbox"]{accent-color:var(--accent);}
 <nav id="sidebar">
   <div class="sb-header">
     <div class="sb-wordmark">conductor</div>
-    <div class="sb-version" id="sb-version">v—</div>
+    <div class="sb-version" id="sb-version" style="color:var(--muted);">loading</div>
   </div>
   <div class="sb-nav">
     <div class="nav-item active" data-page="overview">
@@ -272,6 +303,9 @@ input[type="checkbox"]{accent-color:var(--accent);}
   <div class="sb-footer">
     <span class="conn-dot" id="sb-dot"></span>
     <span class="conn-status" id="sb-status">connecting</span>
+    <button class="sb-collapse-btn" id="sb-collapse-btn" onclick="toggleSidebar()" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--muted);padding:2px 4px;" title="Toggle sidebar [">
+      <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.5;"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
   </div>
 </nav>
 
@@ -285,6 +319,33 @@ input[type="checkbox"]{accent-color:var(--accent);}
 </div>
 
 <div id="toast-container"></div>
+
+<div id="cmd-palette-overlay" onclick="if(event.target===this)closeCmdPalette()">
+  <div id="cmd-palette">
+    <input id="cmd-input" placeholder="Type a page, > for shell, @ for notes..." autocomplete="off" spellcheck="false">
+    <div id="cmd-results"></div>
+  </div>
+</div>
+
+<div id="kb-help-overlay" onclick="if(event.target===this)closeKbHelp()">
+  <div id="kb-help-card">
+    <h3>Keyboard Shortcuts</h3>
+    <div class="kb-row"><span class="kb-key">Cmd/Ctrl+K</span><span class="kb-desc">Command palette</span></div>
+    <div class="kb-row"><span class="kb-key">[</span><span class="kb-desc">Toggle sidebar</span></div>
+    <div class="kb-row"><span class="kb-key">?</span><span class="kb-desc">This help</span></div>
+    <div class="kb-row"><span class="kb-key">n</span><span class="kb-desc">New task (on Tasks page)</span></div>
+    <div class="kb-row"><span class="kb-key">Ctrl+L</span><span class="kb-desc">Clear terminal</span></div>
+    <div class="kb-row" style="margin-top:8px;"><span class="kb-key">g o</span><span class="kb-desc">Go to Overview</span></div>
+    <div class="kb-row"><span class="kb-key">g t</span><span class="kb-desc">Go to Tasks</span></div>
+    <div class="kb-row"><span class="kb-key">g f</span><span class="kb-desc">Go to Files</span></div>
+    <div class="kb-row"><span class="kb-key">g p</span><span class="kb-desc">Go to Processes</span></div>
+    <div class="kb-row"><span class="kb-key">g n</span><span class="kb-desc">Go to Notes</span></div>
+    <div class="kb-row"><span class="kb-key">g s</span><span class="kb-desc">Go to System</span></div>
+    <div class="kb-row"><span class="kb-key">g l</span><span class="kb-desc">Go to Logs</span></div>
+    <div class="kb-row"><span class="kb-key">g c</span><span class="kb-desc">Go to Credentials</span></div>
+    <button class="btn btn-sm" onclick="closeKbHelp()" style="margin-top:16px;">Close</button>
+  </div>
+</div>
 
 <script>
 /* ══════════════════════════════════════════
@@ -340,7 +401,14 @@ let _procAutoRefresh = true;
 let _procInterval = null;
 let _selectedNote = null;
 let _notes = [];
+let _noteDebounce = null;
+let _noteDirty = false;
+let _noteSearch = '';
+let _noteMarkdownPreview = false;
+let _logSearch = '';
+let _selectedTaskIds = new Set();
 let _filePath = '';
+let _homeDir = '';
 let _fileHidden = false;
 let _selectedFile = null;
 let _overviewMetricsInterval = null;
@@ -410,6 +478,19 @@ function nowHHMMSS() {
   return new Date().toLocaleTimeString('en-US',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
 }
 
+/* STRIP ANSI */
+function stripAnsi(str) {
+  return String(str == null ? '' : str).replace(/\x1B\[[0-9;]*[mGKHF]/g, '');
+}
+
+/* PATH DISPLAY — show ~-relative path instead of absolute */
+function pathToDisplay(absPath) {
+  if (!absPath) return '~';
+  if (_homeDir && absPath === _homeDir) return '~';
+  if (_homeDir && absPath.startsWith(_homeDir + '/')) return '~' + absPath.slice(_homeDir.length);
+  return absPath;
+}
+
 /* TOAST */
 function toast(msg, type = 'ok', ms = 2800) {
   const tc = document.getElementById('toast-container');
@@ -434,7 +515,12 @@ function btnReset(id) {
 /* ══════════════════════════════════════════
    NAVIGATION
 ══════════════════════════════════════════ */
+function hasUnsavedFileEdit() { return !!document.getElementById('file-edit-area'); }
+
 function navigate(page) {
+  if (hasUnsavedFileEdit() && page !== _currentPage) {
+    if (!confirm('You have unsaved changes in the file editor. Leave anyway?')) return;
+  }
   clearAllIntervals();
   _currentPage = page;
   document.querySelectorAll('.nav-item').forEach(el => {
@@ -446,6 +532,7 @@ function navigate(page) {
     credentials:'Credentials', logs:'Logs', settings:'Settings'
   };
   document.getElementById('topbar-title').textContent = titles[page] || page;
+  document.title = 'Conductor — ' + (titles[page] || page);
   document.getElementById('topbar-actions').innerHTML = '';
   document.getElementById('content').style.padding = '18px';
   location.hash = '#' + page;
@@ -453,7 +540,7 @@ function navigate(page) {
   switch(page) {
     case 'overview':    renderOverview(); break;
     case 'tasks':       renderTasks(); break;
-    case 'files':       renderFiles(); break;
+    case 'files':       _filePath = ''; renderFiles(); break;
     case 'processes':   renderProcesses(); break;
     case 'network':     renderNetwork(); break;
     case 'system':      renderSystem(); break;
@@ -468,7 +555,15 @@ function navigate(page) {
 window.addEventListener('hashchange', () => {
   const page = location.hash.replace('#','');
   const valid = ['overview','tasks','files','processes','network','system','notes','plugins','credentials','logs','settings'];
-  if (page && valid.includes(page) && page !== _currentPage) navigate(page);
+  if (page && valid.includes(page) && page !== _currentPage) {
+    if (hasUnsavedFileEdit()) {
+      if (!confirm('You have unsaved changes in the file editor. Leave anyway?')) {
+        location.hash = '#' + _currentPage;
+        return;
+      }
+    }
+    navigate(page);
+  }
 });
 
 /* ══════════════════════════════════════════
@@ -494,9 +589,16 @@ async function init() {
     const dot = document.getElementById('sb-dot');
     dot.className = 'conn-dot ok';
     document.getElementById('sb-status').textContent = 'connected';
-    if (_status.version) document.getElementById('sb-version').textContent = 'v'+_status.version;
+    const sbVer = document.getElementById('sb-version');
+    if (sbVer) { sbVer.textContent = _status.version ? 'v'+_status.version : 'v?'; sbVer.style.color = ''; }
 
     startSSE();
+
+    // Load shell history from localStorage
+    try {
+      const saved = localStorage.getItem('conductor_shell_history');
+      if (saved) { _shellHistory = JSON.parse(saved).slice(0,100); }
+    } catch(e) {}
 
     const hash = location.hash.replace('#','');
     const valid = ['overview','tasks','files','processes','network','system','notes','plugins','credentials','logs','settings'];
@@ -520,14 +622,19 @@ function startSSE() {
     let line;
     try {
       const d = JSON.parse(e.data);
-      line = {time: d.timestamp ? fmtTime(d.timestamp) : nowHHMMSS(), level:(d.level||'INFO').toUpperCase(), msg:d.message||d.msg||e.data};
+      const msg = stripAnsi(d.message || d.msg || '');
+      // Skip empty-message Winston JSON log entries
+      if (!msg) return;
+      line = {time: d.timestamp ? fmtTime(d.timestamp) : nowHHMMSS(), level:(d.level||'INFO').toUpperCase(), msg};
     } catch(ex) {
-      line = {time:nowHHMMSS(), level:'INFO', msg:e.data};
+      const msg = stripAnsi(e.data);
+      if (!msg.trim()) return;
+      line = {time:nowHHMMSS(), level:'INFO', msg};
     }
     _logLines.push(line);
-    if (_logLines.length > 2000) _logLines.shift();
+    if (_logLines.length > 2000) _logLines.splice(0, _logLines.length - 2000);
     _overviewLogTail.push(line);
-    if (_overviewLogTail.length > 5) _overviewLogTail.shift();
+    if (_overviewLogTail.length > 50) _overviewLogTail.shift();
     updateOverviewLogTail();
     if (!_logPaused && _currentPage === 'logs') appendLogLine(line);
   };
@@ -545,33 +652,38 @@ function renderOverview() {
   const enabledCount = Array.isArray(_plugins.enabled) ? _plugins.enabled.length : 0;
   const allCount = Array.isArray(_plugins.all) ? _plugins.all.length : Object.keys(_plugins.all||{}).length;
 
+  // Decide what the first two stat cards show: Todoist stats if configured, otherwise notes count + credentials count
+  const stat1Label = _todoistConfigured ? 'Tasks Today' : 'Notes';
+  const stat2Label = _todoistConfigured ? 'Overdue' : 'Credentials';
+
   c.innerHTML = `
     <div class="stat-grid" id="ov-stats">
       <div class="stat-block">
-        <div class="stat-num" id="ov-tasks-today">--</div>
-        <div class="stat-label">Tasks Today</div>
+        <div class="stat-num" id="ov-tasks-today"><span style="color:var(--muted);font-size:16px;">…</span></div>
+        <div class="stat-label" id="ov-stat1-label">${esc(stat1Label)}</div>
       </div>
       <div class="stat-block">
-        <div class="stat-num" id="ov-overdue">--</div>
-        <div class="stat-label">Overdue</div>
+        <div class="stat-num" id="ov-overdue"><span style="color:var(--muted);font-size:16px;">…</span></div>
+        <div class="stat-label" id="ov-stat2-label">${esc(stat2Label)}</div>
       </div>
       <div class="stat-block">
         <div class="stat-num">${esc(enabledCount)}<span style="font-size:14px;color:var(--muted)"> / ${esc(allCount)}</span></div>
         <div class="stat-label">Plugins</div>
       </div>
       <div class="stat-block">
-        <div class="stat-num mono" id="ov-uptime" style="font-size:18px;padding-top:4px;">--</div>
+        <div class="stat-num mono" id="ov-uptime" style="font-size:18px;padding-top:4px;"><span style="color:var(--muted);font-size:16px;">…</span></div>
         <div class="stat-label">Uptime</div>
       </div>
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
       <div class="section">
-        <div class="section-head"><span class="section-title">Memory</span><span class="mono" id="ov-mem-pct" style="font-size:10px;color:var(--muted);">—</span></div>
+        <div class="section-head"><span class="section-title">Memory</span><span class="mono" id="ov-mem-pct" style="font-size:10px;color:var(--muted);"><span style="color:var(--muted);">…</span></span></div>
         <div class="section-body">
-          <div class="mono" id="ov-mem-label" style="font-size:11px;color:var(--text2);margin-bottom:6px;">— / —</div>
+          <div class="mono" id="ov-mem-label" style="font-size:11px;color:var(--text2);margin-bottom:6px;"><span style="color:var(--muted);">loading…</span></div>
           <div class="prog-wrap"><div class="prog-fill" id="ov-mem-bar" style="width:0%"></div></div>
-          <div class="mono" id="ov-load-label" style="font-size:11px;color:var(--text2);margin-top:8px;">Load: — / — / —</div>
+          <div class="mono" id="ov-load-label" style="font-size:11px;color:var(--text2);margin-top:8px;"><span style="color:var(--muted);">loading…</span></div>
+          <div class="mono" id="ov-cpu-pct" style="font-size:11px;color:var(--text2);margin-top:4px;"></div>
         </div>
       </div>
       <div class="section">
@@ -581,6 +693,7 @@ function renderOverview() {
             <tr><td>Version</td><td class="mono" style="color:var(--text2);">${esc(_status.version||'--')}</td></tr>
             <tr><td>Platform</td><td class="mono" style="color:var(--text2);">${esc(_status.platform||'--')}</td></tr>
             <tr><td>Node</td><td class="mono" style="color:var(--text2);">${esc(_status.nodeVersion||_status.node_version||'--')}</td></tr>
+            <tr><td>AI</td><td><span class="badge badge-ok" style="font-size:10px;">${esc(_config.aiProvider||_status.aiProvider||'claude')}</span></td></tr>
           </table>
         </div>
       </div>
@@ -643,7 +756,14 @@ function renderOverview() {
   _overviewMetricsInterval = setInterval(loadOverviewMetrics, 5000);
   _intervals.push(_overviewMetricsInterval);
 
-  if (_todoistConfigured) loadOverviewTaskStats();
+  if (_todoistConfigured) {
+    loadOverviewTaskStats();
+  } else {
+    loadOverviewFallbackStats();
+  }
+
+  // Pre-populate live logs with buffered history
+  updateOverviewLogTail();
 }
 
 async function loadOverviewMetrics() {
@@ -664,14 +784,21 @@ async function loadOverviewMetrics() {
     if (el1) el1.textContent = fmtBytes(memUsed)+' / '+fmtBytes(memTotal);
     if (el2) el2.style.width = pct+'%';
     if (el4) el4.textContent = pct+'%';
-    if (elUp && m.uptime) elUp.textContent = fmtUptime(m.uptime);
+    if (elUp) elUp.textContent = m.uptime ? fmtUptime(m.uptime) : '?';
 
     if (el3) {
       const la = m.loadAvg || [];
       const fmt = v => typeof v === 'number' ? v.toFixed(2) : '--';
       el3.textContent = 'Load avg: '+fmt(la[0])+' / '+fmt(la[1])+' / '+fmt(la[2]);
     }
-  } catch(e) {}
+    const cpuEl = document.getElementById('ov-cpu-pct');
+    if (cpuEl && m.cpu !== undefined) cpuEl.textContent = 'CPU: '+(typeof m.cpu === 'number' ? m.cpu.toFixed(1)+'%' : '--');
+  } catch(e) {
+    const elUp = document.getElementById('ov-uptime');
+    const el4 = document.getElementById('ov-mem-pct');
+    if (elUp) elUp.innerHTML = '<span style="font-size:11px;color:var(--err);">err</span>';
+    if (el4) el4.innerHTML = '<span style="color:var(--err);">err</span>';
+  }
 }
 
 async function loadOverviewTaskStats() {
@@ -691,7 +818,41 @@ async function loadOverviewTaskStats() {
     const el2 = document.getElementById('ov-overdue');
     if (el1) el1.textContent = todayCount;
     if (el2) el2.textContent = overdueCount;
-  } catch(e) {}
+  } catch(e) {
+    const el1 = document.getElementById('ov-tasks-today');
+    const el2 = document.getElementById('ov-overdue');
+    if (el1) el1.innerHTML = '<span style="font-size:12px;color:var(--err);">err</span>';
+    if (el2) el2.innerHTML = '<span style="font-size:12px;color:var(--err);">err</span>';
+  }
+}
+
+async function loadOverviewFallbackStats() {
+  // When Todoist is not configured, show notes count and credentials count instead
+  try {
+    const [notesData, credsData] = await Promise.allSettled([
+      api('GET','/api/notes'),
+      api('GET','/api/credentials'),
+    ]);
+    const el1 = document.getElementById('ov-tasks-today');
+    const el2 = document.getElementById('ov-overdue');
+    if (el1) {
+      const notes = notesData.status === 'fulfilled' && notesData.value
+        ? (Array.isArray(notesData.value.notes) ? notesData.value.notes.length : 0)
+        : 0;
+      el1.textContent = notes;
+    }
+    if (el2) {
+      const creds = credsData.status === 'fulfilled' && Array.isArray(credsData.value)
+        ? credsData.value.filter(c => c.hasValue).length
+        : _credentials.filter(c => c.hasValue).length;
+      el2.textContent = creds;
+    }
+  } catch(e) {
+    const el1 = document.getElementById('ov-tasks-today');
+    const el2 = document.getElementById('ov-overdue');
+    if (el1) el1.textContent = '0';
+    if (el2) el2.textContent = _credentials.filter(c => c.hasValue).length;
+  }
 }
 
 function updateOverviewLogTail() {
@@ -781,7 +942,13 @@ function renderTasksUI() {
   c.innerHTML = `
     <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap;">
       <input type="text" id="new-task-input" placeholder="New task content..." style="flex:1;min-width:200px;">
-      <input type="text" id="new-task-due" placeholder="Due: tomorrow" style="width:140px;">
+      <input type="text" id="new-task-due" placeholder="Due (e.g. tomorrow)" style="width:140px;">
+      <select id="new-task-priority" style="width:72px;" title="Priority">
+        <option value="1">P4</option>
+        <option value="2">P3</option>
+        <option value="3">P2</option>
+        <option value="4">P1</option>
+      </select>
       <button class="btn btn-primary" onclick="addTask()">Add Task</button>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap;">
@@ -793,6 +960,12 @@ function renderTasksUI() {
       <div style="display:flex;gap:4px;">
         ${['all','p1','p2','p3'].map(p => `<button class="btn btn-sm ${_taskPriorityFilter===p?'btn-primary':''}" data-pf="${p}" onclick="setPriFilter(this,'${p}')">${p.toUpperCase()}</button>`).join('')}
       </div>
+    </div>
+    <div id="task-bulk-bar" style="display:none;padding:6px 8px;background:var(--elevated);border:1px solid var(--border);border-radius:var(--r);margin-bottom:8px;gap:8px;align-items:center;">
+      <span id="task-sel-count" class="mono" style="font-size:11px;color:var(--muted);"></span>
+      <button class="btn btn-sm btn-primary" onclick="bulkComplete()">Complete Selected</button>
+      <button class="btn btn-sm btn-danger" onclick="bulkDelete()">Delete Selected</button>
+      <button class="btn btn-sm" onclick="clearTaskSelection()">Clear</button>
     </div>
     <div id="task-list-wrap"></div>
   `;
@@ -853,22 +1026,26 @@ function taskRowHTML(t) {
   const projName = proj ? proj.name : '';
   return `<tr data-task-id="${esc(t.id)}">
     <td style="text-align:center;">
-      <span style="cursor:pointer;font-size:16px;color:var(--border);display:inline-block;width:18px;height:18px;border:1.5px solid var(--border);border-radius:3px;line-height:16px;text-align:center;" id="chk-${esc(t.id)}" onclick="completeTask('${esc(t.id)}',this)"> </span>
+      <div style="display:flex;gap:4px;align-items:center;justify-content:center;">
+        <input type="checkbox" style="width:12px;height:12px;" onchange="toggleTaskSelect('${esc(t.id)}',this.checked)" ${_selectedTaskIds.has(String(t.id))?'checked':''}>
+        <span style="cursor:pointer;font-size:14px;color:var(--border);display:inline-block;width:16px;height:16px;border:1.5px solid var(--border);border-radius:3px;line-height:14px;text-align:center;" id="chk-${esc(t.id)}" onclick="completeTask('${esc(t.id)}',this)"> </span>
+      </div>
     </td>
     <td class="mono" style="font-size:11px;color:${priColor};font-weight:600;">${esc(pLabel)}</td>
     <td style="cursor:pointer;" onclick="expandTask('${esc(t.id)}')">${esc(t.content)}</td>
-    <td class="mono" style="font-size:11px;${dueColor}">${dueDate?esc(dueDate):''}</td>
+    <td class="mono" style="font-size:11px;${dueColor}">${dueDate?esc(relativeDate(dueDate)):''}</td>
     <td style="font-size:11px;color:var(--muted);">${esc(projName)}</td>
     <td style="text-align:right;" id="tdel-${esc(t.id)}">
       <button class="btn btn-sm btn-danger" onclick="promptDeleteTask('${esc(t.id)}')">Del</button>
     </td>
   </tr>
   <tr id="texp-${esc(t.id)}" style="display:none;">
-    <td colspan="6" style="padding:10px 12px;background:var(--elevated);">
+    <td colspan="6" style="padding:10px 12px;background:var(--elevated);" id="texp-td-${esc(t.id)}">
       <div style="font-size:12px;margin-bottom:8px;color:var(--text);">${esc(t.content)}</div>
       ${t.description ? `<div style="font-size:11px;color:var(--muted);margin-bottom:8px;font-family:var(--mono);">${esc(t.description)}</div>` : ''}
       <div style="display:flex;gap:6px;">
         <button class="btn btn-sm btn-primary" onclick="completeTask('${esc(t.id)}')">Complete</button>
+        <button class="btn btn-sm" onclick="showEditTask('${esc(t.id)}')">Edit</button>
         <button class="btn btn-sm btn-danger" onclick="promptDeleteTask('${esc(t.id)}')">Delete</button>
         <button class="btn btn-sm" onclick="collapseTask('${esc(t.id)}')">Close</button>
       </div>
@@ -885,6 +1062,72 @@ function collapseTask(id) {
   if (row) row.style.display = 'none';
 }
 
+function showEditTask(id) {
+  const task = _allTasks.find(t => String(t.id) === String(id));
+  if (!task) return;
+  const td = document.getElementById('texp-td-'+id);
+  if (!td) return;
+  const projOpts = _taskProjects.map(p =>
+    `<option value="${esc(String(p.id))}" ${String(p.id)===String(task.project_id)?'selected':''}>${esc(p.name)}</option>`
+  ).join('');
+  const dueVal = task.due && task.due.date ? task.due.date : '';
+  td.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:8px;padding:2px 0;">
+      <input type="text" id="tedit-content-${esc(id)}" value="${esc(task.content)}" style="width:100%;font-size:13px;">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <select id="tedit-pri-${esc(id)}" style="width:72px;" title="Priority">
+          <option value="1" ${task.priority===1?'selected':''}>P4</option>
+          <option value="2" ${task.priority===2?'selected':''}>P3</option>
+          <option value="3" ${task.priority===3?'selected':''}>P2</option>
+          <option value="4" ${task.priority===4?'selected':''}>P1</option>
+        </select>
+        <select id="tedit-proj-${esc(id)}" style="min-width:130px;">${projOpts}</select>
+        <input type="date" id="tedit-due-${esc(id)}" value="${esc(dueVal)}" style="width:140px;" title="Due date">
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-sm btn-primary" onclick="saveEditTask('${esc(id)}')">Save</button>
+        <button class="btn btn-sm" onclick="cancelEditTask('${esc(id)}')">Cancel</button>
+      </div>
+    </div>`;
+  const inp = document.getElementById('tedit-content-'+id);
+  if (inp) { inp.focus(); inp.select(); }
+}
+
+async function saveEditTask(id) {
+  const contentEl = document.getElementById('tedit-content-'+id);
+  const priEl = document.getElementById('tedit-pri-'+id);
+  const projEl = document.getElementById('tedit-proj-'+id);
+  const dueEl = document.getElementById('tedit-due-'+id);
+  if (!contentEl) return;
+  const body = {
+    content: contentEl.value.trim(),
+    priority: parseInt(priEl ? priEl.value : '1', 10),
+  };
+  if (projEl && projEl.value) body.project_id = projEl.value;
+  if (dueEl && dueEl.value) body.due_date = dueEl.value;
+  try {
+    const updated = await api('POST','/api/todoist/tasks/'+id, body);
+    const idx = _allTasks.findIndex(t => String(t.id) === String(id));
+    if (idx !== -1) {
+      if (updated && updated.id) _allTasks[idx] = updated;
+      else {
+        _allTasks[idx].content = body.content;
+        _allTasks[idx].priority = body.priority;
+        if (body.project_id) _allTasks[idx].project_id = body.project_id;
+        if (body.due_date) _allTasks[idx].due = {date: body.due_date};
+      }
+    }
+    toast('Task updated');
+    renderTaskList();
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+function cancelEditTask(id) {
+  renderTaskList();
+  const expRow = document.getElementById('texp-'+id);
+  if (expRow) expRow.style.display = '';
+}
+
 async function completeTask(id, el) {
   if (el) { el.textContent = '✓'; el.style.color = 'var(--ok)'; el.style.borderColor = 'var(--ok)'; }
   try {
@@ -894,6 +1137,8 @@ async function completeTask(id, el) {
     const trExp = document.getElementById('texp-'+id);
     if (tr) tr.remove();
     if (trExp) trExp.remove();
+    // If no filtered tasks remain, re-render to show empty state (hides table headers)
+    if (!filteredTasks().length) renderTaskList();
     toast('Task completed');
   } catch(e) {
     if (el) { el.textContent = ' '; el.style.color = ''; el.style.borderColor = ''; }
@@ -902,6 +1147,8 @@ async function completeTask(id, el) {
 }
 
 function promptDeleteTask(id) {
+  // Collapse detail panel to avoid showing both confirmation and expansion simultaneously
+  collapseTask(id);
   const wrap = document.getElementById('tdel-'+id);
   if (!wrap) return;
   wrap.innerHTML = `<span class="confirm-wrap" style="font-size:11px;">
@@ -921,6 +1168,8 @@ async function confirmDeleteTask(id) {
     const trExp = document.getElementById('texp-'+id);
     if (tr) tr.remove();
     if (trExp) trExp.remove();
+    // If no filtered tasks remain, re-render to show empty state (hides table headers)
+    if (!filteredTasks().length) renderTaskList();
     toast('Task deleted');
   } catch(e) { toast(e.message, 'err'); }
 }
@@ -928,9 +1177,12 @@ async function confirmDeleteTask(id) {
 async function addTask() {
   const inp = document.getElementById('new-task-input');
   const dueInp = document.getElementById('new-task-due');
+  const priSel = document.getElementById('new-task-priority');
   if (!inp || !inp.value.trim()) return;
   const body = {content: inp.value.trim()};
   if (dueInp && dueInp.value.trim()) body.due_string = dueInp.value.trim();
+  const priority = priSel ? parseInt(priSel.value, 10) : 1;
+  if (priority > 1) body.priority = priority; // only send if not default P4 (=1)
   try {
     const task = await api('POST','/api/todoist/tasks',body);
     inp.value = '';
@@ -947,7 +1199,9 @@ function renderFiles() {
   c.style.padding = '0';
   c.innerHTML = `
     <div id="file-bar" style="padding:6px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;background:var(--surface);flex-shrink:0;">
-      <svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:var(--muted);fill:none;stroke-width:1.5;flex-shrink:0;"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+      <button onclick="loadFileList('')" style="background:none;border:none;padding:2px 4px;cursor:pointer;display:flex;align-items:center;border-radius:3px;flex-shrink:0;" title="Home directory">
+        <svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:var(--muted);fill:none;stroke-width:1.5;"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+      </button>
       <span class="mono" id="file-breadcrumb" style="font-size:11px;flex:1;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">~</span>
       <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);cursor:pointer;flex-shrink:0;">
         <input type="checkbox" id="file-hidden-toggle" ${_fileHidden?'checked':''} onchange="_fileHidden=this.checked;loadFileList(_filePath);">
@@ -994,14 +1248,47 @@ function confirmNewFile() {
 
 async function loadFileList(dirPath) {
   _filePath = dirPath;
-  const breadcrumb = document.getElementById('file-breadcrumb');
-  if (breadcrumb) breadcrumb.textContent = dirPath || '~';
   const pane = document.getElementById('file-list-pane');
   if (!pane) return;
   pane.innerHTML = '<div class="empty">Loading...</div>';
   try {
     const qs = dirPath ? '?path='+encodeURIComponent(dirPath) : '';
     const data = await api('GET','/api/fs/list'+qs);
+    // Use the resolved absolute path returned by the server
+    if (data && data.path) {
+      _filePath = data.path;
+      // Capture home dir on first empty-path load
+      if (!dirPath || dirPath === '' || dirPath === '~') _homeDir = data.path;
+    }
+    const breadcrumb = document.getElementById('file-breadcrumb');
+    if (breadcrumb) {
+      const absPath = _filePath;
+      const displayPath = pathToDisplay(absPath);
+      const absParts = absPath.split('/').filter(Boolean);
+      let html = '';
+      if (displayPath.startsWith('~')) {
+        html += `<span style="cursor:pointer;color:var(--accent);" onclick="loadFileList('')">~</span>`;
+        const homeDepth = _homeDir.split('/').filter(Boolean).length;
+        const relParts = absParts.slice(homeDepth);
+        relParts.forEach((part, i) => {
+          const targetPath = _homeDir + '/' + relParts.slice(0, i+1).join('/');
+          const isLast = i === relParts.length - 1;
+          html += '<span style="color:var(--muted);margin:0 2px;">/</span>';
+          if (isLast) html += `<span style="color:var(--text);">${esc(part)}</span>`;
+          else html += `<span style="cursor:pointer;color:var(--accent);" onclick="loadFileList('${esc(targetPath)}')">${esc(part)}</span>`;
+        });
+      } else {
+        html += '<span style="color:var(--muted);">/</span>';
+        absParts.forEach((part, i) => {
+          const targetPath = '/' + absParts.slice(0, i+1).join('/');
+          const isLast = i === absParts.length - 1;
+          if (i > 0) html += '<span style="color:var(--muted);margin:0 2px;">/</span>';
+          if (isLast) html += `<span style="color:var(--text);">${esc(part)}</span>`;
+          else html += `<span style="cursor:pointer;color:var(--accent);" onclick="loadFileList('${esc(targetPath)}')">${esc(part)}</span>`;
+        });
+      }
+      breadcrumb.innerHTML = html;
+    }
     let items = (data && Array.isArray(data.entries)) ? data.entries : [];
     if (!_fileHidden) items = items.filter(f => !(f.name||'').startsWith('.'));
     items.sort((a,b) => {
@@ -1010,8 +1297,10 @@ async function loadFileList(dirPath) {
       return (a.name||'').localeCompare(b.name||'');
     });
     let html = '';
-    if (dirPath) {
-      const parent = dirPath.includes('/') ? dirPath.replace(/\/[^/]+$/, '') || '' : '';
+    // Show parent link for any directory that has a parent (not root)
+    const curPath = _filePath;
+    if (curPath && curPath !== '/') {
+      const parent = curPath.replace(/\/[^/]+\/?$/, '') || '/';
       html += `<div class="file-item" onclick="loadFileList('${esc(parent)}')">
         <span class="file-icon" style="color:var(--accent);">..</span>
         <span class="file-name" style="color:var(--muted);">Parent directory</span>
@@ -1021,7 +1310,7 @@ async function loadFileList(dirPath) {
       const name = f.name || '';
       const isDir = f.type === 'dir';
       const size = isDir ? '' : fmtFileSize(f.size);
-      const fullPath = (dirPath ? (dirPath.endsWith('/')?dirPath:dirPath+'/') : '') + name;
+      const fullPath = curPath.endsWith('/') ? curPath + name : curPath + '/' + name;
       if (isDir) {
         return `<div class="file-item" onclick="loadFileList('${esc(fullPath)}')">
           <span class="file-icon" style="color:var(--accent);">
@@ -1030,7 +1319,7 @@ async function loadFileList(dirPath) {
           <span class="file-name">${esc(name)}</span>
         </div>`;
       }
-      return `<div class="file-item" onclick="loadFileContent('${esc(fullPath)}',this)">
+      return `<div class="file-item" onclick="loadFileContent('${esc(fullPath)}',this)" title="${esc(fullPath)}">
         <span class="file-icon">
           <svg viewBox="0 0 24 24" style="width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:1.5;"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
         </span>
@@ -1118,6 +1407,7 @@ async function confirmDeleteFile(path) {
    PROCESSES
 ══════════════════════════════════════════ */
 let _procSearch = '';
+let _procSort = {col:'cpu',dir:-1};
 async function renderProcesses() {
   const c = document.getElementById('content');
   c.innerHTML = `
@@ -1159,34 +1449,52 @@ async function loadProcesses() {
     const data = await api('GET','/api/system/processes/detail');
     const procs = data && Array.isArray(data.processes) ? data.processes : [];
     if (status) status.textContent = procs.length+' processes — '+nowHHMMSS();
-    wrap.innerHTML = `<table class="data-table">
+    if (!procs.length) {
+      wrap.innerHTML = '<div class="empty">No processes found</div>';
+      return;
+    }
+    const sortArrow = (col) => _procSort.col===col ? (_procSort.dir>0?'↑':'↓') : '';
+    procs.sort((a,b) => {
+      let av, bv;
+      if (_procSort.col==='cpu') { av=parseFloat(a.cpu||0); bv=parseFloat(b.cpu||0); }
+      else if (_procSort.col==='mem') { av=parseFloat(a.mem||0); bv=parseFloat(b.mem||0); }
+      else if (_procSort.col==='pid') { av=parseInt(a.pid||0); bv=parseInt(b.pid||0); }
+      else if (_procSort.col==='user') { av=(a.user||'').toLowerCase(); bv=(b.user||'').toLowerCase(); }
+      else { av=(a.command||a.cmd||'').toLowerCase(); bv=(b.command||b.cmd||'').toLowerCase(); }
+      return av < bv ? -_procSort.dir : av > bv ? _procSort.dir : 0;
+    });
+    wrap.innerHTML = `<table class="data-table" id="proc-table">
       <thead><tr>
-        <th style="width:64px;">PID</th>
-        <th style="width:80px;">USER</th>
-        <th style="width:56px;">CPU%</th>
-        <th style="width:56px;">MEM%</th>
-        <th>COMMAND</th>
+        <th style="width:64px;cursor:pointer;" onclick="sortProcs('pid')">PID ${sortArrow('pid')}</th>
+        <th style="width:80px;cursor:pointer;" onclick="sortProcs('user')">USER ${sortArrow('user')}</th>
+        <th style="width:56px;cursor:pointer;" onclick="sortProcs('cpu')">CPU% ${sortArrow('cpu')}</th>
+        <th style="width:56px;cursor:pointer;" onclick="sortProcs('mem')">MEM% ${sortArrow('mem')}</th>
+        <th style="cursor:pointer;" onclick="sortProcs('cmd')">COMMAND ${sortArrow('cmd')}</th>
         <th style="width:80px;"></th>
       </tr></thead>
       <tbody>${procs.map(p => {
         const cpu = parseFloat(p.cpu || 0);
         const mem = parseFloat(p.mem || 0);
-        const cmd = String(p.command || p.cmd || '').substring(0,60);
+        const fullCmd = String(p.command || p.cmd || '');
+        const cmd = fullCmd.substring(0,60);
         const pid = p.pid || '';
         const user = p.user || '';
         const cpuStyle = cpu > 20 ? 'font-weight:600;color:var(--warn);' : '';
-        return `<tr>
+        const rowStyle = cpu > 20 ? 'background:rgba(245,158,11,0.06);' : '';
+        return `<tr style="${rowStyle}">
           <td class="mono" style="font-size:11px;">${esc(String(pid))}</td>
           <td style="font-size:11px;color:var(--text2);">${esc(user)}</td>
           <td class="mono" style="font-size:11px;${cpuStyle}">${cpu.toFixed(1)}</td>
           <td class="mono" style="font-size:11px;">${mem.toFixed(1)}</td>
-          <td class="mono" style="font-size:11px;color:var(--text2);">${esc(cmd)}</td>
+          <td class="mono" style="font-size:11px;color:var(--text2);" title="${esc(fullCmd)}">${esc(cmd)}${fullCmd.length > 60 ? '…' : ''}</td>
           <td style="text-align:right;" id="pkill-${esc(String(pid))}">
             <button class="btn btn-sm btn-danger" onclick="promptKill('${esc(String(pid))}')">Kill</button>
           </td>
         </tr>`;
       }).join('')}</tbody>
     </table>`;
+    // Re-apply any active search filter after re-render
+    filterProcTable();
   } catch(e) {
     if (wrap) wrap.innerHTML = `<div class="empty" style="color:var(--err);">${esc(e.message)}</div>`;
   }
@@ -1215,7 +1523,7 @@ async function confirmKill(pid) {
 
 function filterProcTable() {
   const q = (_procSearch||'').toLowerCase();
-  document.querySelectorAll('#proc-table-wrap tbody tr').forEach(tr => {
+  document.querySelectorAll('#proc-table tbody tr').forEach(tr => {
     const cmd = (tr.querySelector('td:nth-child(5)')||{}).textContent||'';
     const pid = (tr.querySelector('td:nth-child(1)')||{}).textContent||'';
     tr.style.display = (!q || cmd.toLowerCase().includes(q) || pid.includes(q)) ? '' : 'none';
@@ -1235,7 +1543,7 @@ function renderNetwork() {
         <span style="color:var(--text2);">– – 5m</span>
         <span style="color:var(--muted);">··· 15m</span>
       </div>
-      <svg id="net-sparkline" width="100%" height="52" style="display:block;background:var(--bg);"></svg>
+      <svg id="net-sparkline" width="100%" height="80" style="display:block;background:var(--bg);"></svg>
     </div>
     <div class="section" style="margin-bottom:14px;">
       <div class="section-head"><span class="section-title">Established Connections</span><button class="btn btn-sm" onclick="loadNetworkConnections()">Refresh</button></div>
@@ -1248,7 +1556,7 @@ function renderNetwork() {
   `;
   loadNetworkConnections();
   loadNetworkInterfaces();
-  sampleNetworkLoad();
+  requestAnimationFrame(() => sampleNetworkLoad());
   _netInterval = setInterval(sampleNetworkLoad, 3000);
   _intervals.push(_netInterval);
 }
@@ -1268,25 +1576,39 @@ function drawSparkline() {
   const svg = document.getElementById('net-sparkline');
   if (!svg || !_netSamples.length) return;
   const w = svg.clientWidth || 600;
-  const h = 52;
+  const h = 80;
+  const leftPad = 34; // space for Y-axis labels
   const n = _netSamples.length;
   const allVals = _netSamples.flatMap(s => [s.l1, s.l5, s.l15]);
   const maxVal = Math.max(...allVals, 1);
-  const xStep = w / Math.max(n-1, 1);
+  const chartW = w - leftPad;
+  const xStep = chartW / Math.max(n-1, 1);
+  const topPad = 8, botPad = 6;
 
   function pts(key) {
     return _netSamples.map((s,i) => {
-      const x = i * xStep;
-      const y = h - (s[key] / maxVal) * (h-6) - 3;
+      const x = leftPad + i * xStep;
+      const y = h - botPad - (s[key] / maxVal) * (h - topPad - botPad);
       return x+','+y;
     }).join(' ');
   }
 
-  svg.innerHTML = `
-    <polyline points="${pts('l1')}" stroke="#3b82f6" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-    <polyline points="${pts('l5')}" stroke="#a1a1aa" stroke-width="1" fill="none" stroke-dasharray="5,3" stroke-linecap="round"/>
-    <polyline points="${pts('l15')}" stroke="#71717a" stroke-width="1" fill="none" stroke-dasharray="2,4" stroke-linecap="round"/>
-  `;
+  // Y-axis gridlines and labels at 0, 50%, 100% of max
+  const yLabels = [
+    {val: 0,                       y: h - botPad},
+    {val: (maxVal / 2).toFixed(1), y: h - botPad - (h - topPad - botPad) / 2},
+    {val: maxVal.toFixed(1),       y: topPad},
+  ];
+  const yAxisSvg = yLabels.map(l =>
+    `<text x="${leftPad - 4}" y="${l.y + 3}" text-anchor="end" fill="#71717a" font-size="9" font-family="monospace">${l.val}</text>` +
+    `<line x1="${leftPad}" y1="${l.y}" x2="${w}" y2="${l.y}" stroke="#1f1f1f" stroke-width="1"/>`
+  ).join('');
+
+  svg.innerHTML = yAxisSvg +
+    `<line x1="${leftPad}" y1="${topPad}" x2="${leftPad}" y2="${h - botPad}" stroke="#262626" stroke-width="1"/>` +
+    `<polyline points="${pts('l1')}" stroke="#3b82f6" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>` +
+    `<polyline points="${pts('l5')}" stroke="#a1a1aa" stroke-width="1" fill="none" stroke-dasharray="5,3" stroke-linecap="round"/>` +
+    `<polyline points="${pts('l15')}" stroke="#71717a" stroke-width="1" fill="none" stroke-dasharray="2,4" stroke-linecap="round"/>`;
 }
 
 async function loadNetworkConnections() {
@@ -1383,6 +1705,7 @@ function renderTerminalTab(body) {
       const cmd = this.value.trim();
       if (!cmd) return;
       _shellHistory.unshift(cmd);
+      try { localStorage.setItem('conductor_shell_history', JSON.stringify(_shellHistory.slice(0,100))); } catch(e) {}
       _shellHistoryIdx = -1;
       this.value = '';
       runShell(cmd);
@@ -1532,8 +1855,9 @@ async function loadApps() {
 
 async function renderEnvTab(body) {
   body.innerHTML = `
-    <div style="margin-bottom:10px;">
-      <input type="text" id="env-search" placeholder="Filter variables..." style="width:100%;font-family:var(--mono);font-size:12px;" oninput="filterEnvTable(this.value)">
+    <div style="margin-bottom:10px;display:flex;gap:8px;align-items:center;">
+      <input type="text" id="env-search" placeholder="Filter variables..." style="flex:1;font-family:var(--mono);font-size:12px;" oninput="filterEnvTable(this.value)">
+      <span style="font-size:11px;color:var(--muted);" title="Only safe/Conductor vars are shown">safe vars only</span>
     </div>
     <div id="env-table-wrap"><div class="empty">Loading...</div></div>`;
   try {
@@ -1541,9 +1865,15 @@ async function renderEnvTab(body) {
     const env = (data && data.env && typeof data.env === 'object') ? data.env : {};
     const rows = Object.entries(env);
     const wrap = document.getElementById('env-table-wrap');
-    if (wrap) wrap.innerHTML = rows.length ? `<table class="env-table" id="env-table">
-      <tbody>${rows.map(([k,v]) => `<tr><td>${esc(k)}</td><td>${esc(String(v).substring(0,200))}</td></tr>`).join('')}
-      </tbody></table>` : '<div class="empty">No environment data</div>';
+    if (wrap) {
+      if (rows.length) {
+        wrap.innerHTML = `<table class="env-table" id="env-table">
+          <tbody>${rows.map(([k,v]) => `<tr><td>${esc(k)}</td><td>${esc(String(v).substring(0,200))}</td></tr>`).join('')}
+          </tbody></table>`;
+      } else {
+        wrap.innerHTML = '<div class="empty">No environment variables found (only PATH, HOME, USER, SHELL, and CONDUCTOR_* vars are shown)</div>';
+      }
+    }
   } catch(e) {
     const wrap = document.getElementById('env-table-wrap');
     if (wrap) wrap.innerHTML = `<div class="empty" style="color:var(--err);">${esc(e.message)}</div>`;
@@ -1581,10 +1911,23 @@ async function loadGitStatus() {
     const qs = path ? '?path='+encodeURIComponent(path) : '';
     const data = await api('GET','/api/git/status'+qs);
     if (!data) { wrap.innerHTML = '<div class="empty">No data</div>'; return; }
+    if (data.isRepo === false) {
+      wrap.innerHTML = `<div class="empty" style="color:var(--warn);">Not a git repository: ${esc(path)}</div>`;
+      return;
+    }
     const sections = [];
     if (data.branch) sections.push(`<div style="margin-bottom:12px;"><span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;">Branch</span><div class="mono" style="font-size:13px;color:var(--accent);margin-top:4px;">${esc(data.branch)}</div></div>`);
-    if (data.status) sections.push(`<div style="margin-bottom:12px;"><span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;">Status</span><pre style="font-family:var(--mono);font-size:11px;margin-top:4px;white-space:pre-wrap;color:var(--text2);">${esc(data.status)}</pre></div>`);
-    if (data.recentCommits) sections.push(`<div><span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;">Recent Commits</span><pre style="font-family:var(--mono);font-size:11px;margin-top:4px;white-space:pre-wrap;color:var(--text2);">${esc(data.recentCommits)}</pre></div>`);
+    const statusText = data.status && data.status.trim();
+    const statusHtml = statusText
+      ? `<pre style="font-family:var(--mono);font-size:11px;margin-top:4px;white-space:pre-wrap;color:var(--text2);">${esc(statusText)}</pre>`
+      : `<div style="font-size:11px;color:var(--ok);margin-top:4px;">(clean — nothing to commit)</div>`;
+    sections.push(`<div style="margin-bottom:12px;"><span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;">Status</span>${statusHtml}</div>`);
+    if (data.recentCommits && data.recentCommits.length) {
+      const commits = Array.isArray(data.recentCommits) ? data.recentCommits.join('\n') : String(data.recentCommits);
+      sections.push(`<div><span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;">Recent Commits</span><pre style="font-family:var(--mono);font-size:11px;margin-top:4px;white-space:pre-wrap;color:var(--text2);">${esc(commits)}</pre></div>`);
+    } else if (data.recentCommits && !data.recentCommits.length) {
+      sections.push(`<div><span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;">Recent Commits</span><div style="font-size:11px;color:var(--muted);margin-top:4px;">(no commits yet)</div></div>`);
+    }
     wrap.innerHTML = sections.length ? sections.join('') : `<pre class="iface-pre">${esc(JSON.stringify(data,null,2))}</pre>`;
   } catch(e) {
     wrap.innerHTML = `<div class="empty" style="color:var(--err);">${esc(e.message)}</div>`;
@@ -1657,14 +2000,14 @@ function renderCronTab(body) {
       <div id="cron-list"><div class="empty">Loading...</div></div>
     </div>
     <div class="section">
-      <div class="section-head"><span class="section-title">Run Shell Command via Cron</span></div>
+      <div class="section-head"><span class="section-title">Execute Shell Command</span></div>
       <div class="section-body">
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <input type="text" id="cron-expr" placeholder="Schedule (e.g. */5 * * * *)" style="width:200px;font-family:var(--mono);font-size:12px;">
-          <input type="text" id="cron-cmd" placeholder="Command..." style="flex:1;min-width:200px;font-family:var(--mono);font-size:12px;">
+          <input type="text" id="cron-cmd" placeholder="Command to run now (e.g. echo hello)" style="flex:1;min-width:200px;font-family:var(--mono);font-size:12px;" onkeydown="if(event.key==='Enter')runCronCommand()">
           <button class="btn btn-primary" onclick="runCronCommand()">Run Now</button>
         </div>
-        <div style="font-size:11px;color:var(--muted);margin-top:6px;">Runs the command immediately via the shell (crontab management coming soon)</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;">Executes the command immediately via the shell and shows output below.</div>
+        <div id="cron-cmd-output" style="display:none;margin-top:8px;font-family:var(--mono);font-size:11px;white-space:pre-wrap;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:8px;max-height:200px;overflow-y:auto;color:var(--text2);"></div>
       </div>
     </div>`;
   loadCronJobs();
@@ -1690,14 +2033,29 @@ async function loadCronJobs() {
 }
 
 async function runCronCommand() {
-  const expr = (document.getElementById('cron-expr')||{}).value?.trim();
-  const cmd = (document.getElementById('cron-cmd')||{}).value?.trim();
+  const cmdEl = document.getElementById('cron-cmd');
+  const cmd = cmdEl ? cmdEl.value.trim() : '';
   if (!cmd) { toast('Enter a command', 'warn'); return; }
+  const outEl = document.getElementById('cron-cmd-output');
+  if (outEl) { outEl.style.display = ''; outEl.textContent = '$ ' + cmd + '\n(running...)'; }
   try {
     const result = await api('POST','/api/system/shell',{command:cmd});
-    toast('Command ran: exit '+result.exitCode);
-    if (result.stdout) toast(result.stdout.substring(0,80), 'info');
-  } catch(e) { toast(e.message, 'err'); }
+    const output = [
+      '$ ' + cmd,
+      result.stdout || '',
+      result.stderr ? '[stderr] ' + result.stderr : '',
+      '[exit ' + result.exitCode + ']',
+    ].filter(Boolean).join('\n');
+    if (outEl) outEl.textContent = output;
+    if (result.exitCode === 0) {
+      toast('Command completed (exit 0)');
+    } else {
+      toast('Command exited with code ' + result.exitCode, 'warn');
+    }
+  } catch(e) {
+    if (outEl) outEl.textContent = '$ ' + cmd + '\n[error] ' + e.message;
+    toast(e.message, 'err');
+  }
 }
 
 /* ══════════════════════════════════════════
@@ -1712,6 +2070,9 @@ async function renderNotes() {
         <div style="padding:8px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--elevated);">
           <span style="font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text2);">Notes</span>
           <button class="btn btn-sm" onclick="newNote()">New</button>
+        </div>
+        <div style="padding:5px 8px;border-bottom:1px solid var(--border);">
+          <input type="text" id="note-search-inp" placeholder="Search notes..." style="width:100%;font-size:11px;" oninput="_noteSearch=this.value;renderNoteList()">
         </div>
         <div id="note-list"><div class="empty">Loading...</div></div>
       </div>
@@ -1737,8 +2098,9 @@ async function loadNotes() {
 function renderNoteList() {
   const el = document.getElementById('note-list');
   if (!el) return;
-  if (!_notes.length) { el.innerHTML = '<div class="empty">No notes yet</div>'; return; }
-  el.innerHTML = _notes.map(n => {
+  const visibleNotes = _noteSearch ? _notes.filter(n => (n.title||'').toLowerCase().includes(_noteSearch.toLowerCase()) || (n.content||'').toLowerCase().includes(_noteSearch.toLowerCase())) : _notes;
+  if (!visibleNotes.length) { el.innerHTML = '<div class="empty">'+(_noteSearch?'No matching notes':'No notes yet')+'</div>'; return; }
+  el.innerHTML = visibleNotes.map(n => {
     const id = n.id || '';
     const title = n.title || 'Untitled';
     const date = n.updated || n.created || '';
@@ -1762,15 +2124,28 @@ async function openNote(id) {
   pane.innerHTML = `
     <div class="note-editor-toolbar">
       <input class="note-title-input" id="note-title-inp" type="text" value="${esc(note.title||'')}" placeholder="Note title...">
+      <span id="note-wc" style="font-size:10px;color:var(--muted);font-family:var(--mono);flex-shrink:0;"></span>
+      <button class="btn btn-sm" id="note-preview-btn" onclick="toggleNotePreview()">Preview</button>
       <button class="btn btn-sm btn-primary" onclick="saveNote('${esc(String(id))}')">Save</button>
       <span id="ndel-${esc(String(id))}">
         <button class="btn btn-sm btn-danger" onclick="promptDeleteNote('${esc(String(id))}')">Delete</button>
       </span>
     </div>
-    <div class="note-body" id="note-body" contenteditable="true">${esc(note.content||'')}</div>
+    <div class="note-body" id="note-body" contenteditable="true"></div>
+    <div id="note-preview" style="display:none;flex:1;padding:14px;font-size:13px;line-height:1.7;overflow-y:auto;color:var(--text);"></div>
   `;
-  const body = document.getElementById('note-body');
-  if (body) body.addEventListener('blur', () => saveNote(id));
+  const noteBodyEl = document.getElementById('note-body');
+  if (noteBodyEl) noteBodyEl.textContent = note.content || '';
+  const body = noteBodyEl;
+  if (noteBodyEl) {
+    noteBodyEl.addEventListener('input', () => {
+      _noteDirty = true;
+      clearTimeout(_noteDebounce);
+      _noteDebounce = setTimeout(() => { if (_noteDirty) { saveNote(id); _noteDirty = false; } }, 500);
+    });
+    noteBodyEl.addEventListener('input', updateNoteWordCount);
+  }
+  updateNoteWordCount();
 }
 
 async function saveNote(id) {
@@ -1810,7 +2185,7 @@ async function newNote() {
       renderNoteList();
       openNote(String(note.id));
     }
-  } catch(e) { console.error(e); }
+  } catch(e) { toast(e.message, 'err'); }
 }
 
 async function confirmDeleteNote(id) {
@@ -1852,7 +2227,7 @@ function renderPlugins() {
         return `<div class="plugin-card">
           <div class="plugin-name">${esc(name)}</div>
           <div class="plugin-status ${isEnabled?'active':''}">${isEnabled ? 'Active' : 'Inactive'}</div>
-          ${credStr ? `<div class="plugin-creds" style="${hasCred?'color:var(--ok);':'color:var(--warn);}"}>${esc(credStr)}&nbsp;${hasCred?'[set]':'[missing]'}</div>` : ''}
+          ${credStr ? '<div class="plugin-creds" style="' + (hasCred ? 'color:var(--ok);' : 'color:var(--warn);') + '">' + esc(credStr) + '&nbsp;' + (hasCred ? '[set]' : '[missing]') + '</div>' : ''}
           <button class="btn btn-sm ${isEnabled?'btn-danger':''}" id="ptog-${esc(name)}" onclick="togglePlugin('${esc(name)}',${!isEnabled})">${isEnabled?'Disable':'Enable'}</button>
         </div>`;
       }).join('')}
@@ -1960,6 +2335,15 @@ async function saveCred(service, key) {
     await api('POST','/api/credentials',{service,key,value:inp.value.trim()});
     const cr = _credentials.find(c2 => c2.service===service && c2.key===key);
     if (cr) cr.hasValue = true;
+    // Re-check integration statuses that depend on credentials
+    if (service === 'todoist' && key === 'api_token') {
+      const st = await api('GET','/api/todoist/status').catch(() => ({configured:false}));
+      _todoistConfigured = !!(st && st.configured);
+    }
+    if (service === 'google' && (key === 'access_token' || key === 'refresh_token')) {
+      const gs = await api('GET','/api/auth/google/status').catch(() => ({connected:false}));
+      _googleStatus = gs || {connected:false};
+    }
     toast(service+'/'+key+' saved');
     renderCredentials();
   } catch(e) { toast(e.message, 'err'); }
@@ -1977,7 +2361,16 @@ function promptDeleteCred(service, key) {
 async function doDeleteCred(service, key) {
   try {
     await api('DELETE','/api/credentials/'+encodeURIComponent(service)+'/'+encodeURIComponent(key));
-    _credentials = _credentials.filter(c2 => !(c2.service===service && c2.key===key));
+    const cr = _credentials.find(c2 => c2.service===service && c2.key===key);
+    if (cr) cr.hasValue = false;
+    // Update integration statuses that depend on this credential
+    if (service === 'todoist' && key === 'api_token') {
+      _todoistConfigured = false;
+    }
+    if (service === 'google' && (key === 'access_token' || key === 'refresh_token')) {
+      const gs = await api('GET','/api/auth/google/status').catch(() => ({connected:false}));
+      _googleStatus = gs || {connected:false};
+    }
     toast(service+'/'+key+' deleted');
     renderCredentials();
   } catch(e) { toast(e.message, 'err'); }
@@ -2010,33 +2403,44 @@ function renderLogs() {
       <button class="btn ${_logPaused?'btn-primary':''}" id="log-pause-btn" onclick="toggleLogPause()">${_logPaused?'Resume':'Pause'}</button>
       <button class="btn" onclick="clearLogs()">Clear</button>
       <div style="display:flex;gap:4px;">
-        ${['ALL','INFO','WARN','ERROR'].map(f =>
-          `<button class="btn btn-sm ${_logFilter===f?'btn-primary':''}" onclick="setLogFilter('${f}')">${f}</button>`
-        ).join('')}
+        ${['ALL','INFO','WARN','ERROR'].map(f => {
+        const cnt = f === 'ALL' ? _logLines.length : _logLines.filter(l => l.level === f).length;
+        return `<button class="btn btn-sm ${_logFilter===f?'btn-primary':''}" onclick="setLogFilter('${f}')">${f}${cnt?' ('+cnt+')':''}</button>`;
+      }).join('')}
       </div>
       <button class="btn btn-sm ${_logAutoScroll?'btn-primary':''}" onclick="toggleLogAutoScroll()">Auto-scroll</button>
+      <input type="text" id="log-search" placeholder="Search logs..." style="width:160px;font-family:var(--mono);font-size:11px;" oninput="setLogSearch(this.value)" value="${esc(_logSearch||'')}">
+      <button class="btn btn-sm" onclick="downloadLogs()">Download</button>
       <span class="mono" style="font-size:10px;color:var(--muted);">${_logLines.length} lines</span>
     </div>
     <div class="log-stream" id="log-stream"></div>
   `;
   const stream = document.getElementById('log-stream');
-  const filtered = _logLines.filter(l => _logFilter === 'ALL' || l.level === _logFilter);
-  filtered.forEach(l => stream.appendChild(buildLogLineEl(l)));
+  const filtered = _logLines.filter(l => (_logFilter === 'ALL' || l.level === _logFilter) && (!_logSearch || (l.msg||'').toLowerCase().includes(_logSearch.toLowerCase())));
+  filtered.forEach(l => stream.appendChild(buildLogLineEl(l, _logSearch)));
   if (_logAutoScroll) stream.scrollTop = stream.scrollHeight;
 }
 
-function buildLogLineEl(l) {
+function buildLogLineEl(l, searchQ) {
   const div = document.createElement('div');
   div.className = 'log-line-'+(l.level || 'INFO');
-  div.textContent = (l.time||nowHHMMSS()) + '  [' + (l.level||'INFO') + ']  ' + (l.msg||'');
+  const text = (l.time||nowHHMMSS()) + '  [' + (l.level||'INFO') + ']  ' + (l.msg||'');
+  if (searchQ && (l.msg||'').toLowerCase().includes(searchQ.toLowerCase())) {
+    const escaped = esc(text);
+    const re = new RegExp('('+searchQ.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
+    div.innerHTML = escaped.replace(re, '<mark style="background:#854f0b;color:#fac775">$1</mark>');
+  } else {
+    div.textContent = text;
+  }
   return div;
 }
 
 function appendLogLine(l) {
   if (_logFilter !== 'ALL' && l.level !== _logFilter) return;
+  if (_logSearch && !(l.msg||'').toLowerCase().includes(_logSearch.toLowerCase())) return;
   const stream = document.getElementById('log-stream');
   if (!stream) return;
-  stream.appendChild(buildLogLineEl(l));
+  stream.appendChild(buildLogLineEl(l, _logSearch));
   if (_logAutoScroll) stream.scrollTop = stream.scrollHeight;
 }
 
@@ -2060,15 +2464,26 @@ async function renderSettings() {
   const c = document.getElementById('content');
   c.innerHTML = '<div class="empty">Loading...</div>';
   let cfgRows = [];
+  let freshCfg = {};
   try {
     const data = await api('GET','/api/config');
-    if (data && typeof data === 'object') cfgRows = Object.entries(data);
+    if (data && typeof data === 'object') {
+      cfgRows = Object.entries(data);
+      freshCfg = data;
+      // Sync global config cache with fresh data
+      Object.assign(_config, data);
+    }
   } catch(e) {}
 
-  const aiProvider = _config.aiProvider || _config.ai_provider || 'claude';
-  const aiModel = _config.aiModel || _config.ai_model || _config.model || '';
+  const aiProvider = freshCfg.aiProvider || freshCfg.ai_provider || _config.aiProvider || _config.ai_provider || 'claude';
+  const aiModel = freshCfg.aiModel || freshCfg.ai_model || freshCfg.model || _config.aiModel || _config.ai_model || _config.model || '';
+  // Initialize the selected provider tracker to the stored value so Save always has a value
+  _selectedProvider = aiProvider;
   const version = _status.version || '--';
   const nodeVer = _status.nodeVersion || '--';
+  const sysCmd = !!(freshCfg.systemCommands || freshCfg.system_commands);
+  const deskCtl = !!(freshCfg.desktopControl || freshCfg.desktop_control);
+  const fsAccess = !!(freshCfg.filesystemAccess || freshCfg.filesystem_access);
 
   c.innerHTML = `
     <div class="section" style="margin-bottom:14px;">
@@ -2117,21 +2532,21 @@ async function renderSettings() {
           <tr>
             <td>Shell execution</td>
             <td><label style="display:flex;align-items:center;gap:7px;cursor:pointer;">
-              <input type="checkbox" id="tog-syscmd" ${_config.systemCommands||_config.system_commands?'checked':''} onchange="saveSecuritySetting('systemCommands',this.checked)">
+              <input type="checkbox" id="tog-syscmd" ${sysCmd?'checked':''} onchange="saveSecuritySetting('systemCommands',this.checked)">
               <span style="font-size:12px;color:var(--muted);">Allow shell commands</span>
             </label></td>
           </tr>
           <tr>
             <td>Desktop control</td>
             <td><label style="display:flex;align-items:center;gap:7px;cursor:pointer;">
-              <input type="checkbox" id="tog-desktop" ${_config.desktopControl||_config.desktop_control?'checked':''} onchange="saveSecuritySetting('desktopControl',this.checked)">
+              <input type="checkbox" id="tog-desktop" ${deskCtl?'checked':''} onchange="saveSecuritySetting('desktopControl',this.checked)">
               <span style="font-size:12px;color:var(--muted);">Mouse &amp; keyboard automation</span>
             </label></td>
           </tr>
           <tr>
             <td>Filesystem access</td>
             <td><label style="display:flex;align-items:center;gap:7px;cursor:pointer;">
-              <input type="checkbox" id="tog-fs" ${_config.filesystemAccess||_config.filesystem_access?'checked':''} onchange="saveSecuritySetting('filesystemAccess',this.checked)">
+              <input type="checkbox" id="tog-fs" ${fsAccess?'checked':''} onchange="saveSecuritySetting('filesystemAccess',this.checked)">
               <span style="font-size:12px;color:var(--muted);">Read &amp; write files</span>
             </label></td>
           </tr>
@@ -2141,19 +2556,36 @@ async function renderSettings() {
 
     <div class="section">
       <div class="section-head"><span class="section-title">Config</span></div>
-      <table class="data-table">
-        <thead><tr><th>KEY</th><th>VALUE</th></tr></thead>
-        <tbody>${cfgRows.filter(([k]) => !k.match(/secret|token|password/i)).map(([k,v]) =>
-          `<tr><td class="mono" style="font-size:11px;">${esc(k)}</td><td class="mono" style="font-size:11px;color:var(--muted);">${esc(String(v).substring(0,100))}</td></tr>`
-        ).join('')}</tbody>
-      </table>
+      <div id="settings-cfg-wrap"></div>
     </div>
   `;
+  // Populate the config table separately to avoid nested template-literal issues
+  const cfgWrap = document.getElementById('settings-cfg-wrap');
+  if (cfgWrap) {
+    const safe = cfgRows.filter(function(pair) { return !pair[0].match(/secret|token|password/i); });
+    if (!safe.length) {
+      cfgWrap.innerHTML = '<div class="empty">No config keys set yet. Use the fields above to configure Conductor.</div>';
+    } else {
+      let rows = '';
+      safe.forEach(function(pair) {
+        const val = pair[1];
+        let rendered;
+        if (val !== null && typeof val === 'object') {
+          rendered = '<pre style="font-family:var(--mono);font-size:10px;color:var(--muted);white-space:pre-wrap;margin:0;max-height:80px;overflow-y:auto;word-break:break-all;">' + esc(JSON.stringify(val, null, 2)) + '</pre>';
+        } else {
+          rendered = '<span class="mono" style="font-size:11px;color:var(--muted);">' + esc(String(val).substring(0, 120)) + '</span>';
+        }
+        rows += '<tr><td class="mono" style="font-size:11px;">' + esc(pair[0]) + '</td><td>' + rendered + '</td></tr>';
+      });
+      cfgWrap.innerHTML = '<table class="data-table"><thead><tr><th>KEY</th><th>VALUE</th></tr></thead><tbody>' + rows + '</tbody></table>';
+    }
+  }
 }
 
 let _selectedProvider = null;
 function selectProvider(p) {
   _selectedProvider = p;
+  _config.aiProvider = p; // keep global cache in sync so re-renders preserve the selection
   ['claude','openai','gemini','ollama','openrouter'].forEach(name => {
     const btn = document.getElementById('prov-'+name);
     if (btn) btn.className = 'btn btn-sm' + (name===p?' btn-primary':'');
@@ -2171,20 +2603,28 @@ function toggleTokenDisplay() {
 
 async function saveAiSettings() {
   const provider = _selectedProvider || _config.aiProvider || 'claude';
-  const model = (document.getElementById('ai-model-inp')||{}).value||'';
+  const modelInp = document.getElementById('ai-model-inp');
+  const model = modelInp ? modelInp.value.trim() : '';
+  const saveBtn = document.querySelector('[onclick="saveAiSettings()"]');
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving...'; }
   try {
     await api('POST','/api/config',{key:'aiProvider',value:provider});
-    if (model.trim()) await api('POST','/api/config',{key:'aiModel',value:model.trim()});
+    if (model) await api('POST','/api/config',{key:'aiModel',value:model});
     _config.aiProvider = provider;
-    if (model.trim()) _config.aiModel = model.trim();
+    if (model) _config.aiModel = model;
     toast('AI settings saved');
-  } catch(e) { toast(e.message, 'err'); }
+  } catch(e) {
+    toast(e.message, 'err');
+  } finally {
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save'; }
+  }
 }
 
 async function saveSecuritySetting(key, value) {
   try {
     await api('POST','/api/config',{key,value});
-    _config[key] = value;
+    const freshCfg = await api('GET','/api/config').catch(() => ({}));
+    if (freshCfg && typeof freshCfg === 'object') Object.assign(_config, freshCfg);
     toast(key+': '+(value?'enabled':'disabled'));
   } catch(e) {
     toast(e.message, 'err');
@@ -2192,6 +2632,259 @@ async function saveSecuritySetting(key, value) {
     const el = document.getElementById(idMap[key]);
     if (el) el.checked = !value;
   }
+}
+
+/* ══════════════════════════════════════════
+   SIDEBAR TOGGLE
+══════════════════════════════════════════ */
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('collapsed');
+}
+
+/* ══════════════════════════════════════════
+   COMMAND PALETTE
+══════════════════════════════════════════ */
+const CMD_PAGES = [
+  {label:'Overview',page:'overview',icon:'⊞'},
+  {label:'Tasks',page:'tasks',icon:'✓'},
+  {label:'Files',page:'files',icon:'📄'},
+  {label:'Processes',page:'processes',icon:'▣'},
+  {label:'Network',page:'network',icon:'◉'},
+  {label:'System',page:'system',icon:'$_'},
+  {label:'Notes',page:'notes',icon:'📝'},
+  {label:'Plugins',page:'plugins',icon:'⬡'},
+  {label:'Credentials',page:'credentials',icon:'🔑'},
+  {label:'Logs',page:'logs',icon:'≡'},
+  {label:'Settings',page:'settings',icon:'⚙'},
+];
+let _cmdIdx = 0;
+
+function openCmdPalette() {
+  const overlay = document.getElementById('cmd-palette-overlay');
+  const inp = document.getElementById('cmd-input');
+  overlay.classList.add('open');
+  inp.value = '';
+  inp.focus();
+  renderCmdResults('');
+}
+function closeCmdPalette() {
+  document.getElementById('cmd-palette-overlay').classList.remove('open');
+}
+function renderCmdResults(q) {
+  const el = document.getElementById('cmd-results');
+  const results = buildCmdResults(q);
+  _cmdIdx = 0;
+  el.innerHTML = results.map((r,i) =>
+    `<div class="cmd-item ${i===0?'selected':''}" data-idx="${i}" onmouseenter="setCmdIdx(${i})" onclick="execCmd(${i},'${esc(q)}')">
+      <span class="cmd-item-icon">${esc(r.icon||'')}</span>
+      <span class="cmd-item-label">${esc(r.label)}</span>
+      ${r.hint ? `<span class="cmd-item-hint">${esc(r.hint)}</span>` : ''}
+    </div>`
+  ).join('') || '<div class="cmd-item" style="color:var(--muted);">No results</div>';
+  if (results.length) el.querySelector('[data-idx="0"]').classList.add('selected');
+}
+function buildCmdResults(q) {
+  const qt = q.trim();
+  if (qt.startsWith('>')) {
+    const cmd = qt.slice(1).trim();
+    return cmd ? [{icon:'$',label:'Run: '+cmd,hint:'shell',_type:'shell',_val:cmd}] : [{icon:'$',label:'Type a shell command after >',hint:''}];
+  }
+  if (qt.startsWith('@')) {
+    const s = qt.slice(1).toLowerCase().trim();
+    return _notes.filter(n => !s || (n.title||'').toLowerCase().includes(s) || (n.content||'').toLowerCase().includes(s))
+      .slice(0,8).map(n => ({icon:'📝',label:n.title||'Untitled',hint:'note',_type:'note',_id:n.id}));
+  }
+  return CMD_PAGES.filter(p => !qt || p.label.toLowerCase().includes(qt.toLowerCase()))
+    .map(p => ({...p,hint:'page',_type:'page'}));
+}
+function setCmdIdx(i) {
+  _cmdIdx = i;
+  document.querySelectorAll('.cmd-item').forEach((el,j) => el.classList.toggle('selected',j===i));
+}
+function execCmd(idx, q) {
+  const results = buildCmdResults(document.getElementById('cmd-input').value);
+  const r = results[idx !== undefined ? idx : _cmdIdx];
+  if (!r) return;
+  closeCmdPalette();
+  if (r._type === 'page') navigate(r.page);
+  else if (r._type === 'shell') { navigate('system'); setTimeout(() => { const inp = document.getElementById('sys-shell-input'); if (inp) { inp.value = r._val; runShell(r._val); } }, 300); }
+  else if (r._type === 'note') { navigate('notes'); setTimeout(() => openNote(String(r._id)), 400); }
+}
+document.getElementById('cmd-input').addEventListener('input', function() { renderCmdResults(this.value); });
+document.getElementById('cmd-input').addEventListener('keydown', function(e) {
+  const items = document.querySelectorAll('.cmd-item[data-idx]');
+  if (e.key === 'ArrowDown') { e.preventDefault(); setCmdIdx(Math.min(_cmdIdx+1,items.length-1)); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); setCmdIdx(Math.max(_cmdIdx-1,0)); }
+  else if (e.key === 'Enter') { e.preventDefault(); execCmd(_cmdIdx, this.value); }
+  else if (e.key === 'Escape') closeCmdPalette();
+});
+
+/* ══════════════════════════════════════════
+   KEYBOARD SHORTCUTS
+══════════════════════════════════════════ */
+function closeKbHelp() { document.getElementById('kb-help-overlay').classList.remove('open'); }
+let _gPrefix = false;
+document.addEventListener('keydown', function(e) {
+  const tag = (e.target.tagName || '').toLowerCase();
+  const inInput = tag === 'input' || tag === 'textarea' || e.target.isContentEditable;
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+    e.preventDefault();
+    const overlay = document.getElementById('cmd-palette-overlay');
+    overlay.classList.contains('open') ? closeCmdPalette() : openCmdPalette();
+    return;
+  }
+  if (e.ctrlKey && e.key === 'l') {
+    const term = document.getElementById('sys-term-out');
+    if (term) { e.preventDefault(); clearTerminal(); return; }
+  }
+  if (inInput) return;
+  if (e.key === '[') { e.preventDefault(); toggleSidebar(); return; }
+  if (e.key === '?') {
+    e.preventDefault();
+    const overlay = document.getElementById('kb-help-overlay');
+    overlay.classList.contains('open') ? closeKbHelp() : overlay.classList.add('open');
+    return;
+  }
+  if (e.key === 'Escape') {
+    document.getElementById('cmd-palette-overlay').classList.remove('open');
+    document.getElementById('kb-help-overlay').classList.remove('open');
+    return;
+  }
+  if (e.key === 'n' && _currentPage === 'tasks') {
+    e.preventDefault();
+    const inp = document.getElementById('new-task-input');
+    if (inp) inp.focus();
+    return;
+  }
+  if (e.key === 'g' && !_gPrefix) { _gPrefix = true; setTimeout(() => { _gPrefix = false; }, 1000); return; }
+  if (_gPrefix) {
+    _gPrefix = false;
+    const gmap = {o:'overview',t:'tasks',f:'files',p:'processes',n:'notes',s:'system',l:'logs',c:'credentials'};
+    if (gmap[e.key]) { e.preventDefault(); navigate(gmap[e.key]); }
+  }
+});
+
+/* ══════════════════════════════════════════
+   TASKS: BULK ACTIONS
+══════════════════════════════════════════ */
+function toggleTaskSelect(id, checked) {
+  if (checked) _selectedTaskIds.add(String(id));
+  else _selectedTaskIds.delete(String(id));
+  updateTaskBulkBar();
+}
+function updateTaskBulkBar() {
+  const bar = document.getElementById('task-bulk-bar');
+  const cnt = document.getElementById('task-sel-count');
+  if (!bar) return;
+  const n = _selectedTaskIds.size;
+  bar.style.display = n > 0 ? 'flex' : 'none';
+  if (cnt) cnt.textContent = n + ' selected';
+}
+function clearTaskSelection() {
+  _selectedTaskIds.clear();
+  renderTaskList();
+}
+async function bulkComplete() {
+  const ids = [..._selectedTaskIds];
+  for (const id of ids) {
+    try { await api('POST','/api/todoist/tasks/'+id+'/close'); _allTasks = _allTasks.filter(t=>String(t.id)!==id); } catch(e) {}
+  }
+  _selectedTaskIds.clear();
+  renderTaskList();
+  toast(ids.length+' tasks completed');
+}
+async function bulkDelete() {
+  if (!confirm('Delete '+_selectedTaskIds.size+' tasks?')) return;
+  const ids = [..._selectedTaskIds];
+  for (const id of ids) {
+    try { await api('DELETE','/api/todoist/tasks/'+id); _allTasks = _allTasks.filter(t=>String(t.id)!==id); } catch(e) {}
+  }
+  _selectedTaskIds.clear();
+  renderTaskList();
+  toast(ids.length+' tasks deleted');
+}
+
+/* ══════════════════════════════════════════
+   TASKS: RELATIVE DATES
+══════════════════════════════════════════ */
+function relativeDate(dateStr) {
+  if (!dateStr) return '';
+  const today = new Date(); today.setHours(0,0,0,0);
+  const d = new Date(dateStr); d.setHours(0,0,0,0);
+  const diff = Math.round((d - today) / 86400000);
+  if (diff === 0) return 'Today';
+  if (diff === 1) return 'Tomorrow';
+  if (diff === -1) return 'Yesterday';
+  if (diff > 0 && diff < 7) return diff + ' days';
+  if (diff >= 7 && diff < 14) return '1 week';
+  if (diff >= 14 && diff < 30) return Math.round(diff/7) + ' weeks';
+  if (diff < 0 && diff > -7) return Math.abs(diff) + 'd ago';
+  if (diff < -6) return Math.abs(Math.round(diff/7)) + 'w ago';
+  return dateStr;
+}
+
+/* ══════════════════════════════════════════
+   PROCESSES: SORT
+══════════════════════════════════════════ */
+function sortProcs(col) {
+  if (_procSort.col === col) _procSort.dir *= -1;
+  else { _procSort.col = col; _procSort.dir = col==='cpu'||col==='mem'||col==='pid' ? -1 : 1; }
+  loadProcesses();
+}
+
+/* ══════════════════════════════════════════
+   LOGS: SEARCH + DOWNLOAD
+══════════════════════════════════════════ */
+function setLogSearch(val) { _logSearch = val; renderLogs(); }
+function downloadLogs() {
+  const filtered = _logLines.filter(l => _logFilter === 'ALL' || l.level === _logFilter)
+    .filter(l => !_logSearch || (l.msg||'').toLowerCase().includes(_logSearch.toLowerCase()));
+  const text = filtered.map(l => l.time+'  ['+l.level+']  '+(l.msg||'')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/plain;charset=utf-8,'+encodeURIComponent(text);
+  a.download = 'conductor-logs.txt';
+  a.click();
+}
+
+/* ══════════════════════════════════════════
+   NOTES: WORD COUNT + MARKDOWN PREVIEW
+══════════════════════════════════════════ */
+function updateNoteWordCount() {
+  const body = document.getElementById('note-body');
+  const wc = document.getElementById('note-wc');
+  if (!body || !wc) return;
+  const words = (body.innerText||'').trim().split(/\s+/).filter(Boolean).length;
+  wc.textContent = words + ' words';
+}
+function toggleNotePreview() {
+  _noteMarkdownPreview = !_noteMarkdownPreview;
+  const body = document.getElementById('note-body');
+  const preview = document.getElementById('note-preview');
+  const btn = document.getElementById('note-preview-btn');
+  if (!body || !preview) return;
+  if (_noteMarkdownPreview) {
+    const text = body.innerText || '';
+    preview.innerHTML = renderMarkdown(text);
+    body.style.display = 'none';
+    preview.style.display = '';
+    if (btn) btn.textContent = 'Edit';
+  } else {
+    body.style.display = '';
+    preview.style.display = 'none';
+    if (btn) btn.textContent = 'Preview';
+  }
+}
+function renderMarkdown(text) {
+  let html = esc(text);
+  html = html.replace(/^### (.+)$/gm, '<h3 style="font-size:13px;font-weight:600;margin:10px 0 4px;color:var(--text);">$1</h3>');
+  html = html.replace(/^## (.+)$/gm, '<h2 style="font-size:15px;font-weight:600;margin:12px 0 5px;color:var(--text);">$1</h2>');
+  html = html.replace(/^# (.+)$/gm, '<h1 style="font-size:18px;font-weight:600;margin:14px 0 6px;color:var(--text);">$1</h1>');
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  html = html.replace(/`(.+?)`/g, '<code style="font-family:var(--mono);font-size:11px;background:var(--elevated);padding:1px 4px;border-radius:3px;">$1</code>');
+  html = html.replace(/^- (.+)$/gm, '<div style="margin:2px 0;">• $1</div>');
+  html = html.replace(/\n/g, '<br>');
+  return html;
 }
 
 /* ══════════════════════════════════════════

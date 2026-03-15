@@ -30,7 +30,7 @@ coverage/
 .conductor/
 conductor.db
 
-# Credentials — never commit these
+# Credentials
 keychain/
 *.key
 *.pem

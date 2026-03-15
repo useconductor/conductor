@@ -2,7 +2,7 @@
 # ============================================================
 # Conductor Install Script — by TheAlxLabs
 # ============================================================
-#   curl -fsSL https://raw.githubusercontent.com/thealxlabs/conductor/main/install.sh | bash
+#   curl -fsSL https://conductor.thealxlabs.ca/install.sh | bash
 #   bash install.sh
 # ============================================================
 set -euo pipefail
@@ -45,8 +45,13 @@ cleanup() {
     wait "$_SPINNER_PID" 2>/dev/null || true
   fi
   printf '\r\033[K' 2>/dev/null || true
+  # Securely wipe any temp files that may contain credentials
   for f in "${_TMPFILES[@]:-}"; do
-    [[ -f "$f" ]] && rm -f "$f" 2>/dev/null || true
+    if [[ -f "$f" ]]; then
+      # Overwrite with zeros before removing
+      dd if=/dev/zero of="$f" bs=1 count="$(wc -c < "$f")" 2>/dev/null || true
+      rm -f "$f" 2>/dev/null || true
+    fi
   done
   if [[ $exit_code -ne 0 ]]; then
     echo ""
@@ -100,7 +105,6 @@ spinner() {
   printf '\r\033[K' >/dev/tty
 }
 
-# Run a command with a spinner; shows last 20 lines of output on failure
 run_step() {
   local label="$1"; shift
   local log_file; log_file=$(mktemp)
@@ -127,7 +131,6 @@ ensure_dirs() {
   chmod 700 "$CONFIG_DIR"
 }
 
-# Atomic JSON merge: write to tmp, then rename
 update_config() {
   local json_str="$1"
   local tmp_file; tmp_file=$(mktemp "${CONFIG_FILE}.XXXXXX")
@@ -152,20 +155,28 @@ os.replace(tmp_path, config_path)
 " "$CONFIG_FILE" "$tmp_file" "$json_str"
 }
 
-# Encrypt with AES-256-GCM, machine-keyed, v2 format (matches keychain.ts)
+# ── save_cred: reads value from stdin to avoid ps aux exposure ────────────────
+# Usage: echo "myvalue" | save_cred "service" "key"
 save_cred() {
-  local service="$1" key="$2" val="$3"
-  node - "$CONFIG_DIR" "$service" "$key" "$val" << 'JSEOF'
+  local service="$1" key="$2"
+  # Read value from stdin — never passed as argument (audit fix: prevents ps aux leakage)
+  local val
+  val=$(cat)
+  node - "$CONFIG_DIR" "$service" "$key" << JSEOF
 const crypto=require('crypto'),fs=require('fs'),path=require('path'),os=require('os'),{execSync}=require('child_process');
-const [,,configDir,service,key,val]=process.argv;
+const [,,configDir,service,key]=process.argv;
+// Read value from stdin
+let val='';
+try{val=fs.readFileSync('/dev/stdin','utf8').trim();}catch{process.exit(1);}
 const kd=path.join(configDir,'keychain'); fs.mkdirSync(kd,{recursive:true,mode:0o700});
 function ms(){
   for(const s of['/etc/machine-id','/var/lib/dbus/machine-id'])try{const d=fs.readFileSync(s,'utf8').trim();if(d)return d}catch{}
-  if(process.platform==='darwin')try{const o=execSync("ioreg -rd1 -c IOPlatformExpertDevice|awk '/IOPlatformUUID/{print $NF}'",{encoding:'utf8',stdio:['pipe','pipe','pipe']}).trim().replace(/"/g,'');if(o)return o}catch{}
-  if(process.platform==='win32')try{const o=execSync('reg query "HKLM\\SOFTWARE\\Microsoft\\Cryptography" /v MachineGuid',{encoding:'utf8',stdio:['pipe','pipe','pipe']});const m=o.match(/MachineGuid\s+REG_SZ\s+(.+)/);if(m?.[1]?.trim())return m[1].trim()}catch{}
+  if(process.platform==='darwin')try{const o=execSync("ioreg -rd1 -c IOPlatformExpertDevice|awk '/IOPlatformUUID/{print \$NF}'",{encoding:'utf8',stdio:['pipe','pipe','pipe']}).trim().replace(/"/g,'');if(o)return o}catch{}
   const f=path.join(kd,'machine_secret');
-  try{if(fs.readFileSync(f,'utf8').trim())return fs.readFileSync(f,'utf8').trim()}catch{}
-  try{const s=crypto.randomUUID();fs.writeFileSync(f,s,{mode:0o600});return s}catch{return os.hostname()}
+  try{const d=fs.readFileSync(f,'utf8').trim();if(d)return d}catch{}
+  try{const s=crypto.randomUUID();fs.writeFileSync(f,s,{mode:0o600});return s}catch{}
+  // Do not fall back to hostname — fail loudly
+  throw new Error('Cannot derive machine ID for keychain encryption');
 }
 const salt=crypto.createHash('sha256').update('conductor:keychain:v1').digest();
 const mk=crypto.scryptSync(ms(),salt,32,{N:16384,r:8,p:1});
@@ -173,9 +184,16 @@ const iv=crypto.randomBytes(12),c=crypto.createCipheriv('aes-256-gcm',mk,iv);
 let e=c.update(val,'utf8','hex'); e+=c.final('hex');
 const t=c.getAuthTag().toString('hex');
 const out=['v2',iv.toString('hex'),t,e].join(':');
-const fp=path.join(kd,`${service}.${key}.enc`); const tmp=fp+'.tmp';
+const fp=path.join(kd,\`\${service}.\${key}.enc\`); const tmp=fp+'.tmp';
 fs.writeFileSync(tmp,out,{mode:0o600}); fs.renameSync(tmp,fp);
 JSEOF
+  printf '%s' "$val" | node - "$CONFIG_DIR" "$service" "$key"
+}
+
+# Convenience wrapper: save_cred_val "service" "key" "value"
+# Pipes value through stdin so it never appears in process list
+save_cred_val() {
+  printf '%s' "$3" | save_cred "$1" "$2"
 }
 
 add_plugin() {
@@ -237,10 +255,11 @@ case "$OS" in
 esac
 info "Platform: ${BOLD}$OS${RESET} ($ARCH)"
 
-# Node.js >= 18
 command -v node &>/dev/null || fail "Node.js not found. Install v18+ from https://nodejs.org"
 NODE_RAW=$(node --version 2>/dev/null || echo "v0")
 NODE_VER="${NODE_RAW#v}"; NODE_MAJOR="${NODE_VER%%.*}"
+# Audit fix: guard against empty NODE_MAJOR
+[[ -z "$NODE_MAJOR" ]] && fail "Could not determine Node.js version from: $NODE_RAW"
 [[ "$NODE_MAJOR" =~ ^[0-9]+$ ]] && (( NODE_MAJOR >= 18 )) || \
   fail "Node.js v18+ required (found $NODE_RAW). Upgrade at https://nodejs.org"
 success "Node.js $NODE_RAW"
@@ -254,7 +273,8 @@ version_gte "$PY_VER" "3.6" || fail "Python 3.6+ required (found $PY_VER)."
 success "Python $PY_VER"
 
 command -v git &>/dev/null && success "git $(git --version | awk '{print $3}')" || warn "git not found"
-command -v curl &>/dev/null && success "curl $(curl --version | head -1 | awk '{print $2}')" || warn "curl not found — Telegram verification will be skipped"
+command -v curl &>/dev/null && success "curl $(curl --version | head -1 | awk '{print $2}')" || \
+  fail "curl not found — required for installation"
 
 ensure_dirs
 success "Config dirs ready ($CONFIG_DIR)"
@@ -293,7 +313,6 @@ info "Building TypeScript..."
 run_step "Compiling" npm run build || \
   fail "Build failed. Run 'npm run build' in $CONDUCTOR_DIR to see the error."
 
-# Ensure CLI is executable
 chmod +x "$CONDUCTOR_DIR/dist/cli/index.js" 2>/dev/null || true
 [[ -d "dist" ]] || fail "dist/ not found after build."
 success "Build complete"
@@ -367,14 +386,14 @@ case "$AI_CHOICE" in
 1)
   prompt_secret "Anthropic API key" API_KEY
   if [[ -n "$API_KEY" ]]; then
-    save_cred "anthropic" "api_key" "$API_KEY"
+    save_cred_val "anthropic" "api_key" "$API_KEY"
     update_config '{"ai":{"provider":"claude"}}'
     success "Claude configured"; AI_PROVIDER_SET="claude"
   else warn "Skipped — run later: conductor ai setup"; fi ;;
 2)
   prompt_secret "OpenAI API key" API_KEY
   if [[ -n "$API_KEY" ]]; then
-    save_cred "openai" "api_key" "$API_KEY"
+    save_cred_val "openai" "api_key" "$API_KEY"
     update_config '{"ai":{"provider":"openai"}}'
     success "OpenAI configured"
     hint "This key is also used by the Memory plugin for semantic embeddings."
@@ -383,21 +402,23 @@ case "$AI_CHOICE" in
 3)
   prompt_secret "Gemini API key" API_KEY
   if [[ -n "$API_KEY" ]]; then
-    save_cred "gemini" "api_key" "$API_KEY"
+    save_cred_val "gemini" "api_key" "$API_KEY"
     update_config '{"ai":{"provider":"gemini"}}'
     success "Gemini configured"; AI_PROVIDER_SET="gemini"
   else warn "Skipped — run later: conductor ai setup"; fi ;;
 4)
   prompt_secret "OpenRouter API key" API_KEY
   if [[ -n "$API_KEY" ]]; then
-    save_cred "openrouter" "api_key" "$API_KEY"
+    save_cred_val "openrouter" "api_key" "$API_KEY"
     update_config '{"ai":{"provider":"openrouter"}}'
     success "OpenRouter configured"
     AI_PROVIDER_SET="openrouter"
   else warn "Skipped — run later: conductor ai setup"; fi ;;
 5)
   prompt_input "Ollama model" OLLAMA_MODEL "llama3.2"
-  update_config "{\"ai\":{\"provider\":\"ollama\",\"model\":\"$OLLAMA_MODEL\",\"local_config\":{\"endpoint\":\"http://localhost:11434\"}}}"
+  # Audit fix: use python3 to safely JSON-encode the model name
+  OLLAMA_JSON=$(python3 -c "import json,sys; print(json.dumps(sys.argv[1]))" "$OLLAMA_MODEL")
+  update_config "{\"ai\":{\"provider\":\"ollama\",\"model\":${OLLAMA_JSON},\"local_config\":{\"endpoint\":\"http://localhost:11434\"}}}"
   success "Ollama configured with $OLLAMA_MODEL"
   hint "Make sure Ollama is running: ollama serve"
   AI_PROVIDER_SET="ollama" ;;
@@ -424,7 +445,7 @@ else
       if [[ "$WANT_OAI" == "true" ]]; then
         prompt_secret "OpenAI API key" OAI_KEY
         if [[ -n "$OAI_KEY" ]]; then
-          save_cred "openai" "api_key" "$OAI_KEY"
+          save_cred_val "openai" "api_key" "$OAI_KEY"
           success "OpenAI key saved for embeddings"
         else
           warn "No key entered — memory will use keyword search"
@@ -439,10 +460,9 @@ else
   fi
 fi
 
-
 # ── STEP 5: GOOGLE SERVICES ───────────────────────────────────────────────────
 step "05 / Google Services  ${DIM}Gmail · Calendar · Drive${RESET}"
-hint "Uses Google OAuth — same credentials as Gemini AI"
+hint "Uses Google OAuth — powered by Conductor's shared OAuth app"
 echo ""
 
 prompt_yn "Enable Gmail, Google Calendar, and Google Drive plugins?" SETUP_GOOGLE "y"
@@ -462,18 +482,47 @@ if [[ "$SETUP_GOOGLE" == "true" ]]; then
     [[ "$STORED" == "yes" ]] && HAVE_GOOGLE_TOKEN="true"
   fi
 
+  # Fetch Google OAuth credentials from Vercel (secret stored server-side, never in repo)
+  info "Fetching Google OAuth configuration..."
+  OAUTH_JSON=""
+  if command -v curl &>/dev/null; then
+    OAUTH_JSON=$(curl -fsSL --max-time 10 \
+      -H "User-Agent: Conductor-Installer/1.0" \
+      -H "X-Conductor-Install: true" \
+      "https://conductor.thealxlabs.ca/api/oauth-config" 2>/dev/null || echo "")
+  fi
+
+  if [[ -n "$OAUTH_JSON" ]]; then
+    GOOGLE_CLIENT_ID=$(python3 -c "import json,sys; d=json.loads(sys.argv[1]); print(d.get('client_id',''))" "$OAUTH_JSON" 2>/dev/null || echo "")
+    GOOGLE_CLIENT_SECRET=$(python3 -c "import json,sys; d=json.loads(sys.argv[1]); print(d.get('client_secret',''))" "$OAUTH_JSON" 2>/dev/null || echo "")
+
+    if [[ -n "$GOOGLE_CLIENT_ID" && -n "$GOOGLE_CLIENT_SECRET" ]]; then
+      save_cred_val "google_oauth" "client_id" "$GOOGLE_CLIENT_ID"
+      save_cred_val "google_oauth" "client_secret" "$GOOGLE_CLIENT_SECRET"
+      success "Google OAuth app credentials saved to keychain"
+      # Unset vars immediately — don't leave secrets in shell environment
+      unset GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET OAUTH_JSON
+    else
+      warn "Could not parse OAuth credentials — Google features may not work"
+      warn "Run later: conductor auth google"
+      unset OAUTH_JSON
+    fi
+  else
+    warn "Could not fetch Google OAuth config (no internet or service unavailable)"
+    warn "Run later: conductor auth google"
+  fi
+
   if [[ "$HAVE_GOOGLE_TOKEN" != "true" ]]; then
     echo ""
-    echo -e "  ${DIM}We've made Google setup much easier!${RESET}"
-    echo -e "  ${DIM}After installation, just run: ${CYAN}conductor auth google${RESET}"
-    echo -e "  ${DIM}It will open your browser and handle everything for you.${RESET}"
+    echo -e "  ${DIM}After installation, authenticate with: ${CYAN}conductor auth google${RESET}"
+    echo -e "  ${DIM}This opens your browser — no extra setup needed.${RESET}"
     echo ""
   fi
 
   update_config '{"plugins":{"gmail":{"enabled":true},"gcal":{"enabled":true},"gdrive":{"enabled":true}}}'
   add_plugin "gmail"; add_plugin "gcal"; add_plugin "gdrive"
   success "Gmail, Calendar, and Drive plugins enabled"
-  [[ "$HAVE_GOOGLE_TOKEN" != "true" ]] && hint "Authenticate later with: conductor auth google"
+  [[ "$HAVE_GOOGLE_TOKEN" != "true" ]] && hint "Authenticate with: conductor auth google"
 
 else
   warn "Skipped — enable later: conductor plugins enable gmail gcal gdrive"
@@ -502,7 +551,7 @@ if [[ "$SETUP_NOTION" == "true" ]]; then
         || echo "fail")
     fi
     if [[ "$NOTION_STATUS" == "ok" ]]; then
-      save_cred "notion" "api_key" "$NOTION_TOKEN"
+      save_cred_val "notion" "api_key" "$NOTION_TOKEN"
       update_config '{"plugins":{"notion":{"enabled":true}}}'
       add_plugin "notion"
       success "Notion connected"
@@ -511,7 +560,7 @@ if [[ "$SETUP_NOTION" == "true" ]]; then
       warn "Verification failed (bad token or no internet)."
       prompt_yn "Save token anyway?" SAVE_NOTION "n"
       if [[ "$SAVE_NOTION" == "true" ]]; then
-        save_cred "notion" "api_key" "$NOTION_TOKEN"
+        save_cred_val "notion" "api_key" "$NOTION_TOKEN"
         update_config '{"plugins":{"notion":{"enabled":true}}}'
         add_plugin "notion"
         warn "Saved unverified."
@@ -546,7 +595,7 @@ if [[ "$SETUP_X" == "true" ]]; then
         | python3 -c "import json,sys; d=json.load(sys.stdin); print('ok' if 'data' in d else 'fail')" 2>/dev/null \
         || echo "fail")
     fi
-    save_cred "x" "bearer_token" "$X_BEARER"
+    save_cred_val "x" "bearer_token" "$X_BEARER"
     [[ "$X_OK" == "ok" ]] && success "X Bearer Token verified" || warn "Could not verify token — saved anyway"
 
     if [[ "$X_LEVEL" == "2" ]]; then
@@ -555,10 +604,10 @@ if [[ "$SETUP_X" == "true" ]]; then
       prompt_secret "API Secret (Consumer Secret)" X_API_SECRET
       prompt_secret "Access Token" X_ACCESS_TOKEN
       prompt_secret "Access Token Secret" X_ACCESS_SECRET
-      if [[ -n "$X_API_KEY" ]]; then save_cred "x" "api_key" "$X_API_KEY"; fi
-      if [[ -n "$X_API_SECRET" ]]; then save_cred "x" "api_secret" "$X_API_SECRET"; fi
-      if [[ -n "$X_ACCESS_TOKEN" ]]; then save_cred "x" "access_token" "$X_ACCESS_TOKEN"; fi
-      if [[ -n "$X_ACCESS_SECRET" ]]; then save_cred "x" "access_secret" "$X_ACCESS_SECRET"; fi
+      if [[ -n "$X_API_KEY" ]]; then save_cred_val "x" "api_key" "$X_API_KEY"; fi
+      if [[ -n "$X_API_SECRET" ]]; then save_cred_val "x" "api_secret" "$X_API_SECRET"; fi
+      if [[ -n "$X_ACCESS_TOKEN" ]]; then save_cred_val "x" "access_token" "$X_ACCESS_TOKEN"; fi
+      if [[ -n "$X_ACCESS_SECRET" ]]; then save_cred_val "x" "access_secret" "$X_ACCESS_SECRET"; fi
       [[ -n "$X_API_KEY" && -n "$X_API_SECRET" && -n "$X_ACCESS_TOKEN" && -n "$X_ACCESS_SECRET" ]] && \
         success "X write credentials saved" || warn "Some fields empty — write access may not work"
     fi
@@ -587,7 +636,6 @@ if [[ "$SETUP_SPOTIFY" == "true" ]]; then
   prompt_secret "Spotify Client ID" SPOTIFY_CLIENT_ID
   prompt_secret "Spotify Access Token" SPOTIFY_TOKEN
   if [[ -n "$SPOTIFY_TOKEN" ]]; then
-    # Quick verify
     SPOTIFY_OK="fail"
     if command -v curl &>/dev/null && [[ -n "$SPOTIFY_TOKEN" ]]; then
       SPOTIFY_OK=$(curl -sf --max-time 8 \
@@ -596,8 +644,8 @@ if [[ "$SETUP_SPOTIFY" == "true" ]]; then
         | python3 -c "import json,sys; d=json.load(sys.stdin); print('ok' if 'id' in d else 'fail')" 2>/dev/null \
         || echo "fail")
     fi
-    save_cred "spotify" "access_token" "$SPOTIFY_TOKEN"
-    [[ -n "$SPOTIFY_CLIENT_ID" ]] && save_cred "spotify" "client_id" "$SPOTIFY_CLIENT_ID"
+    save_cred_val "spotify" "access_token" "$SPOTIFY_TOKEN"
+    [[ -n "$SPOTIFY_CLIENT_ID" ]] && save_cred_val "spotify" "client_id" "$SPOTIFY_CLIENT_ID"
     [[ "$SPOTIFY_OK" == "ok" ]] && success "Spotify connected" || warn "Token saved (could not verify — may need refresh)"
     update_config '{"plugins":{"spotify":{"enabled":true}}}'
     add_plugin "spotify"
@@ -613,7 +661,6 @@ hint "PRs, issues, workflow runs, releases, notifications — needs PAT"
 hint "Create token: https://github.com/settings/tokens"
 echo ""
 
-# Check if we already have a GitHub token from earlier steps
 GH_TOKEN_STORED=$(node -e "
   const p=require('path'),fs=require('fs');
   const f=p.join(process.env.HOME,'.conductor','keychain','github.token.enc');
@@ -643,11 +690,11 @@ else
           || echo "fail")
       fi
       if [[ "$GH_OK" == "ok" ]]; then
-        save_cred "github" "token" "$GH_PAT"
+        save_cred_val "github" "token" "$GH_PAT"
         success "GitHub token verified and saved"
       else
         warn "Verification failed — saving anyway"
-        save_cred "github" "token" "$GH_PAT"
+        save_cred_val "github" "token" "$GH_PAT"
       fi
       update_config '{"plugins":{"github_actions":{"enabled":true}}}'
       add_plugin "github_actions"
@@ -676,12 +723,12 @@ if [[ "$SETUP_VERCEL" == "true" ]]; then
         | python3 -c "import json,sys; d=json.load(sys.stdin); print('ok' if 'user' in d or 'id' in d else 'fail')" 2>/dev/null \
         || echo "fail")
     fi
-    save_cred "vercel" "token" "$VERCEL_TOKEN"
+    save_cred_val "vercel" "token" "$VERCEL_TOKEN"
     [[ "$VERCEL_OK" == "ok" ]] && success "Vercel connected" || warn "Token saved (could not verify)"
     prompt_yn "Are you on a Vercel team? (configure team scope)" VERCEL_TEAM "n"
     if [[ "$VERCEL_TEAM" == "true" ]]; then
       prompt_input "Team ID or slug" VERCEL_TEAM_ID ""
-      [[ -n "$VERCEL_TEAM_ID" ]] && save_cred "vercel" "team_id" "$VERCEL_TEAM_ID"
+      [[ -n "$VERCEL_TEAM_ID" ]] && save_cred_val "vercel" "team_id" "$VERCEL_TEAM_ID"
     fi
     update_config '{"plugins":{"vercel":{"enabled":true}}}'
     add_plugin "vercel"
@@ -702,7 +749,6 @@ if [[ "$SETUP_N8N" == "true" ]]; then
   prompt_input "n8n instance URL" N8N_URL "http://localhost:5678"
   prompt_secret "n8n API Key (Settings → API → Create Key)" N8N_KEY
   if [[ -n "$N8N_KEY" ]]; then
-    # Normalise URL
     N8N_BASE="${N8N_URL%/}/api/v1"
     N8N_OK="fail"
     if command -v curl &>/dev/null; then
@@ -712,8 +758,8 @@ if [[ "$SETUP_N8N" == "true" ]]; then
         | python3 -c "import json,sys; d=json.load(sys.stdin); print('ok' if d.get('status')=='ok' or 'status' in d else 'fail')" 2>/dev/null \
         || echo "fail")
     fi
-    save_cred "n8n" "api_key" "$N8N_KEY"
-    save_cred "n8n" "base_url" "$N8N_URL"
+    save_cred_val "n8n" "api_key" "$N8N_KEY"
+    save_cred_val "n8n" "base_url" "$N8N_URL"
     [[ "$N8N_OK" == "ok" ]] && success "n8n connected at ${N8N_URL}" || warn "Saved (could not verify — check URL and key)"
     update_config '{"plugins":{"n8n":{"enabled":true}}}'
     add_plugin "n8n"
@@ -735,7 +781,7 @@ update_config '{"plugins":{"notes":{"enabled":true},"cron":{"enabled":true}}}'
 add_plugin "notes"; add_plugin "cron"
 success "Notes and Scheduler enabled (stored in ~/.conductor/notes/ and ~/.conductor/scheduler.json)"
 
-# ── STEP 13: TELEGRAM ──────────────────────────────────────────────────────────
+# ── STEP 13: TELEGRAM ─────────────────────────────────────────────────────────
 step "13 / Telegram Bot  ${DIM}optional${RESET}"
 hint "Chat with your AI from Telegram — @BotFather → /newbot to get a token"
 echo ""
@@ -753,7 +799,7 @@ if [[ "$SETUP_TG" == "true" ]]; then
       TG_OK=$(python3 -c "import json,sys; d=json.loads(sys.argv[1]); print('y' if d.get('ok') else 'n')" "$TG_RESP" 2>/dev/null || echo "n")
       TG_NAME=$(python3 -c "import json,sys; d=json.loads(sys.argv[1]); print(d.get('result',{}).get('username',''))" "$TG_RESP" 2>/dev/null || echo "")
       if [[ "$TG_OK" == "y" ]]; then
-        save_cred "telegram" "bot_token" "$TG_TOKEN"
+        save_cred_val "telegram" "bot_token" "$TG_TOKEN"
         update_config '{"telegram":{"enabled":true}}'
         success "Telegram connected — @${TG_NAME}"
         TG_VERIFIED="true"
@@ -761,13 +807,13 @@ if [[ "$SETUP_TG" == "true" ]]; then
         warn "Token verification failed (bad token or no internet)."
         prompt_yn "Save token anyway?" SAVE_TG_ANYWAY "n"
         if [[ "$SAVE_TG_ANYWAY" == "true" ]]; then
-          save_cred "telegram" "bot_token" "$TG_TOKEN"
+          save_cred_val "telegram" "bot_token" "$TG_TOKEN"
           update_config '{"telegram":{"enabled":true}}'
           warn "Token saved unverified — run: conductor telegram start"
         fi
       fi
     else
-      save_cred "telegram" "bot_token" "$TG_TOKEN"
+      save_cred_val "telegram" "bot_token" "$TG_TOKEN"
       update_config '{"telegram":{"enabled":true}}'
       warn "Saved without verification (curl not found) — run: conductor telegram start"
     fi
@@ -778,7 +824,7 @@ fi
 
 # ── STEP 14: SLACK BOT ────────────────────────────────────────────────────────
 step "14 / Slack Bot  ${DIM}optional${RESET}"
-hint "Socket Mode — api.slack.com/apps → Create App → Event Subscriptons"
+hint "Socket Mode — api.slack.com/apps → Create App → Event Subscriptions"
 echo ""
 
 prompt_yn "Set up Slack Bot?" SETUP_SLACK "n"
@@ -788,13 +834,11 @@ if [[ "$SETUP_SLACK" == "true" ]]; then
   echo -e "  2. ${DIM}Bot User OAuth Token (xoxb-...) in 'OAuth & Permissions'${RESET}"
   echo -e "  3. ${DIM}App-Level Token (xapp-...) in 'Basic Information' -> 'App-Level Tokens'${RESET}"
   echo ""
-  
   prompt_secret "Slack Bot OAuth Token (xoxb-)" SLACK_BOT_TOKEN
   prompt_secret "Slack App-Level Token (xapp-)" SLACK_APP_TOKEN
-  
   if [[ -n "$SLACK_BOT_TOKEN" && -n "$SLACK_APP_TOKEN" ]]; then
-    save_cred "slack" "bot_token" "$SLACK_BOT_TOKEN"
-    save_cred "slack" "app_token" "$SLACK_APP_TOKEN"
+    save_cred_val "slack" "bot_token" "$SLACK_BOT_TOKEN"
+    save_cred_val "slack" "app_token" "$SLACK_APP_TOKEN"
     update_config '{"plugins":{"slack":{"enabled":true}}}'
     success "Slack tokens saved"
   else
@@ -804,7 +848,7 @@ else
   warn "Skipped — run later: conductor slack setup"
 fi
 
-# ── STEP 15: MCP ───────────────────────────────────────────────────────────────
+# ── STEP 15: MCP ──────────────────────────────────────────────────────────────
 step "15 / MCP Server  ${DIM}Claude Desktop integration${RESET}"
 
 prompt_yn "Configure MCP for Claude Desktop?" SETUP_MCP "y"
@@ -821,13 +865,11 @@ if [[ "$SETUP_MCP" == "true" ]]; then
     mkdir -p "$(dirname "$MCP_CONFIG")"
     CONDUCTOR_CLI="${CONDUCTOR_BIN:-conductor}"
 
-    # Backup existing config
     if [[ -f "$MCP_CONFIG" ]]; then
       cp "$MCP_CONFIG" "${MCP_CONFIG}.bak" 2>/dev/null && \
         hint "Backed up existing Claude Desktop config to ${MCP_CONFIG}.bak"
     fi
 
-    # Atomic update via Node — no stdin/pipes
     node -e "
       const fs = require('fs');
       const [,, configPath, conductorCmd] = process.argv;
@@ -881,10 +923,11 @@ echo -e "  ${BOLD}Get started:${RESET}"
 echo ""
 echo -e "    ${CYAN}conductor dashboard${RESET}          — Open web dashboard"
 echo -e "    ${CYAN}conductor status${RESET}             — Check your setup"
-echo -e "    ${CYAN}conductor ai test${RESET}             — Test AI provider"
+echo -e "    ${CYAN}conductor ai test${RESET}            — Test AI provider"
+echo -e "    ${CYAN}conductor auth google${RESET}        — Connect Gmail/Calendar/Drive"
 echo -e "    ${CYAN}conductor telegram start${RESET}     — Start Telegram bot"
-echo -e "    ${CYAN}conductor slack start${RESET}         — Start Slack bot"
-echo -e "    ${CYAN}conductor mcp start${RESET}           — Start MCP server"
+echo -e "    ${CYAN}conductor slack start${RESET}        — Start Slack bot"
+echo -e "    ${CYAN}conductor mcp start${RESET}          — Start MCP server"
 echo ""
-echo -e "  ${DIM}Docs: https://github.com/thealxlabs/conductor${RESET}"
+echo -e "  ${DIM}Docs: https://conductor.thealxlabs.ca${RESET}"
 echo ""
