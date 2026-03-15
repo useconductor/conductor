@@ -2,14 +2,15 @@
 # ============================================================
 # Conductor Local Install Script — by TheAlxLabs
 # ============================================================
-# This script installs Conductor from the current source directory.
-# Use this if you have modified the code and want to install your 
-# local version globally.
+# Use this if you have modified the code and want to install
+# your local version globally.
+#
+#   bash local-install.sh
 # ============================================================
 set -euo pipefail
 IFS=$'\n\t'
 
-# ── Terminal colours ──────────────────────────────────────────────────────────
+# ── Terminal colours ──────────────────────────────────────────
 if [[ -t 1 ]] && command -v tput &>/dev/null; then
   RED=$(tput setaf 1)    GREEN=$(tput setaf 2)  YELLOW=$(tput setaf 3)
   BLUE=$(tput setaf 4)   CYAN=$(tput setaf 6)   BOLD=$(tput bold)
@@ -19,10 +20,8 @@ else
   RED='\033[0;31m' GREEN='\033[0;32m' YELLOW='\033[1;33m'
   BLUE='\033[0;34m' CYAN='\033[0;36m' BOLD='\033[1m'
   DIM='\033[2m'    ITALIC='\033[3m'   RESET='\033[0m'
-  RESET='\033[0m'
 fi
 
-# ── Logging ───────────────────────────────────────────────────────────────────
 info()    { echo -e "  ${BLUE}▶${RESET} $*"; }
 success() { echo -e "  ${GREEN}✓${RESET} $*"; }
 warn()    { echo -e "  ${YELLOW}⚠${RESET}  $*" >&2; }
@@ -36,16 +35,19 @@ step() {
   echo -e "  ${BOLD}${CYAN}└──────────────────────────────────────────────${RESET}"
 }
 
-# ── Cleanup ───────────────────────────────────────────────────────────────────
+# ── Cleanup ───────────────────────────────────────────────────
 _TMPFILES=()
 cleanup() {
   for f in "${_TMPFILES[@]:-}"; do
-    [[ -f "$f" ]] && rm -f "$f" 2>/dev/null || true
+    if [[ -f "$f" ]]; then
+      dd if=/dev/zero of="$f" bs=1 count="$(wc -c < "$f")" 2>/dev/null || true
+      rm -f "$f" 2>/dev/null || true
+    fi
   done
 }
 trap cleanup EXIT
 
-# ── Prompt helpers ────────────────────────────────────────────────────────────
+# ── Prompt helpers ────────────────────────────────────────────
 prompt_yn() {
   local prompt="$1" varname="$2" default="${3:-y}"
   local hint_str="Y/n"; [[ "$default" == "n" ]] && hint_str="y/N"
@@ -75,7 +77,7 @@ prompt_secret() {
   printf -v "$varname" '%s' "$_sec"
 }
 
-# ── Config helpers ────────────────────────────────────────────────────────────
+# ── Config helpers ────────────────────────────────────────────
 CONFIG_DIR="$HOME/.conductor"
 CONFIG_FILE="$CONFIG_DIR/config.json"
 
@@ -85,7 +87,6 @@ ensure_dirs() {
   chmod 700 "$CONFIG_DIR"
 }
 
-# Atomic JSON merge: write to tmp, then rename
 update_config() {
   local json_str="$1"
   local tmp_file; tmp_file=$(mktemp "${CONFIG_FILE}.XXXXXX")
@@ -110,20 +111,22 @@ os.replace(tmp_path, config_path)
 " "$CONFIG_FILE" "$tmp_file" "$json_str"
 }
 
-# Encrypt with AES-256-GCM, machine-keyed, v2 format
-save_cred() {
-  local service="$1" key="$2" val="$3"
-  node - "$CONFIG_DIR" "$service" "$key" "$val" << 'JSEOF'
+# Pipes value via stdin — never exposed in process list (ps aux fix)
+save_cred_val() {
+  local service="$1" key="$2" value="$3"
+  printf '%s' "$value" | node - "$CONFIG_DIR" "$service" "$key" << 'JSEOF'
 const crypto=require('crypto'),fs=require('fs'),path=require('path'),os=require('os'),{execSync}=require('child_process');
-const [,,configDir,service,key,val]=process.argv;
+const [,,configDir,service,key]=process.argv;
+let val='';
+try{val=fs.readFileSync('/dev/stdin','utf8').trim();}catch{process.exit(1);}
 const kd=path.join(configDir,'keychain'); fs.mkdirSync(kd,{recursive:true,mode:0o700});
 function ms(){
   for(const s of['/etc/machine-id','/var/lib/dbus/machine-id'])try{const d=fs.readFileSync(s,'utf8').trim();if(d)return d}catch{}
   if(process.platform==='darwin')try{const o=execSync("ioreg -rd1 -c IOPlatformExpertDevice|awk '/IOPlatformUUID/{print $NF}'",{encoding:'utf8',stdio:['pipe','pipe','pipe']}).trim().replace(/"/g,'');if(o)return o}catch{}
-  if(process.platform==='win32')try{const o=execSync('reg query "HKLM\\SOFTWARE\\Microsoft\\Cryptography" /v MachineGuid',{encoding:'utf8',stdio:['pipe','pipe','pipe']});const m=o.match(/MachineGuid\s+REG_SZ\s+(.+)/);if(m?.[1]?.trim())return m[1].trim()}catch{}
   const f=path.join(kd,'machine_secret');
-  try{if(fs.readFileSync(f,'utf8').trim())return fs.readFileSync(f,'utf8').trim()}catch{}
-  try{const s=crypto.randomUUID();fs.writeFileSync(f,s,{mode:0o600});return s}catch{return os.hostname()}
+  try{const d=fs.readFileSync(f,'utf8').trim();if(d)return d}catch{}
+  try{const s=crypto.randomUUID();fs.writeFileSync(f,s,{mode:0o600});return s}catch{}
+  throw new Error('Cannot derive machine ID for keychain encryption');
 }
 const salt=crypto.createHash('sha256').update('conductor:keychain:v1').digest();
 const mk=crypto.scryptSync(ms(),salt,32,{N:16384,r:8,p:1});
@@ -153,21 +156,32 @@ with open(p,'w') as f: json.dump(c, f, indent=2)
 " "$CONFIG_FILE" "$1"
 }
 
-# ── HEADER ────────────────────────────────────────────────────────────────────
+# ── Header ────────────────────────────────────────────────────
 clear 2>/dev/null || true
 echo -e "  ${BOLD}${CYAN}Conductor Local Installer${RESET}"
 echo -e "  ${DIM}Installing from: $(pwd)${RESET}"
 echo ""
 
-# ── STEP 1: PREFLIGHT ─────────────────────────────────────────────────────────
+# ── Step 1: Preflight ─────────────────────────────────────────
 step "01 / Preflight Check"
 
-[[ -f "package.json" ]] || fail "No package.json found. Run this script in the conductor directory."
+[[ -f "package.json" ]] || fail "No package.json found. Run this script in the conductor source directory."
 
-command -v node &>/dev/null || fail "Node.js not found."
-command -v npm &>/dev/null || fail "npm not found."
+command -v node &>/dev/null || fail "Node.js not found. Install v18+ from https://nodejs.org"
+NODE_RAW=$(node --version 2>/dev/null || echo "v0")
+NODE_VER="${NODE_RAW#v}"; NODE_MAJOR="${NODE_VER%%.*}"
+[[ -z "$NODE_MAJOR" ]] && fail "Could not determine Node.js version from: $NODE_RAW"
+[[ "$NODE_MAJOR" =~ ^[0-9]+$ ]] && (( NODE_MAJOR >= 18 )) || \
+  fail "Node.js v18+ required (found $NODE_RAW). Upgrade at https://nodejs.org"
+success "Node.js $NODE_RAW"
 
-# ── STEP 2: BUILD ─────────────────────────────────────────────────────────────
+command -v npm &>/dev/null || fail "npm not found. Reinstall Node.js from https://nodejs.org"
+success "npm $(npm --version)"
+
+ensure_dirs
+success "Config dirs ready ($CONFIG_DIR)"
+
+# ── Step 2: Build ─────────────────────────────────────────────
 step "02 / Build from Source"
 
 info "Installing dependencies..."
@@ -176,10 +190,10 @@ npm install || fail "npm install failed"
 info "Building project..."
 npm run build || fail "Build failed"
 
-# Ensure CLI is executable
 chmod +x "dist/cli/index.js" 2>/dev/null || true
+success "Build complete"
 
-# ── STEP 3: LINK ──────────────────────────────────────────────────────────────
+# ── Step 3: Link ──────────────────────────────────────────────
 step "03 / Global Install"
 
 info "Linking globally..."
@@ -187,77 +201,82 @@ if npm link --silent 2>/dev/null || sudo npm link --silent 2>/dev/null; then
   success "Linked globally via 'npm link'"
 else
   warn "npm link failed. Attempting global install..."
-  if npm install -g . || sudo npm install -g .; then
+  if npm install -g . 2>/dev/null || sudo npm install -g . 2>/dev/null; then
     success "Installed globally via 'npm install -g .'"
   else
-    fail "Could not install globally. Try running: sudo npm link"
+    LOCAL_BIN="$HOME/.local/bin"
+    mkdir -p "$LOCAL_BIN"
+    printf '#!/usr/bin/env bash\nexec node "%s/dist/cli/index.js" "$@"\n' "$(pwd)" > "$LOCAL_BIN/conductor"
+    chmod +x "$LOCAL_BIN/conductor"
+    export PATH="$LOCAL_BIN:$PATH"
+    success "Installed to ~/.local/bin/conductor"
+    hint "Add to PATH permanently: export PATH=\"\$HOME/.local/bin:\$PATH\""
   fi
 fi
 
-# ── STEP 4: CONFIG ────────────────────────────────────────────────────────────
+# ── Step 4: Configuration ─────────────────────────────────────
 step "04 / Configuration"
-ensure_dirs
-success "Configuration directories ready ($CONFIG_DIR)"
 
 echo ""
-echo -e "  ${CYAN}1${RESET}  ${BOLD}Claude${RESET}       ${DIM}· Anthropic   · console.anthropic.com/settings/keys${RESET}
-  ${CYAN}2${RESET}  ${BOLD}OpenAI${RESET}       ${DIM}· GPT-4o      · platform.openai.com/api-keys${RESET}
-  ${CYAN}3${RESET}  ${BOLD}Gemini${RESET}       ${DIM}· Google      · aistudio.google.com/apikey${RESET}
-  ${CYAN}4${RESET}  ${BOLD}OpenRouter${RESET}   ${DIM}· Multi-model · openrouter.ai/keys${RESET}
-  ${CYAN}5${RESET}  ${BOLD}Ollama${RESET}       ${DIM}· Local       · no API key needed${RESET}
-  ${CYAN}6${RESET}  ${BOLD}Skip${RESET}         ${DIM}· configure later: conductor ai setup${RESET}
+echo -e "  ${CYAN}1${RESET}  ${BOLD}Claude${RESET}       ${DIM}· console.anthropic.com/settings/keys${RESET}
+  ${CYAN}2${RESET}  ${BOLD}OpenAI${RESET}       ${DIM}· platform.openai.com/api-keys${RESET}
+  ${CYAN}3${RESET}  ${BOLD}Gemini${RESET}       ${DIM}· aistudio.google.com/apikey${RESET}
+  ${CYAN}4${RESET}  ${BOLD}OpenRouter${RESET}   ${DIM}· openrouter.ai/keys${RESET}
+  ${CYAN}5${RESET}  ${BOLD}Ollama${RESET}       ${DIM}· local, no key needed${RESET}
+  ${CYAN}6${RESET}  ${BOLD}Skip${RESET}
 "
-echo ""
-
 prompt_input "Choose AI Provider" AI_CHOICE "6"
-AI_PROVIDER_SET=""
 
 case "$AI_CHOICE" in
 1)
   prompt_secret "Anthropic API key" API_KEY
   if [[ -n "$API_KEY" ]]; then
-    save_cred "anthropic" "api_key" "$API_KEY"
+    save_cred_val "anthropic" "api_key" "$API_KEY"
     update_config '{"ai":{"provider":"claude"}}'
-    success "Claude configured"; AI_PROVIDER_SET="claude"
+    success "Claude configured"
   else warn "Skipped"; fi ;;
 2)
   prompt_secret "OpenAI API key" API_KEY
   if [[ -n "$API_KEY" ]]; then
-    save_cred "openai" "api_key" "$API_KEY"
+    save_cred_val "openai" "api_key" "$API_KEY"
     update_config '{"ai":{"provider":"openai"}}'
-    success "OpenAI configured"; AI_PROVIDER_SET="openai"
+    success "OpenAI configured"
   else warn "Skipped"; fi ;;
 3)
   prompt_secret "Gemini API key" API_KEY
   if [[ -n "$API_KEY" ]]; then
-    save_cred "gemini" "api_key" "$API_KEY"
+    save_cred_val "gemini" "api_key" "$API_KEY"
     update_config '{"ai":{"provider":"gemini"}}'
-    success "Gemini configured"; AI_PROVIDER_SET="gemini"
+    success "Gemini configured"
   else warn "Skipped"; fi ;;
 4)
   prompt_secret "OpenRouter API key" API_KEY
   if [[ -n "$API_KEY" ]]; then
-    save_cred "openrouter" "api_key" "$API_KEY"
+    save_cred_val "openrouter" "api_key" "$API_KEY"
     update_config '{"ai":{"provider":"openrouter"}}'
-    success "OpenRouter configured"; AI_PROVIDER_SET="openrouter"
+    success "OpenRouter configured"
   else warn "Skipped"; fi ;;
 5)
   prompt_input "Ollama model" OLLAMA_MODEL "llama3.2"
-  update_config "{\"ai\":{\"provider\":\"ollama\",\"model\":\"$OLLAMA_MODEL\"}}"
-  success "Ollama configured"; AI_PROVIDER_SET="ollama" ;;
+  OLLAMA_JSON=$(python3 -c "import json,sys; print(json.dumps(sys.argv[1]))" "$OLLAMA_MODEL")
+  update_config "{\"ai\":{\"provider\":\"ollama\",\"model\":${OLLAMA_JSON}}}"
+  success "Ollama configured ($OLLAMA_MODEL)"
+  hint "Make sure Ollama is running: ollama serve" ;;
 *)
-  warn "Skipped" ;;
+  warn "Skipped — run later: conductor ai setup" ;;
 esac
 
-# ── STEP 5: BOT SETUP ─────────────────────────────────────────────────────────
-step "05 / Bot Setup"
+# ── Step 5: Bots ──────────────────────────────────────────────
+step "05 / Bot Setup  ${DIM}optional${RESET}"
+
 prompt_yn "Set up Telegram bot?" SETUP_TG "n"
 if [[ "$SETUP_TG" == "true" ]]; then
   prompt_secret "Telegram Bot Token" TG_TOKEN
   if [[ -n "$TG_TOKEN" ]]; then
-    save_cred "telegram" "bot_token" "$TG_TOKEN"
+    save_cred_val "telegram" "bot_token" "$TG_TOKEN"
     update_config '{"telegram":{"enabled":true}}'
     success "Telegram configured"
+    hint "Start with: conductor telegram start"
   fi
 fi
 
@@ -266,17 +285,20 @@ if [[ "$SETUP_SLACK" == "true" ]]; then
   prompt_secret "Slack Bot OAuth Token (xoxb-)" SLACK_BOT_TOKEN
   prompt_secret "Slack App-Level Token (xapp-)" SLACK_APP_TOKEN
   if [[ -n "$SLACK_BOT_TOKEN" && -n "$SLACK_APP_TOKEN" ]]; then
-    save_cred "slack" "bot_token" "$SLACK_BOT_TOKEN"
-    save_cred "slack" "app_token" "$SLACK_APP_TOKEN"
+    save_cred_val "slack" "bot_token" "$SLACK_BOT_TOKEN"
+    save_cred_val "slack" "app_token" "$SLACK_APP_TOKEN"
     update_config '{"plugins":{"slack":{"enabled":true}}}'
     success "Slack configured"
+    hint "Start with: conductor slack start"
   fi
 fi
 
-# ── DONE ──────────────────────────────────────────────────────────────────────
+# ── Done ──────────────────────────────────────────────────────
 echo ""
 echo -e "  ${GREEN}${BOLD}✓ Local installation complete!${RESET}"
 echo ""
-echo -e "  You can now run ${CYAN}conductor${RESET} from anywhere."
-echo -e "  Try ${CYAN}conductor status${RESET} to check your settings."
+echo -e "  ${CYAN}conductor status${RESET}         — check your setup"
+echo -e "  ${CYAN}conductor auth google${RESET}    — connect Gmail/Calendar/Drive"
+echo -e "  ${CYAN}conductor dashboard${RESET}      — open web dashboard"
+echo -e "  ${CYAN}conductor ai test${RESET}        — test AI provider"
 echo ""

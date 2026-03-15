@@ -580,7 +580,13 @@ export async function startDashboard(port = 4242): Promise<DashboardServer> {
 
   // GET /api/fs/list
   app.get('/api/fs/list', async (req: Request, res: Response): Promise<void> => {
-    const rawPath = (req.query as Record<string, string>).path ?? os.homedir();
+    let rawPath = (req.query as Record<string, string>).path;
+    // Normalize: missing, empty, or '~' → home dir; relative → join with home dir
+    if (!rawPath || rawPath === '~') {
+      rawPath = os.homedir();
+    } else if (!path.isAbsolute(rawPath)) {
+      rawPath = path.join(os.homedir(), rawPath);
+    }
     const { safe, resolved } = isSafePath(rawPath);
     if (!safe) {
       res.status(400).json({ error: 'Invalid path — traversal not allowed' });
@@ -605,7 +611,7 @@ export async function startDashboard(port = 4242): Promise<DashboardServer> {
           }
         })
       );
-      res.json({ entries });
+      res.json({ entries, path: resolved });
     } catch (e: unknown) {
       res.status(500).json({ error: (e as Error).message });
     }
