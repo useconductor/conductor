@@ -228,6 +228,12 @@ export class DatabaseManager {
     return results;
   }
 
+  async clearHistory(userId: string): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+    this.db.run(`DELETE FROM messages WHERE user_id = ?`, [userId]);
+    this.scheduleFlush();
+  }
+
   async addCoreMemory(entry: { id: string, userId: string, text: string, category: string, importance: number, tags?: string[] }): Promise<void> {
     if (!this.db) throw new Error('Database not initialized');
     this.db.run(

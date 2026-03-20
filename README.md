@@ -1,537 +1,326 @@
 # Conductor
 
-> Your AI integration hub — 27 plugins, 150+ tools, one installer. Now with Slack, Telegram, Proactive Mode, and Persona Routing.
+> **One AI. Every tool. Any interface.**
 
-Conductor is a TypeScript-based AI engine that bridges the gap between LLMs (Claude, GPT-4o, Gemini, Ollama, OpenRouter) and your digital workflow. It exposes a massive library of tools—including Gmail, Spotify, GitHub, and Slack—as an **MCP server**, **Telegram bot**, or **Slack bot**.
+Conductor is a universal AI integration hub that connects Claude, GPT-4o, Gemini, Ollama, and OpenRouter to 150+ tools across 27 plugins — exposed simultaneously as an **MCP server**, **Slack bot**, **Telegram bot**, **web dashboard with live chat**, and **HTTP API**.
+
+![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6?style=flat-square&logo=typescript&logoColor=white)
+![Plugins](https://img.shields.io/badge/27_Plugins-150%2B_Tools-22c55e?style=flat-square)
+![Providers](https://img.shields.io/badge/6_AI_Providers-Claude_·_GPT--4o_·_Gemini_·_Ollama-a855f7?style=flat-square)
+![License](https://img.shields.io/badge/License-Apache--2.0-f59e0b?style=flat-square)
 
 ---
 
-## What is Conductor?
+## What makes Conductor different
 
-Conductor sits between you and your AI model. You send a natural language request; Conductor figures out which tools to use, chains multiple calls together, and returns a result.
+Most AI wrappers give you one interface. Conductor gives you five — simultaneously. Same plugins, same tools, same conversation memory, whether you're in Slack, Telegram, Claude Desktop (MCP), or the web browser.
 
-**Example flow:**
+**Example:** Send one message: _"Find my 3 urgent emails, add them to my calendar, and notify me on Slack."_ Conductor automatically chains Gmail → Google Calendar → Slack in a single agent loop — with approval gates if any step is sensitive.
 
 ```
-You: "Check my unread Gmail, add any urgent items to my calendar, then notify me on Slack."
+You: "Find my urgent emails, add them to my calendar, notify me on Slack."
 
 Conductor:
-  1. determinePersona() → "general"
-  2. gmail_list() → 3 unread emails
-  3. AI identifies 1 urgent item
-  4. gcal_create_event() → event created
-  5. Slack message sent → "Done: 1 event added from email."
+  1. persona → "general"
+  2. gmail_search() → 2 urgent emails
+  3. gcal_create_event() × 2 → events created
+  4. slack_send_message() → "Done: 2 events added"
 ```
 
-Conductor works the same way whether you talk to it through a Slack message, a Telegram bot, or the Claude Desktop app via MCP.
-
 ---
 
-## What's New
-
-- **Proactive Mode** — Autonomous reasoning loop that monitors your system and services every N minutes and acts without prompting.
-- **Persona Routing** — AI-driven request classification routes to the right tool set (Coder, Social, Researcher, General).
-- **Slack Integration** — Deploy Conductor as a Slack bot to bring AI tool-calling to your workspace.
-- **Enhanced Google OAuth** — Streamlined authentication flow shared across Gemini, Gmail, Calendar, and Drive.
-- **Advanced Tool Calling** — Improved logic for AI-driven multi-step execution.
-- **Hardened Security** — AES-256-GCM keychain encryption tied to hardware IDs.
-
----
-
-## Install
-
-**macOS / Linux:**
+## Try it in 60 seconds
 
 ```bash
+# macOS / Linux
 curl -fsSL https://conductor.thealxlabs.ca/install.sh | bash
 
-**Windows (PowerShell):**
-
-```powershell
+# Windows (PowerShell)
 irm https://conductor.thealxlabs.ca/install.ps1 | iex
 ```
 
-The 14-step interactive installer configures AI providers, Google OAuth, Slack/Telegram tokens, and Claude Desktop MCP. Every step is optional and skippable.
+Then open the web dashboard with live AI chat:
 
-**Requirements:**
-- Node.js >= 18.0.0
-- npm
+```bash
+conductor dashboard start
+# → http://localhost:4242
+```
 
-The installer checks for Node.js automatically and guides you through setup. It is fully idempotent — re-running it is safe.
+Or wire it into Claude Desktop:
+
+```bash
+conductor mcp setup    # auto-configures Claude Desktop
+```
+
+**Requirements:** Node.js ≥ 18
 
 ---
 
-## Supported AI Providers
+## 5 things that will impress you
 
-| Provider | Model | Setup |
-|---|---|---|
-| **Anthropic Claude** | claude-3-5-sonnet, claude-3-opus | `conductor ai setup` → choose Claude |
-| **OpenAI** | gpt-4o, gpt-4-turbo | `conductor ai setup` → choose OpenAI |
-| **Google Gemini** | gemini-1.5-pro, gemini-flash | `conductor ai setup` → choose Gemini |
-| **Ollama** | llama3, mistral, any local model | `conductor ai setup` → choose Ollama |
-| **OpenRouter** | 200+ models via one API | `conductor ai setup` → choose OpenRouter |
+### 1. Live web chat in the browser
+The dashboard includes a full AI chat interface — send messages, watch tool call chips appear inline, see results in real time. No CLI needed for demos.
 
-Switch at any time:
-
+### 2. 6 AI providers, hot-switchable
 ```bash
-conductor ai switch gemini
+conductor ai switch gemini    # switch without restart
 conductor ai switch claude
-conductor ai switch ollama
+conductor ai switch ollama    # fully local, no API key
 ```
 
-**Ollama (fully local, no API key):**
-
-Conductor connects to your local Ollama server at `http://localhost:11434` by default. Start Ollama first with `ollama serve`, then run `conductor ai setup` and choose Ollama.
-
----
-
-## Interface Options
-
-```
-┌─────────────────────────────────────────────────────┐
-│                   Your AI Provider                  │
-│    Claude · GPT-4o · Gemini · Ollama · OpenRouter   │
-└──────────────────────┬──────────────────────────────┘
-                       │
-              ┌────────▼────────┐
-              │    Conductor    │
-              │  27 Plugins     │
-              │  150+ Tools     │
-              └──┬─────┬─────┬──┘
-                 │     │     │
-      ┌──────────▼─┐ ┌─▼─────▼──┐ ┌──────────▼──┐
-      │  Slack Bot │ │ Telegram │ │  MCP Server │
-      └────────────┘ └──────────┘ └─────────────┘
-```
-
----
-
-## Quick Start
-
+### 3. Proactive autonomous mode
 ```bash
-conductor status              # Check setup and plugin health
-conductor slack start         # Launch the Slack bot
-conductor telegram start      # Launch the Telegram bot
-conductor mcp setup           # Auto-configure Claude Desktop
-conductor ai switch gemini    # Swap your primary AI model
-conductor proactive start     # Start autonomous mode (every 30 min)
+conductor proactive start    # runs every 30 min by default
 ```
+Conductor gathers context (CPU, emails, calendar, activity), reasons about it, takes action, and notifies you — without you asking. Approval gates pause the loop for sensitive operations.
+
+### 4. Hardware-tied AES-256-GCM keychain
+No secrets in `config.json`. Every credential is encrypted with a key derived from your machine's hardware ID via `scrypt`. Keys cannot be transferred to other machines.
+
+### 5. Plugin marketplace in the dashboard
+Browse, enable, and configure all 27 plugins from the web UI. See which need credentials, toggle them on/off, get the right setup instructions.
 
 ---
 
 ## Architecture
 
-Conductor is built around four core components:
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        Interfaces                           │
+│                                                             │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
+│  │   Web    │  │  Slack   │  │Telegram  │  │   MCP    │   │
+│  │Dashboard │  │   Bot    │  │   Bot    │  │ (Claude  │   │
+│  │ + Chat   │  │          │  │          │  │ Desktop) │   │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘   │
+└───────┼─────────────┼─────────────┼──────────────┼─────────┘
+        └─────────────┴──────┬──────┴──────────────┘
+                             │
+              ┌──────────────▼──────────────┐
+              │         Conductor           │
+              │  (Orchestrator + Agent Loop)│
+              └──────┬───────────┬──────────┘
+                     │           │
+          ┌──────────▼──┐   ┌───▼──────────┐
+          │  AI Manager  │   │ Plugin Manager│
+          │              │   │ 27 Plugins   │
+          │ Claude       │   │ 150+ Tools   │
+          │ OpenAI       │   │              │
+          │ Gemini       │   │ Gmail  gcal  │
+          │ Ollama       │   │ GitHub Slack │
+          │ OpenRouter   │   │ Spotify ...  │
+          │ Maestro      │   │              │
+          └──────────────┘   └──────────────┘
+                     │
+          ┌──────────▼──────────┐
+          │   Security Layer    │
+          │  AES-256-GCM        │
+          │  Hardware-tied keys │
+          └─────────────────────┘
+```
 
-### 1. Core (`src/core/`)
-
-- **`Conductor`** — The central orchestrator. Initializes configuration, the database, plugins, and AI on startup. Owns the proactive reasoning loop and notification dispatch.
-- **`ConfigManager`** — Reads and writes `~/.conductor/config.json`. Supports dot-path key access (e.g., `plugins.enabled`). Config writes are atomic (write to `.tmp`, then rename).
-- **`DatabaseManager`** — SQLite database via `sql.js`. Stores conversation history, plugin registry, activity logs, and credentials metadata.
-
-### 2. AI Layer (`src/ai/`)
-
-- **`AIManager`** — Loads the configured provider, runs the agent loop, and manages Persona Routing. The `handleConversation()` method drives up to 15 tool-calling iterations per request before halting.
-- Provider implementations: `ClaudeProvider`, `OpenAIProvider`, `GeminiProvider`, `OllamaProvider`, `OpenRouterProvider` — each implements a common `AIProvider` interface with `complete()`, `test()`, and `parseIntent()`.
-
-### 3. Plugin System (`src/plugins/`)
-
-- **`PluginManager`** — Loads all builtin plugins at startup, checks `config.json` for which are enabled, and exposes `getEnabledTools()` to the AI layer.
-- Each plugin exports a `Plugin` object with a name, description, and array of `PluginTool` entries. Tools declare an `inputSchema` (JSON Schema) and an async `execute()` / `handler()` function.
-- Tools can declare `requiresApproval: true` — when an AI tries to call such a tool, execution pauses and the user is notified for manual approval via Slack or Telegram.
-
-### 4. Interfaces
-
-- **MCP Server** (`src/mcp/`) — Implements the Model Context Protocol so Conductor's tools appear natively in Claude Desktop. Runs in stdio mode.
-- **Slack Bot** (`src/bot/slack.ts`) — Uses `@slack/bolt`. Listens for `@conductor` mentions and DMs.
-- **Telegram Bot** (`src/bot/telegram.ts`) — Uses `telegraf`. Handles `/start`, `/approve`, `/deny`, and conversational messages.
-
-### Agent Loop
-
-Each conversation turn runs a loop (max 15 iterations):
+### Agent Loop (max 15 iterations per turn)
 
 ```
 1. User message → stored in SQLite conversation history
-2. Persona detection → classifies request into coder / social / researcher / general
-3. System prompt set → per-persona instructions injected
-4. AI provider called with full history + available tools
-5. If tool calls returned → execute each tool, append results
-6. If requiresApproval tool → pause loop, notify user
-7. Repeat from step 4 until AI returns a plain text response
-8. Final response returned to the user interface
+2. Persona detection (AI classifies: coder / social / researcher / general)
+3. System prompt injected based on persona
+4. AI provider called with full history + all enabled tools
+5. If tool calls returned → execute, append results
+6. If requiresApproval tool → pause, notify user via Slack/Telegram
+7. Repeat until AI returns plain text
+8. Final response returned to the interface
 ```
 
-Conductor keeps the last 30 messages of conversation history per user for context.
+---
+
+## Interfaces
+
+| Interface | Command | What it does |
+|---|---|---|
+| **Web Dashboard + Chat** | `conductor dashboard start` | Browser UI with live AI chat, plugin manager, system monitor, marketplace |
+| **MCP Server** | `conductor mcp setup` | Native tool integration in Claude Desktop |
+| **Slack Bot** | `conductor slack start` | Respond to @conductor mentions and DMs |
+| **Telegram Bot** | `conductor telegram start` | Full chat + `/approve` / `/deny` commands |
+| **Lumen HTTP API** | auto-started with dashboard | `POST /api/lumen/ask` with Bearer token auth |
 
 ---
 
-## Plugins & Tools
+## Security
 
-### Zero-Config Utilities (no API key required)
+Credentials are encrypted using **AES-256-GCM** with a master key derived from your machine's hardware ID via `scrypt`. Secrets cannot be decrypted on any other machine.
 
-| Plugin | Description | Key Tools |
-|---|---|---|
-| **calculator** | Math, unit conversions, date calculations | `calc_math`, `calc_convert`, `calc_date` |
-| **colors** | Color conversion, palettes, contrast checking | `color_convert`, `color_palette`, `color_contrast` |
-| **crypto** | Live cryptocurrency prices and market data | `crypto_price`, `crypto_trending`, `crypto_search` |
-| **fun** | Jokes, cat facts, trivia, quotes | `fun_joke`, `fun_trivia`, `fun_quote` |
-| **hash** | Hashing, Base64 encoding, UUID & password generation | `hash_text`, `base64_encode`, `generate_uuid`, `generate_password` |
-| **network** | DNS lookup, IP geolocation, port checking | `dns_lookup`, `ip_info`, `reverse_dns` |
-| **text-tools** | JSON formatting, text stats, regex, string transforms | `json_format`, `text_stats`, `regex_test`, `text_transform` |
-| **timezone** | World clock, timezone conversion | `time_now`, `time_convert` |
-| **translate** | Free translation between languages | `translate_text` |
-| **url-tools** | Expand short URLs, check status, inspect headers | `url_expand`, `url_status`, `url_headers` |
-| **weather** | Current weather and 7-day forecasts (Open-Meteo) | `weather_current`, `weather_forecast` |
-| **system** | CPU, memory, disk, network, top processes | `system_info`, `system_processes`, `system_network` |
-| **github** | Public GitHub user and repo data | `github_user`, `github_repo`, `github_trending` |
-
-### Memory & Scheduling (Zero-Config)
-
-| Plugin | Description | Key Tools |
-|---|---|---|
-| **memory** | Long-term memory stored in SQLite | `memory_store`, `memory_recall`, `memory_forget`, `search_past_conversations` |
-| **notes** | Local markdown notes in `~/.conductor/notes/` | create, list, search, tag, link, pin, archive |
-| **cron** | Schedule recurring tasks with natural language | `cron_schedule`, `cron_list`, `cron_cancel`, `cron_run_now` |
-
-### Google Services (OAuth required)
-
-| Plugin | Description | Key Tools |
-|---|---|---|
-| **gmail** | Read, search, and send Gmail | `gmail_list`, `gmail_search`, `gmail_send`, `gmail_reply` |
-| **gcal** | Manage Google Calendar events | `gcal_list_events`, `gcal_create_event`, `gcal_update_event`, `gcal_delete_event` |
-| **gdrive** | Browse, search, read, and upload Drive files | `gdrive_list`, `gdrive_search`, `gdrive_read`, `gdrive_upload_text` |
-
-### Developer Tools (API token required)
-
-| Plugin | Description | Key Tools |
-|---|---|---|
-| **github_actions** | Full CI/CD, PRs, issues, releases | workflow runs, PRs, issues, releases, code search |
-| **vercel** | Manage deployments, projects, domains, env vars | `vercel_deployments`, `vercel_projects`, `vercel_domains`, `vercel_env` |
-| **n8n** | Automation workflow management via webhooks | manage workflows and webhook triggers |
-
-### Third-Party Services
-
-| Plugin | Description | Key Tools |
-|---|---|---|
-| **notion** | Read and write Notion databases | query databases, create/update pages |
-| **spotify** | Full playback control and library management | `spotify_current`, `spotify_play`, `spotify_queue`, `spotify_playlists`, `spotify_recommendations` |
-| **x** | Post tweets, read timeline, manage lists | post, search, manage followers |
-| **homekit** | Control HomeKit devices via Homebridge | `homekit_toggle`, `homekit_set`, `homekit_rooms`, `homekit_accessories` |
+- **Keychain location**: `~/.conductor/keychain/` (mode `0700`)
+- **No raw secrets** in `config.json` — ever
+- **Timing-safe** API key comparison
+- **Approval gates** for sensitive autonomous actions
+- **localhost-only** dashboard by default (bind: `127.0.0.1:4242`)
 
 ---
 
-## Example Prompts
+## Plugins
+
+### Zero-config (no API key)
+
+| Plugin | What it does |
+|---|---|
+| **calculator** | Math, unit conversions, date calculations |
+| **colors** | Color conversion, palettes, contrast checking |
+| **crypto** | Live cryptocurrency prices |
+| **fun** | Jokes, trivia, quotes, dice |
+| **hash** | SHA-256, MD5, bcrypt, UUID, password generator |
+| **network** | DNS lookup, IP geolocation, port scan |
+| **text-tools** | JSON format, regex, word count, string transforms |
+| **timezone** | World clock, timezone conversion |
+| **translate** | Translate between 100+ languages |
+| **url-tools** | Expand short URLs, HTTP status, headers |
+| **weather** | Current conditions + 7-day forecast |
+| **system** | CPU, memory, disk, processes, shell commands |
+| **memory** | Long-term memory across conversations |
+| **notes** | Markdown notes in `~/.conductor/notes/` |
+| **cron** | Schedule recurring tasks with natural language |
+
+### Requires auth
+
+| Plugin | Auth | What it does |
+|---|---|---|
+| **gmail** | Google OAuth | Read, search, send Gmail |
+| **gcal** | Google OAuth | Google Calendar events |
+| **gdrive** | Google OAuth | Browse, read, upload Drive files |
+| **github** | GitHub Token | Repos, issues, PRs, gists |
+| **github-actions** | GitHub Token | CI/CD, releases, code search |
+| **vercel** | Vercel Token | Deployments, projects, domains |
+| **n8n** | n8n API Key | Automation workflow triggers |
+| **notion** | Notion Key | Read/write databases and pages |
+| **spotify** | Spotify OAuth | Full playback control + library |
+| **x** | X API Key | Post tweets, read timeline |
+| **homekit** | HomeKit URL | Control smart home devices |
+| **slack** | Slack Token | Send messages, read channels |
+| **todoist** | Todoist Token | Tasks, projects, priorities |
+
+---
+
+## What can it do? (real prompts)
 
 ```
 "What's the weather in Berlin this week?"
 "Translate this paragraph to Japanese."
 "Find my 3 latest unread emails and summarize them."
-"Schedule a meeting with Alex tomorrow at 2pm and add it to my calendar."
-"Play my Discover Weekly on Spotify and queue 5 more similar tracks."
-"Search GitHub for trending TypeScript projects and give me the top 5."
+"Schedule a meeting with Alex tomorrow at 2pm."
+"Play Discover Weekly on Spotify, queue 5 similar tracks."
+"Search GitHub for trending TypeScript repos."
 "Generate a UUID and a secure 20-character password."
-"Check if my website is responding and show me the response headers."
 "Show me my top CPU-consuming processes."
-"Convert 250 USD to EUR."
+"Check if my website is responding."
+"Remember that my AWS key expires on March 31."
+"What did I work on yesterday?" (uses memory plugin)
 ```
-
----
-
-## Lumen AI API
-
-Conductor exposes your local **Lumen/Ollama** instance as an authenticated HTTP endpoint. This lets scripts, CI pipelines, or other machines on your network forward coding tasks to your machine's AI — without giving them shell access.
-
-### How it works
-
-```
-Remote client
-     │  POST /api/lumen/ask
-     │  Authorization: Bearer cnd_...
-     ▼
-Conductor (port 4242, your machine)
-     │  validates API key
-     ▼
-Ollama (localhost:11434) → Lumen model
-     │  runs shell / reads files / writes code
-     ▼
-JSON result back to caller
-```
-
-### Generate an API key
-
-Open the Conductor dashboard (`conductor status` → follow the link) and click **Generate Lumen API Key**, or use `curl`:
-
-```bash
-# Generate a key (run this on your local machine)
-curl -s -X POST http://localhost:4242/api/lumen/key | jq -r .key
-# → cnd_a1b2c3d4e5f6...
-```
-
-Save this key. It is shown only once. Store it wherever you call the API from (e.g. a GitHub Actions secret, a `.env` file, etc.).
-
-### Call Lumen remotely
-
-```bash
-# From any machine that can reach your Conductor server
-curl -s -X POST http://YOUR-IP:4242/api/lumen/ask \
-  -H "Authorization: Bearer cnd_a1b2c3d4e5f6..." \
-  -H "Content-Type: application/json" \
-  -d '{"task": "check git status and show changed files"}'
-```
-
-**Response:**
-
-```json
-{
-  "result": "On branch main, 2 files changed: src/index.ts, package.json",
-  "iterations": 3,
-  "toolCalls": ["run_shell({\"command\":\"git status\"})"]
-}
-```
-
-**Request body:**
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `task` | string | yes | Natural language task for Lumen to complete |
-| `max_iterations` | number | no | Agentic loop limit (default: 10) |
-
-### Manage your API key
-
-```bash
-# Check if a key exists
-curl http://localhost:4242/api/lumen/key/status
-
-# Revoke the current key
-curl -X DELETE http://localhost:4242/api/lumen/key
-```
-
-### Security notes
-
-- The API key is encrypted in `~/.conductor/keychain/` using AES-256-GCM (same as all other credentials).
-- The key is compared using a timing-safe comparison to prevent timing attacks.
-- Lumen runs **on your machine** with full shell and filesystem access — treat your API key like a root password.
-- Conductor's dashboard server (`port 4242`) only binds to `localhost` by default. To expose it to the network, run it behind a reverse proxy (nginx, Caddy) with HTTPS.
 
 ---
 
 ## Proactive Mode
 
-Proactive Mode starts an autonomous reasoning loop that runs every N minutes without any user prompts.
-
 ```bash
-conductor proactive start              # Run every 30 minutes (default)
-conductor proactive start --interval 10  # Run every 10 minutes
+conductor proactive start              # Every 30 minutes
+conductor proactive start --interval 10  # Every 10 minutes
 ```
 
-**What happens each cycle:**
-
-1. **Context gathering** — Conductor collects system stats (CPU, RAM, disk), recent activity, unread Gmail count, and upcoming calendar events.
-2. **AI reasoning** — The context is sent to your AI provider with instructions to identify problems and take action.
-3. **Approval gate** — Sensitive actions can be held for human approval before execution.
-4. **Notification** — Results are sent to you via Slack or Telegram.
-5. **Activity logging** — All cycle results are saved to the database.
-
-**Example:** Proactive Mode might notice your disk is 90% full, archive old logs automatically, and send you a Slack message summarizing what it did.
+Each cycle: gather system context → AI reasons → take action → notify via Slack/Telegram → log everything. Approval gates pause the loop for sensitive operations.
 
 ---
 
 ## Persona Routing
 
-When you send a message, Conductor classifies it into one of four personas before selecting tools:
+Conductor auto-classifies every message before routing to tools:
 
-| Persona | Triggers | Tool Focus |
+| Persona | Triggered by | Tool focus |
 |---|---|---|
-| **Coder** | Code writing, debugging, git, bash, file management | github_actions, vercel, system, hash, text-tools |
-| **Social** | Posting tweets, Slack/Telegram messages, email replies | x, slack, telegram, gmail |
-| **Researcher** | Web search, page reading, summarization | weather, translate, url-tools, network |
-| **General** | Calendar, emails, small talk, everything else | gcal, gmail, memory, notes, cron |
-
-Routing happens automatically. You don't need to specify a persona — Conductor infers it from your message using a fast AI classification call before the main conversation loop begins.
+| **Coder** | code, debug, git, bash | github-actions, vercel, system, hash |
+| **Social** | tweets, Slack, messages | x, slack, gmail |
+| **Researcher** | search, summarize, read | weather, translate, url-tools |
+| **General** | calendar, emails, everything else | gcal, gmail, memory, notes |
 
 ---
 
-## Approval Gates
+## Lumen AI HTTP API
 
-Tools can require human approval before execution. When an AI attempts to use an approval-gated tool:
+Expose your local Ollama as an authenticated remote endpoint — for CI/CD pipelines and scripts that don't have shell access.
 
-1. The agent loop pauses immediately.
-2. A notification is sent to you via Slack or Telegram with the tool name and arguments.
-3. You reply with `/approve <tool_call_id>` to allow it, or `/deny <tool_call_id>` to block it.
-4. Conductor resumes the conversation loop with the result.
+```bash
+# Generate an API key
+curl -s -X POST http://localhost:4242/api/lumen/key | jq -r .key
 
-This is especially useful for Proactive Mode, where the AI acts autonomously — approval gates ensure destructive or irreversible actions always go through you first.
+# Call from any machine
+curl -X POST http://YOUR-IP:4242/api/lumen/ask \
+  -H "Authorization: Bearer cnd_..." \
+  -H "Content-Type: application/json" \
+  -d '{"task": "check git status and show changed files"}'
+```
 
 ---
 
 ## CLI Reference
 
 ```bash
-# AI provider management
-conductor ai setup                   # Interactive AI provider configuration
-conductor ai switch <provider>       # Switch to a different AI provider (claude, openai, gemini, ollama, openrouter)
-conductor ai test                    # Test the current AI provider connection
-
-# MCP server (Claude Desktop)
-conductor mcp setup                  # Configure MCP for Claude Desktop
-conductor mcp status                 # Show MCP server status
-conductor mcp start                  # Start MCP server in stdio mode
-conductor mcp remove                 # Remove MCP configuration
-
-# Plugin management
-conductor plugins list               # List all plugins with enabled/disabled status
+conductor status                     # Overall health check
+conductor dashboard start            # Web dashboard + chat (port 4242)
+conductor ai setup                   # Configure AI provider
+conductor ai switch <provider>       # Hot-switch provider
+conductor mcp setup                  # Configure Claude Desktop
+conductor plugins list               # List all plugins
 conductor plugins enable <name>      # Enable a plugin
-conductor plugins disable <name>     # Disable a plugin
-
-# Proactive Mode
-conductor proactive start            # Start autonomous reasoning loop (default: every 30 min)
-conductor proactive start -i 15      # Run every 15 minutes
-
-# Authentication
-conductor auth google                # Browser-based Google OAuth
-conductor auth google -f <path>      # Import Google credentials from JSON file
-
-# Bots
-conductor slack setup                # Configure Slack Bot and App tokens
+conductor proactive start            # Start autonomous mode
 conductor slack start                # Start Slack bot
-conductor telegram setup             # Configure Telegram bot token
 conductor telegram start             # Start Telegram bot
-
-# Status
-conductor status                     # Check overall setup and plugin health
+conductor auth google                # Google OAuth flow
 ```
 
 ---
 
 ## Configuration
 
-All configuration lives in `~/.conductor/`:
-
 ```
 ~/.conductor/
-├── config.json          # Main config (AI provider, enabled plugins, settings)
-├── conductor.db         # SQLite database (conversation history, memory, activity logs)
-├── keychain/            # AES-256-GCM encrypted credentials
-├── notes/               # Markdown notes (notes plugin)
-├── scheduler.json       # Scheduled cron tasks
-└── logs/                # Activity logs
+├── config.json        # AI provider, enabled plugins, settings
+├── conductor.db       # SQLite: conversations, memory, logs
+├── keychain/          # AES-256-GCM encrypted credentials
+├── notes/             # Markdown notes
+└── logs/              # Activity logs
 ```
-
-**Key management commands:**
-
-```bash
-conductor auth google           # Add Google credentials (Gmail, Calendar, Drive)
-conductor ai setup              # Add AI provider API keys
-conductor plugins enable slack  # Enable Slack (will prompt for tokens)
-```
-
-No raw secrets are stored in `config.json`. All credentials are encrypted in `~/.conductor/keychain/` using AES-256-GCM with a key derived from your machine's hardware ID.
-
-### `config.json` structure
-
-```json
-{
-  "user": { "id": "...", "name": "...", "role": "..." },
-  "ai": {
-    "provider": "claude",
-    "model": "claude-3-5-sonnet-20241022"
-  },
-  "plugins": {
-    "installed": ["gmail", "spotify", "github"],
-    "enabled": ["gmail", "spotify"]
-  },
-  "security": {
-    "filesystem_access": { "enabled": false, "allowed_paths": [] },
-    "system_commands": false,
-    "desktop_control": false
-  }
-}
-```
-
----
-
-## Security
-
-Credentials are encrypted using **AES-256-GCM**. The master key is derived via `scrypt` from your machine's hardware ID, ensuring secrets only decrypt on the machine that created them.
-
-- **Keychain location**: `~/.conductor/keychain/`
-- **Permissions**: `0700`
-- **No raw secrets** stored in `config.json`
-- **Approval gates** for sensitive proactive actions (configurable)
-
-Report vulnerabilities privately via [GitHub Security Advisories](https://github.com/thealxlabs/conductor/security/advisories/new) — do not open a public issue.
 
 ---
 
 ## Development
 
-**Requirements:** Node.js >= 18, TypeScript 5.x
-
 ```bash
-npm run dev    # Start in watch mode (tsx watch)
-npm run build  # Transpile TypeScript to dist/
-npm start      # Run production build
-npm test       # Run all tests (skips auth-required plugins)
-npm run test:full  # Run all tests including auth plugins
+npm run dev    # Watch mode (tsx)
+npm run build  # Compile TypeScript
+npm test       # Run tests (skips auth plugins)
 ```
 
-### Project Structure
+### Adding a plugin
 
-```
-src/
-├── ai/           # AI provider implementations (Claude, OpenAI, Gemini, Ollama, OpenRouter)
-├── bot/          # Slack and Telegram bot interfaces
-├── cli/          # Commander.js CLI commands
-├── config/       # OAuth credential helpers
-├── core/         # Conductor orchestrator, ConfigManager, DatabaseManager
-├── mcp/          # MCP server and tool registration
-├── plugins/      # Plugin manager + 27 builtin plugins
-├── security/     # AES-256-GCM keychain implementation
-└── utils/        # Shared utilities
-```
-
-### Adding a Plugin
-
-Implement the `Plugin` interface in `src/plugins/builtin/` and register it in `src/plugins/builtin/index.ts`. It will automatically appear across all interfaces (MCP, Slack, Telegram).
+Implement `Plugin` in `src/plugins/builtin/` and register it in `src/plugins/builtin/index.ts`. It immediately appears across all interfaces.
 
 ```typescript
-import { Plugin, PluginTool, ToolResult } from '../types';
-
 export const myPlugin: Plugin = {
   name: 'my-plugin',
   description: 'What this plugin does',
-  tools: [
-    {
-      name: 'my_tool',
-      description: 'What this tool does',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          query: { type: 'string', description: 'Input value' },
-        },
-        required: ['query'],
-      },
-      execute: async (args: { query: string }): Promise<ToolResult> => {
-        // your logic here
-        return { success: true, data: `Result for: ${args.query}` };
-      },
+  version: '1.0.0',
+  initialize: async (conductor) => { /* setup */ },
+  isConfigured: () => true,
+  getTools: () => [{
+    name: 'my_tool',
+    description: 'What this tool does',
+    inputSchema: {
+      type: 'object',
+      properties: { query: { type: 'string' } },
+      required: ['query'],
     },
-  ],
+    handler: async ({ query }) => `Result: ${query}`,
+  }],
 };
 ```
-
-Then add it to `src/plugins/builtin/index.ts`:
-
-```typescript
-import { myPlugin } from './my-plugin';
-
-export const builtinPlugins: Plugin[] = [
-  // ... existing plugins
-  myPlugin,
-];
-```
-
-Your plugin will be available via `conductor plugins enable my-plugin` and will show up in all interfaces.
 
 ---
 

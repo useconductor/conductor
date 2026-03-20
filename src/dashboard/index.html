@@ -236,6 +236,46 @@ input[type="checkbox"]{accent-color:var(--accent);}
 .cmd-item-label{flex:1;}
 .cmd-item-hint{font-family:var(--mono);font-size:10px;color:var(--muted);}
 
+/* CHAT */
+.chat-wrap{display:flex;flex-direction:column;height:calc(100vh - 40px);}
+.chat-header{padding:8px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;background:var(--surface);flex-shrink:0;}
+.chat-provider-badge{font-family:var(--mono);font-size:10px;background:var(--elevated);border:1px solid var(--border);border-radius:3px;padding:2px 7px;color:var(--text2);}
+.chat-messages{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:14px;background:var(--bg);}
+.chat-msg{display:flex;flex-direction:column;max-width:78%;gap:4px;}
+.chat-msg.user{align-self:flex-end;align-items:flex-end;}
+.chat-msg.assistant{align-self:flex-start;align-items:flex-start;}
+.chat-msg.system-msg{align-self:center;align-items:center;max-width:90%;}
+.chat-bubble{padding:9px 13px;border-radius:10px;font-size:13px;line-height:1.55;word-break:break-word;white-space:pre-wrap;}
+.chat-msg.user .chat-bubble{background:var(--accent);color:#fff;border-bottom-right-radius:3px;}
+.chat-msg.assistant .chat-bubble{background:var(--surface);border:1px solid var(--border);color:var(--text);border-bottom-left-radius:3px;}
+.chat-msg.system-msg .chat-bubble{background:var(--elevated);border:1px solid var(--border);color:var(--muted);font-size:11px;font-family:var(--mono);border-radius:6px;}
+.chat-tool-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px;}
+.chat-tool-chip{font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:3px;display:inline-flex;align-items:center;gap:4px;}
+.chat-tool-chip.ok{background:rgba(34,197,94,0.12);color:#4ade80;border:1px solid rgba(34,197,94,0.2);}
+.chat-tool-chip.err{background:rgba(239,68,68,0.12);color:#f87171;border:1px solid rgba(239,68,68,0.2);}
+.chat-typing{align-self:flex-start;background:var(--surface);border:1px solid var(--border);border-radius:10px;border-bottom-left-radius:3px;padding:10px 14px;display:flex;gap:5px;align-items:center;}
+.chat-typing span{width:7px;height:7px;border-radius:50%;background:var(--muted);display:inline-block;animation:chatDot 1.2s infinite;}
+.chat-typing span:nth-child(2){animation-delay:0.2s;}
+.chat-typing span:nth-child(3){animation-delay:0.4s;}
+@keyframes chatDot{0%,80%,100%{transform:scale(0.8);opacity:0.5;}40%{transform:scale(1);opacity:1;}}
+.chat-input-area{border-top:1px solid var(--border);padding:12px 16px;background:var(--surface);flex-shrink:0;display:flex;gap:8px;align-items:flex-end;}
+.chat-input{flex:1;background:var(--elevated);border:1px solid var(--border);color:var(--text);font-size:13px;font-family:var(--font);padding:8px 12px;border-radius:8px;outline:none;resize:none;max-height:120px;line-height:1.5;}
+.chat-input:focus{border-color:var(--accent);}
+.chat-send-btn{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:12px;font-weight:500;font-family:var(--font);flex-shrink:0;transition:background 0.1s;}
+.chat-send-btn:hover{background:var(--accent-h);}
+.chat-send-btn:disabled{opacity:0.5;cursor:not-allowed;}
+.chat-ts{font-size:10px;color:var(--muted);font-family:var(--mono);}
+
+/* MARKETPLACE */
+.mkt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1px;background:var(--border);}
+.mkt-card{padding:14px 16px;background:var(--surface);display:flex;flex-direction:column;gap:6px;cursor:default;}
+.mkt-card:hover{background:var(--elevated);}
+.mkt-card-name{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--text);}
+.mkt-card-desc{font-size:12px;color:var(--text2);line-height:1.45;flex:1;}
+.mkt-card-meta{display:flex;align-items:center;justify-content:space-between;margin-top:4px;}
+.mkt-category{font-size:10px;color:var(--muted);font-family:var(--mono);}
+.mkt-filter-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;align-items:center;}
+
 /* KEYBOARD SHORTCUT HELP */
 #kb-help-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10001;align-items:center;justify-content:center;}
 #kb-help-overlay.open{display:flex;}
@@ -258,6 +298,10 @@ input[type="checkbox"]{accent-color:var(--accent);}
     <div class="nav-item active" data-page="overview">
       <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
       Overview
+    </div>
+    <div class="nav-item" data-page="chat">
+      <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      Chat
     </div>
     <div class="nav-item" data-page="tasks">
       <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
@@ -286,6 +330,10 @@ input[type="checkbox"]{accent-color:var(--accent);}
     <div class="nav-item" data-page="plugins">
       <svg viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
       Plugins
+    </div>
+    <div class="nav-item" data-page="marketplace">
+      <svg viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+      Marketplace
     </div>
     <div class="nav-item" data-page="credentials">
       <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
@@ -397,6 +445,11 @@ let _logAutoScroll = true;
 let _sseSource = null;
 let _netSamples = [];
 let _netInterval = null;
+let _chatMessages = []; // { role, content, toolCalls, ts }
+let _chatPending = false;
+let _chatProvider = '';
+let _chatModel = '';
+let _mktFilter = 'all';
 let _procAutoRefresh = true;
 let _procInterval = null;
 let _selectedNote = null;
@@ -527,18 +580,19 @@ function navigate(page) {
     el.classList.toggle('active', el.dataset.page === page);
   });
   const titles = {
-    overview:'Overview', tasks:'Tasks', files:'Files', processes:'Processes',
+    overview:'Overview', chat:'Chat', tasks:'Tasks', files:'Files', processes:'Processes',
     network:'Network', system:'System', notes:'Notes', plugins:'Plugins',
-    credentials:'Credentials', logs:'Logs', settings:'Settings'
+    marketplace:'Marketplace', credentials:'Credentials', logs:'Logs', settings:'Settings'
   };
   document.getElementById('topbar-title').textContent = titles[page] || page;
   document.title = 'Conductor — ' + (titles[page] || page);
   document.getElementById('topbar-actions').innerHTML = '';
-  document.getElementById('content').style.padding = '18px';
+  document.getElementById('content').style.padding = page === 'chat' || page === 'notes' ? '0' : '18px';
   location.hash = '#' + page;
 
   switch(page) {
     case 'overview':    renderOverview(); break;
+    case 'chat':        renderChat(); break;
     case 'tasks':       renderTasks(); break;
     case 'files':       _filePath = ''; renderFiles(); break;
     case 'processes':   renderProcesses(); break;
@@ -546,6 +600,7 @@ function navigate(page) {
     case 'system':      renderSystem(); break;
     case 'notes':       renderNotes(); break;
     case 'plugins':     renderPlugins(); break;
+    case 'marketplace': renderMarketplace(); break;
     case 'credentials': renderCredentials(); break;
     case 'logs':        renderLogs(); break;
     case 'settings':    renderSettings(); break;
@@ -554,7 +609,7 @@ function navigate(page) {
 
 window.addEventListener('hashchange', () => {
   const page = location.hash.replace('#','');
-  const valid = ['overview','tasks','files','processes','network','system','notes','plugins','credentials','logs','settings'];
+  const valid = ['overview','chat','tasks','files','processes','network','system','notes','plugins','marketplace','credentials','logs','settings'];
   if (page && valid.includes(page) && page !== _currentPage) {
     if (hasUnsavedFileEdit()) {
       if (!confirm('You have unsaved changes in the file editor. Leave anyway?')) {
@@ -601,7 +656,7 @@ async function init() {
     } catch(e) {}
 
     const hash = location.hash.replace('#','');
-    const valid = ['overview','tasks','files','processes','network','system','notes','plugins','credentials','logs','settings'];
+    const valid = ['overview','chat','tasks','files','processes','network','system','notes','plugins','marketplace','credentials','logs','settings'];
     navigate(valid.includes(hash) ? hash : 'overview');
   } catch(e) {
     document.getElementById('sb-dot').className = 'conn-dot err';
@@ -2885,6 +2940,230 @@ function renderMarkdown(text) {
   html = html.replace(/^- (.+)$/gm, '<div style="margin:2px 0;">• $1</div>');
   html = html.replace(/\n/g, '<br>');
   return html;
+}
+
+/* ══════════════════════════════════════════
+   CHAT
+══════════════════════════════════════════ */
+function renderChat() {
+  const c = document.getElementById('content');
+  c.style.padding = '0';
+  c.innerHTML = `
+    <div class="chat-wrap" id="chat-wrap">
+      <div class="chat-header">
+        <span id="chat-provider-badge" class="chat-provider-badge">${esc(_chatProvider || 'loading...')}</span>
+        <span style="flex:1;font-size:11px;color:var(--muted);" id="chat-model-label">${esc(_chatModel)}</span>
+        <button class="btn btn-sm btn-danger" onclick="clearChatHistory()" title="Clear conversation">Clear</button>
+      </div>
+      <div class="chat-messages" id="chat-messages"></div>
+      <div class="chat-input-area">
+        <textarea class="chat-input" id="chat-input" rows="1" placeholder="Message Conductor... (Enter to send, Shift+Enter for newline)" onkeydown="chatInputKeyDown(event)" oninput="chatInputAutosize(this)"></textarea>
+        <button class="chat-send-btn" id="chat-send-btn" onclick="sendChatMessage()">Send</button>
+      </div>
+    </div>`;
+
+  // Load provider info
+  api('GET', '/api/config').then(cfg => {
+    _chatProvider = cfg?.ai?.provider ?? 'unknown';
+    _chatModel = cfg?.ai?.model ?? '';
+    const badge = document.getElementById('chat-provider-badge');
+    const label = document.getElementById('chat-model-label');
+    if (badge) badge.textContent = _chatProvider;
+    if (label) label.textContent = _chatModel;
+  }).catch(() => {});
+
+  renderChatMessages();
+  setTimeout(() => { const inp = document.getElementById('chat-input'); if (inp) inp.focus(); }, 50);
+}
+
+function renderChatMessages() {
+  const box = document.getElementById('chat-messages');
+  if (!box) return;
+
+  if (_chatMessages.length === 0) {
+    box.innerHTML = `<div class="chat-msg system-msg"><div class="chat-bubble">Conductor is ready. Ask me anything — I have access to ${(_plugins.enabled||[]).length} active plugins and 150+ tools.</div></div>`;
+    return;
+  }
+
+  box.innerHTML = _chatMessages.map(msg => {
+    if (msg.role === 'system') {
+      return `<div class="chat-msg system-msg"><div class="chat-bubble">${esc(msg.content)}</div></div>`;
+    }
+    const isUser = msg.role === 'user';
+    const toolChips = (!isUser && msg.toolCalls && msg.toolCalls.length > 0)
+      ? `<div class="chat-tool-chips">${msg.toolCalls.map(tc =>
+          `<span class="chat-tool-chip ${tc.success ? 'ok' : 'err'}">⚙ ${esc(tc.tool)}</span>`
+        ).join('')}</div>`
+      : '';
+    const ts = msg.ts ? `<span class="chat-ts">${new Date(msg.ts).toLocaleTimeString('en-US',{hour12:false,hour:'2-digit',minute:'2-digit'})}</span>` : '';
+    return `<div class="chat-msg ${isUser ? 'user' : 'assistant'}">
+      ${toolChips}
+      <div class="chat-bubble">${esc(msg.content)}</div>
+      ${ts}
+    </div>`;
+  }).join('');
+
+  if (_chatPending) {
+    box.innerHTML += `<div class="chat-typing" id="chat-typing"><span></span><span></span><span></span></div>`;
+  }
+
+  box.scrollTop = box.scrollHeight;
+}
+
+function chatInputAutosize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+function chatInputKeyDown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendChatMessage();
+  }
+}
+
+async function sendChatMessage() {
+  const input = document.getElementById('chat-input');
+  if (!input || _chatPending) return;
+  const text = input.value.trim();
+  if (!text) return;
+
+  input.value = '';
+  input.style.height = 'auto';
+
+  _chatMessages.push({ role: 'user', content: text, ts: Date.now() });
+  _chatPending = true;
+  renderChatMessages();
+
+  const sendBtn = document.getElementById('chat-send-btn');
+  if (sendBtn) sendBtn.disabled = true;
+
+  try {
+    const result = await api('POST', '/api/chat', { message: text, userId: 'dashboard-user' });
+    _chatProvider = result.provider || _chatProvider;
+    _chatModel = result.model || _chatModel;
+    _chatMessages.push({
+      role: 'assistant',
+      content: result.response || '(no response)',
+      toolCalls: result.toolCalls || [],
+      ts: Date.now(),
+    });
+    const badge = document.getElementById('chat-provider-badge');
+    const label = document.getElementById('chat-model-label');
+    if (badge) badge.textContent = _chatProvider;
+    if (label) label.textContent = _chatModel;
+  } catch(e) {
+    _chatMessages.push({ role: 'system', content: 'Error: ' + e.message, ts: Date.now() });
+  } finally {
+    _chatPending = false;
+    if (sendBtn) sendBtn.disabled = false;
+    renderChatMessages();
+    setTimeout(() => { const inp = document.getElementById('chat-input'); if (inp) inp.focus(); }, 50);
+  }
+}
+
+async function clearChatHistory() {
+  if (!confirm('Clear conversation history?')) return;
+  try {
+    await api('DELETE', '/api/chat/history?userId=dashboard-user');
+    _chatMessages = [];
+    renderChatMessages();
+    toast('Conversation cleared');
+  } catch(e) {
+    toast('Failed to clear: ' + e.message, 'err');
+  }
+}
+
+/* ══════════════════════════════════════════
+   MARKETPLACE
+══════════════════════════════════════════ */
+const MKT_CATEGORIES = ['All','Utilities','Google','Developer','System','Security','Productivity','Communication','Automation','Social','Entertainment','Smart Home','AI'];
+
+function renderMarketplace() {
+  const c = document.getElementById('content');
+  c.innerHTML = `
+    <div class="section">
+      <div class="section-head">
+        <span class="section-title">Plugin Marketplace</span>
+        <span style="font-size:11px;color:var(--muted);" id="mkt-count">Loading…</span>
+      </div>
+      <div class="section-body" style="padding:10px 12px 6px;">
+        <div class="mkt-filter-bar" id="mkt-filter-bar">
+          ${MKT_CATEGORIES.map(cat =>
+            `<button class="btn btn-sm${cat.toLowerCase() === _mktFilter ? ' btn-primary' : ''}" onclick="setMktFilter('${cat.toLowerCase()}')">${esc(cat)}</button>`
+          ).join('')}
+        </div>
+      </div>
+    </div>
+    <div id="mkt-grid-wrap"></div>`;
+
+  loadMarketplace();
+}
+
+function setMktFilter(cat) {
+  _mktFilter = cat;
+  renderMarketplace();
+}
+
+async function loadMarketplace() {
+  const wrap = document.getElementById('mkt-grid-wrap');
+  const count = document.getElementById('mkt-count');
+  if (!wrap) return;
+
+  try {
+    const data = await api('GET', '/api/marketplace');
+    const plugins = data.plugins || [];
+
+    const filtered = _mktFilter === 'all'
+      ? plugins
+      : plugins.filter(p => (p.category || '').toLowerCase() === _mktFilter);
+
+    if (count) count.textContent = `${filtered.length} plugin${filtered.length !== 1 ? 's' : ''}`;
+
+    if (filtered.length === 0) {
+      wrap.innerHTML = `<div class="empty">No plugins in this category</div>`;
+      return;
+    }
+
+    wrap.innerHTML = `<div class="mkt-grid">${filtered.map(p => {
+      const isEnabled = p.enabled;
+      const missingCreds = !p.enabled && p.requiresAuth;
+      const statusBadge = isEnabled
+        ? `<span class="badge badge-ok">enabled</span>`
+        : missingCreds
+          ? `<span class="badge badge-warn">${esc(p.authLabel || 'needs auth')}</span>`
+          : `<span class="badge badge-muted">disabled</span>`;
+      const toggleLabel = isEnabled ? 'Disable' : 'Enable';
+      const toggleClass = isEnabled ? 'btn btn-sm btn-danger' : 'btn btn-sm btn-primary';
+      return `<div class="mkt-card">
+        <div class="mkt-card-name">${esc(p.name)}</div>
+        <div class="mkt-card-desc">${esc(p.desc)}</div>
+        <div class="mkt-card-meta">
+          <span class="mkt-category">${esc(p.category)}</span>
+          ${statusBadge}
+        </div>
+        <div style="margin-top:8px;display:flex;gap:6px;align-items:center;">
+          <button class="${toggleClass}" onclick="mktToggle('${esc(p.name)}',${!isEnabled})">${toggleLabel}</button>
+          ${p.requiresAuth && !isEnabled ? `<span style="font-size:10px;color:var(--muted);">Requires: ${esc(p.authLabel||'auth')}</span>` : ''}
+        </div>
+      </div>`;
+    }).join('')}</div>`;
+  } catch(e) {
+    wrap.innerHTML = `<div class="empty" style="color:var(--err);">Failed to load marketplace: ${esc(e.message)}</div>`;
+  }
+}
+
+async function mktToggle(pluginName, enable) {
+  try {
+    await api('POST', '/api/plugins/toggle', { plugin: pluginName, enabled: enable });
+    _plugins.enabled = enable
+      ? [...(_plugins.enabled||[]).filter(p => p !== pluginName), pluginName]
+      : (_plugins.enabled||[]).filter(p => p !== pluginName);
+    toast(pluginName + (enable ? ' enabled' : ' disabled'));
+    loadMarketplace();
+  } catch(e) {
+    toast(e.message, 'err');
+  }
 }
 
 /* ══════════════════════════════════════════

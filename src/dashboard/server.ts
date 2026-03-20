@@ -8,6 +8,7 @@ import { exec } from 'child_process';
 import { ConfigManager } from '../core/config.js';
 import { DatabaseManager } from '../core/database.js';
 import { Keychain } from '../security/keychain.js';
+import type { Conductor } from '../core/conductor.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
@@ -113,7 +114,7 @@ function interceptLogs(): void {
   console.warn  = (...args: unknown[]) => { origWarn(...args);  pushLog('warn',  args); };
 }
 
-export async function startDashboard(port = 4242): Promise<DashboardServer> {
+export async function startDashboard(port = 4242, conductorInstance?: Conductor): Promise<DashboardServer> {
   interceptLogs();
 
   const config  = new ConfigManager();
@@ -1152,6 +1153,132 @@ export async function startDashboard(port = 4242): Promise<DashboardServer> {
     req.on('close', () => {
       sseClients.delete(res);
     });
+  });
+
+  // ── Chat (AI) ─────────────────────────────────────────────────────────────
+
+  const PLUGIN_CATALOG: Record<string, { desc: string; category: string; requiresAuth: boolean; authLabel?: string }> = {
+    calculator:      { desc: 'Evaluate mathematical expressions and unit conversions', category: 'Utilities', requiresAuth: false },
+    colors:          { desc: 'Convert and manipulate colors (hex, rgb, hsl, name)', category: 'Utilities', requiresAuth: false },
+    cron:            { desc: 'Manage and inspect system cron jobs', category: 'System', requiresAuth: false },
+    crypto:          { desc: 'Encrypt, decrypt, and generate cryptographic keys', category: 'Security', requiresAuth: false },
+    fun:             { desc: 'Jokes, trivia, dice rolls, and random fun', category: 'Utilities', requiresAuth: false },
+    gcal:            { desc: 'Read, create, and manage Google Calendar events', category: 'Google', requiresAuth: true, authLabel: 'Google OAuth' },
+    gdrive:          { desc: 'List, read, and upload files to Google Drive', category: 'Google', requiresAuth: true, authLabel: 'Google OAuth' },
+    github:          { desc: 'Manage repos, issues, PRs, and gists on GitHub', category: 'Developer', requiresAuth: true, authLabel: 'GitHub Token' },
+    'github-actions': { desc: 'Trigger and monitor GitHub Actions CI/CD workflows', category: 'Developer', requiresAuth: true, authLabel: 'GitHub Token' },
+    gmail:           { desc: 'Read, search, send, and label Gmail messages', category: 'Google', requiresAuth: true, authLabel: 'Google OAuth' },
+    hash:            { desc: 'Compute MD5, SHA-1, SHA-256, and bcrypt hashes', category: 'Security', requiresAuth: false },
+    homekit:         { desc: 'Control HomeKit smart home devices and accessories', category: 'Smart Home', requiresAuth: true, authLabel: 'HomeKit Bridge URL' },
+    memory:          { desc: 'Store and recall information across conversations', category: 'AI', requiresAuth: false },
+    n8n:             { desc: 'Trigger n8n automation workflows via webhook', category: 'Automation', requiresAuth: true, authLabel: 'n8n API Key' },
+    network:         { desc: 'DNS lookup, ping, port scan, and IP geolocation', category: 'System', requiresAuth: false },
+    notes:           { desc: 'Create, read, update, and delete personal notes', category: 'Productivity', requiresAuth: false },
+    notion:          { desc: 'Query, create, and update Notion databases and pages', category: 'Productivity', requiresAuth: true, authLabel: 'Notion API Key' },
+    slack:           { desc: 'Send messages and read channels in Slack workspaces', category: 'Communication', requiresAuth: true, authLabel: 'Slack Bot Token' },
+    spotify:         { desc: 'Control Spotify playback and browse music catalog', category: 'Entertainment', requiresAuth: true, authLabel: 'Spotify OAuth' },
+    system:          { desc: 'CPU, memory, disk stats, processes, and shell commands', category: 'System', requiresAuth: false },
+    'text-tools':    { desc: 'Transform text: case, trim, word count, slugify, base64', category: 'Utilities', requiresAuth: false },
+    timezone:        { desc: 'Convert times between timezones worldwide', category: 'Utilities', requiresAuth: false },
+    todoist:         { desc: 'Manage Todoist tasks, projects, and priorities', category: 'Productivity', requiresAuth: true, authLabel: 'Todoist API Token' },
+    translate:       { desc: 'Translate text between 100+ languages', category: 'Utilities', requiresAuth: false },
+    'url-tools':     { desc: 'Parse, encode, decode, and expand shortened URLs', category: 'Utilities', requiresAuth: false },
+    vercel:          { desc: 'Manage Vercel deployments, projects, and domains', category: 'Developer', requiresAuth: true, authLabel: 'Vercel Token' },
+    weather:         { desc: 'Current conditions and forecasts for any location', category: 'Utilities', requiresAuth: true, authLabel: 'Weather API Key' },
+    x:               { desc: 'Post tweets and read your X/Twitter timeline', category: 'Social', requiresAuth: true, authLabel: 'X API Key' },
+  };
+
+  let _chatConductorInstance: Conductor | null = conductorInstance ?? null;
+
+  async function getChatConductor(): Promise<Conductor> {
+    if (_chatConductorInstance) return _chatConductorInstance;
+    const { Conductor: ConductorClass } = await import('../core/conductor.js');
+    _chatConductorInstance = new ConductorClass(undefined, { quiet: true });
+    await _chatConductorInstance.initialize();
+    return _chatConductorInstance;
+  }
+
+  // POST /api/chat
+  app.post('/api/chat', async (req: Request, res: Response): Promise<void> => {
+    const body = req.body as { message?: string; userId?: string };
+    if (!body.message || typeof body.message !== 'string' || body.message.trim() === '') {
+      res.status(400).json({ error: '`message` is required' });
+      return;
+    }
+
+    const userId = (body.userId && typeof body.userId === 'string') ? body.userId.trim() : 'dashboard-user';
+
+    try {
+      const c = await getChatConductor();
+      const ai = c.getAIManager();
+
+      const result = await ai.handleConversation(userId, body.message.trim());
+
+      // Extract tool calls from the current turn: walk backwards from the end,
+      // collect tool messages until we hit the user message we just added.
+      const history = await c.getDatabase().getHistory(userId, 60);
+      const toolCalls: Array<{ tool: string; success: boolean }> = [];
+      for (let i = history.length - 1; i >= 0; i--) {
+        const msg = history[i];
+        if (msg.role === 'user') break; // stop at the user message for this turn
+        if (msg.role === 'tool' && msg.name) {
+          toolCalls.unshift({ tool: msg.name, success: !String(msg.content ?? '').startsWith('Error') });
+        }
+      }
+
+      const providerName = c.getConfig().get<string>('ai.provider') ?? 'unknown';
+      const modelName = c.getConfig().get<string>('ai.model') ?? '';
+
+      res.json({
+        response: result.text,
+        toolCalls,
+        approvalRequired: result.approvalRequired ?? null,
+        provider: providerName,
+        model: modelName,
+      });
+    } catch (e: unknown) {
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
+  // GET /api/chat/history
+  app.get('/api/chat/history', async (req: Request, res: Response): Promise<void> => {
+    const userId = ((req.query as Record<string, string>).userId ?? 'dashboard-user').trim();
+    try {
+      const c = await getChatConductor();
+      const messages = await c.getDatabase().getHistory(userId, 100);
+      res.json({ messages });
+    } catch (e: unknown) {
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
+  // DELETE /api/chat/history
+  app.delete('/api/chat/history', async (req: Request, res: Response): Promise<void> => {
+    const userId = ((req.query as Record<string, string>).userId ?? 'dashboard-user').trim();
+    try {
+      const c = await getChatConductor();
+      await c.getDatabase().clearHistory(userId);
+      res.json({ ok: true });
+    } catch (e: unknown) {
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
+  // GET /api/marketplace
+  app.get('/api/marketplace', (_req: Request, res: Response): void => {
+    const installedPlugins = config.get<string[]>('plugins.installed') ?? [];
+    const enabledPlugins = config.get<string[]>('plugins.enabled') ?? [];
+
+    const plugins = Object.entries(PLUGIN_CATALOG).map(([name, meta]) => ({
+      name,
+      ...meta,
+      installed: installedPlugins.includes(name) || ALL_PLUGINS.includes(name as never),
+      enabled: enabledPlugins.includes(name),
+      requiredCreds: PLUGIN_REQUIRED_CREDS[name] ?? [],
+    }));
+
+    res.json({ plugins });
   });
 
   // ── Start — bind to 127.0.0.1 only (not 0.0.0.0) ────────────────────────

@@ -15,7 +15,7 @@ export async function dashboardCommand(
   console.log('');
 
   try {
-    const server = await startDashboard(port);
+    const server = await startDashboard(port, conductor);
     const url = `http://localhost:${server.port}`;
 
     console.log(`  \x1b[32m✓\x1b[0m Dashboard running at \x1b[36m${url}\x1b[0m`);
