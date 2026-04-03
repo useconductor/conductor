@@ -18,8 +18,6 @@
  *      e.g. https://n8n.yourdomain.com  or  https://app.n8n.cloud/api
  *
  * Keychain: n8n / api_key, n8n / base_url
- *
- * Note: Your n8n instance at n8n-alxstuff.zeabur.app is already supported.
  */
 
 import { Plugin, PluginTool } from '../manager.js';
@@ -74,7 +72,6 @@ export class N8nPlugin implements Plugin {
       );
     }
     const rawUrl = await this.keychain.get('n8n', 'base_url');
-    // Normalise: strip trailing slash, ensure /api/v1 suffix
     let baseUrl = (rawUrl ?? 'http://localhost:5678').replace(/\/$/, '');
     if (!baseUrl.endsWith('/api/v1')) baseUrl = `${baseUrl}/api/v1`;
     return { apiKey, baseUrl };
@@ -108,7 +105,6 @@ export class N8nPlugin implements Plugin {
     return res.json();
   }
 
-  /** Fire a webhook URL directly — used for webhook-triggered workflows */
   private async webhookFetch(
     webhookUrl: string,
     method: string,
@@ -127,8 +123,6 @@ export class N8nPlugin implements Plugin {
     if (ct.includes('application/json')) return res.json();
     return { response: await res.text() };
   }
-
-  // ── Formatters ──────────────────────────────────────────────────────────────
 
   private formatWorkflow(w: any) {
     return {
@@ -180,8 +174,6 @@ export class N8nPlugin implements Plugin {
     );
     return webhookNode?.parameters?.path ?? webhookNode?.parameters?.webhookId ?? null;
   }
-
-  // ── Tools ───────────────────────────────────────────────────────────────────
 
   getTools(): PluginTool[] {
     return [
@@ -260,6 +252,7 @@ export class N8nPlugin implements Plugin {
       {
         name: 'n8n_activate',
         description: 'Activate or deactivate an n8n workflow',
+        requiresApproval: true,
         inputSchema: {
           type: 'object',
           properties: {
@@ -300,7 +293,6 @@ export class N8nPlugin implements Plugin {
           required: ['id'],
         },
         handler: async ({ id, payload = {}, waitForResult = false }: any) => {
-          // Get workflow to check trigger type
           const workflow = await this.n8nFetch(`/workflows/${id}`);
           const triggerType = this.detectTriggerType(workflow.nodes ?? []);
           const webhookPath = this.extractWebhookPath(workflow.nodes ?? []);
@@ -321,14 +313,12 @@ export class N8nPlugin implements Plugin {
             };
           }
 
-          // Use execute API for non-webhook workflows
           const result = await this.n8nFetch(`/workflows/${id}/run`, {
             method: 'POST',
             body: { runData: payload },
           });
 
           if (waitForResult) {
-            // Poll for completion (max 30s)
             const execId = result.data?.executionId;
             if (execId) {
               for (let i = 0; i < 15; i++) {
@@ -454,7 +444,6 @@ export class N8nPlugin implements Plugin {
               node: nodeName,
               itemCount: outputData.length,
               error: lastRun?.error?.message ?? null,
-              // Show first item as sample, capped
               sample: outputData[0]?.json
                 ? JSON.stringify(outputData[0].json).slice(0, 500)
                 : null,
@@ -501,6 +490,7 @@ export class N8nPlugin implements Plugin {
       {
         name: 'n8n_delete_execution',
         description: 'Delete a workflow execution from n8n history',
+        requiresApproval: true,
         inputSchema: {
           type: 'object',
           properties: {

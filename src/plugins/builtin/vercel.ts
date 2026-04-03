@@ -299,6 +299,7 @@ export class VercelPlugin implements Plugin {
       {
         name: 'vercel_cancel',
         description: 'Cancel a deployment that is currently building or queued',
+        requiresApproval: true,
         inputSchema: {
           type: 'object',
           properties: {
@@ -370,7 +371,6 @@ export class VercelPlugin implements Plugin {
             envs: (data.envs ?? []).map((e: any) => ({
               id: e.id,
               key: e.key,
-              // Values are redacted by default unless decrypted separately
               value: e.value ?? '[encrypted]',
               type: e.type,
               targets: e.target ?? [],
@@ -433,6 +433,7 @@ export class VercelPlugin implements Plugin {
       {
         name: 'vercel_env_delete',
         description: 'Delete an environment variable from a Vercel project',
+        requiresApproval: true,
         inputSchema: {
           type: 'object',
           properties: {
@@ -491,6 +492,7 @@ export class VercelPlugin implements Plugin {
       {
         name: 'vercel_add_domain',
         description: 'Add a custom domain to a Vercel project',
+        requiresApproval: true,
         inputSchema: {
           type: 'object',
           properties: {
@@ -553,7 +555,6 @@ export class VercelPlugin implements Plugin {
             await this.keychain.set('vercel', 'team_id', teamId);
             return { set: true, teamId, scope: 'team' };
           } else {
-            // Clear team scope
             await this.keychain.set('vercel', 'team_id', '');
             return { set: true, teamId: null, scope: 'personal' };
           }

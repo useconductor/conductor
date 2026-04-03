@@ -306,6 +306,7 @@ export class GitHubActionsPlugin implements Plugin {
       {
         name: 'gh_cancel_run',
         description: 'Cancel a running GitHub Actions workflow run',
+        requiresApproval: true,
         inputSchema: {
           type: 'object',
           properties: {
@@ -382,6 +383,7 @@ export class GitHubActionsPlugin implements Plugin {
       {
         name: 'gh_merge_pr',
         description: 'Merge a pull request',
+        requiresApproval: true,
         inputSchema: {
           type: 'object',
           properties: {
@@ -549,6 +551,7 @@ export class GitHubActionsPlugin implements Plugin {
       {
         name: 'gh_create_release',
         description: 'Create a new GitHub release',
+        requiresApproval: true,
         inputSchema: {
           type: 'object',
           properties: {

@@ -9,7 +9,6 @@ export class WeatherPlugin implements Plugin {
   async initialize(_conductor: Conductor): Promise<void> {}
   isConfigured(): boolean { return true; }
 
-  /** Geocode a city name to lat/lon. */
   private async geocode(city: string): Promise<{ lat: number; lon: number; name: string; country: string }> {
     const res = await fetch(
       `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1`
@@ -20,7 +19,6 @@ export class WeatherPlugin implements Plugin {
     return { lat: r.latitude, lon: r.longitude, name: r.name, country: r.country };
   }
 
-  /** Convert WMO weather code to description. */
   private wmoCode(code: number): string {
     const codes: Record<number, string> = {
       0: 'Clear sky', 1: 'Mainly clear', 2: 'Partly cloudy', 3: 'Overcast',

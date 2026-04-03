@@ -70,8 +70,6 @@ export class HomeKitPlugin implements Plugin {
     return true;
   }
 
-  // ── Credential helpers ───────────────────────────────────────────────────────
-
   private async getCredentials(): Promise<{ baseUrl: string; username: string; password: string }> {
     const rawUrl  = await this.keychain.get('homekit', 'base_url');
     const username = await this.keychain.get('homekit', 'username');
@@ -99,7 +97,6 @@ export class HomeKitPlugin implements Plugin {
     return { baseUrl: rawUrl.replace(/\/$/, ''), username, password };
   }
 
-  /** Authenticate with Homebridge UI and return a JWT token (cached). */
   private async getToken(): Promise<string> {
     if (this.cachedToken && Date.now() < this.tokenExpiry - 5 * 60 * 1000) {
       return this.cachedToken;
@@ -127,8 +124,6 @@ export class HomeKitPlugin implements Plugin {
     this.tokenExpiry = Date.now() + (data.expires_in ?? 28_800) * 1000;
     return this.cachedToken!;
   }
-
-  // ── API fetch wrapper ────────────────────────────────────────────────────────
 
   private async homebridgeFetch(
     path: string,
@@ -162,8 +157,6 @@ export class HomeKitPlugin implements Plugin {
     return res.json();
   }
 
-  // ── Formatting helpers ───────────────────────────────────────────────────────
-
   private formatAccessory(acc: any) {
     return {
       uniqueId: acc.uniqueId,
@@ -175,8 +168,6 @@ export class HomeKitPlugin implements Plugin {
       reachable: acc.reachable ?? true,
     };
   }
-
-  // ── Tools ────────────────────────────────────────────────────────────────────
 
   getTools(): PluginTool[] {
     return [

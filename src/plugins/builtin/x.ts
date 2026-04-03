@@ -28,7 +28,7 @@ import crypto from 'crypto';
 import { Plugin, PluginTool } from '../manager.js';
 import { Conductor } from '../../core/conductor.js';
 import { Keychain } from '../../security/keychain.js';
-import { withRetry } from '../../utils/retry.js';
+import { withRetry } from '../../core/retry.js';
 
 const X_BASE = 'https://api.twitter.com/2';
 
@@ -127,7 +127,6 @@ export class XPlugin implements Plugin {
     return { apiKey, apiSecret, accessToken, accessSecret };
   }
 
-  /** Bearer token fetch (read operations) */
   private async xFetch(path: string, params?: Record<string, string>): Promise<any> {
     const token = await this.getBearerToken();
     const url = new URL(`${X_BASE}${path}`);
@@ -153,7 +152,6 @@ export class XPlugin implements Plugin {
     });
   }
 
-  /** OAuth 1.0a HMAC-SHA1 signature for write operations */
   private buildOAuthHeader(
     method: string,
     url: string,
@@ -198,7 +196,6 @@ export class XPlugin implements Plugin {
     return `OAuth ${headerValue}`;
   }
 
-  /** OAuth 1.0a signed POST (write operations) */
   private async xPost(path: string, body: any): Promise<any> {
     const creds = await this.getOAuthCreds();
     const url = `${X_BASE}${path}`;
@@ -227,7 +224,6 @@ export class XPlugin implements Plugin {
     });
   }
 
-  /** Format tweet fields for output */
   private formatTweet(t: any, includes?: any) {
     const author = includes?.users?.find((u: any) => u.id === t.author_id);
     return {
@@ -337,7 +333,6 @@ export class XPlugin implements Plugin {
           required: ['username'],
         },
         handler: async ({ username, maxResults = 10, excludeReplies = false, excludeRetweets = false }: any) => {
-          // First get user ID
           const userRes = await this.xFetch(`/users/by/username/${username}`);
           const userId = userRes.data?.id;
           if (!userId) throw new Error(`User not found: ${username}`);

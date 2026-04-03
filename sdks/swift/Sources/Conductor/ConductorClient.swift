@@ -57,9 +57,9 @@ public struct ToolClient {
     }
 }
 
-public struct ToolResult: Codable {
+public struct ToolResult {
     public let success: Bool
-    public let data: Any?
+    public let data: [String: Any]?
     public let error: String?
     public let latencyMs: Int?
 }

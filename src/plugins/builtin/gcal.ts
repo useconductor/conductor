@@ -284,6 +284,7 @@ export class GoogleCalendarPlugin implements Plugin {
       {
         name: 'gcal_delete_event',
         description: 'Delete a Google Calendar event',
+        requiresApproval: true,
         inputSchema: {
           type: 'object',
           properties: {

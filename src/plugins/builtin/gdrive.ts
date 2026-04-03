@@ -306,6 +306,7 @@ export class GoogleDrivePlugin implements Plugin {
       {
         name: 'gdrive_delete',
         description: 'Permanently delete a file from Google Drive',
+        requiresApproval: true,
         inputSchema: {
           type: 'object',
           properties: {
