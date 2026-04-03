@@ -4,11 +4,15 @@ import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
 import crypto from 'crypto';
 import os from 'os';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
+import rateLimit from 'express-rate-limit';
 import { ConfigManager } from '../core/config.js';
 import { DatabaseManager } from '../core/database.js';
 import { Keychain } from '../security/keychain.js';
 import type { Conductor } from '../core/conductor.js';
+
+const execFileAsync = promisify(execFile);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
@@ -382,16 +386,26 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
 
   // ── System Control ────────────────────────────────────────────────────────
 
-  function runCmd(cmd: string, timeoutMs = 30000): Promise<{ stdout: string; stderr: string; exitCode: number }> {
-    return new Promise((resolve) => {
-      exec(cmd, { timeout: timeoutMs }, (err, stdout, stderr) => {
-        resolve({
-          stdout: (stdout ?? '').trim(),
-          stderr: (stderr ?? '').trim(),
-          exitCode: err ? (err.code ?? 1) : 0,
-        });
-      });
-    });
+  // Safe command runner using execFile (no shell interpretation)
+  async function runCmd(cmd: string, timeoutMs = 30000): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+    // Whitelist of allowed dashboard commands
+    const allowedPrefixes = ['ps ', 'tasklist', 'open ', 'xdg-open', 'screencapture', 'scrot', 'pbpaste', 'xclip', 'xsel', 'ifconfig', 'ip ', 'netstat', 'ss ', 'lsof', 'docker ', 'crontab', 'git '];
+    const trimmed = cmd.trim();
+    const isAllowed = allowedPrefixes.some((p) => trimmed.startsWith(p));
+    if (!isAllowed) {
+      return { stdout: '', stderr: `Command not allowed in dashboard: ${trimmed}`, exitCode: 1 };
+    }
+    const [executable, ...args] = trimmed.split(/\s+/);
+    try {
+      const { stdout, stderr } = await execFileAsync(executable, args, { timeout: timeoutMs, maxBuffer: 10 * 1024 * 1024 });
+      return { stdout: (stdout ?? '').trim(), stderr: (stderr ?? '').trim(), exitCode: 0 };
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'code' in err) {
+        const e = err as { code?: number; stdout?: string; stderr?: string };
+        return { stdout: (e.stdout ?? '').trim(), stderr: (e.stderr ?? '').trim(), exitCode: (e.code ?? 1) };
+      }
+      return { stdout: '', stderr: String(err), exitCode: 1 };
+    }
   }
 
   // GET /api/system/info
@@ -415,27 +429,16 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
     });
   });
 
-  // POST /api/system/shell
-  app.post('/api/system/shell', async (req: Request, res: Response): Promise<void> => {
-    const body = req.body as { command?: string };
-    if (!body.command || typeof body.command !== 'string' || body.command.trim() === '') {
-      res.status(400).json({ error: '`command` is required' });
-      return;
-    }
-    const start = Date.now();
-    const result = await runCmd(body.command.trim());
-    res.json({ ...result, duration_ms: Date.now() - start });
+  // POST /api/system/shell — REMOVED for security
+  // Shell access through a web dashboard is an unacceptable attack surface.
+  // Use the CLI directly for shell operations.
+  app.post('/api/system/shell', async (_req: Request, res: Response): Promise<void> => {
+    res.status(410).json({ error: 'Shell endpoint has been removed for security. Use the CLI directly.' });
   });
 
-  // GET /api/system/processes
+  // GET /api/system/processes — REMOVED (relied on shell execution)
   app.get('/api/system/processes', async (_req: Request, res: Response): Promise<void> => {
-    const platform = os.platform();
-    const cmd = platform === 'win32'
-      ? 'tasklist /FO CSV /NH'
-      : 'ps aux --sort=-%cpu';
-    const result = await runCmd(cmd);
-    const lines = result.stdout.split('\n').slice(0, 21); // header + 20 entries
-    res.json({ processes: lines, raw: result.stdout });
+    res.status(410).json({ error: 'Process listing endpoint has been removed (relied on shell execution).' });
   });
 
   // POST /api/system/open

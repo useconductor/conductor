@@ -27,11 +27,9 @@ export interface PluginConfigSchema {
 }
 
 /** The canonical input type for all tool handlers at runtime. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type ToolInput = Record<string, any>;
+export type ToolInput = Record<string, unknown>;
 /** Tool handlers should return a string or a plain-object result. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type ToolOutput = string | Record<string, any>;
+export type ToolOutput = string | Record<string, unknown>;
 
 export interface PluginTool {
   name: string;

@@ -2,101 +2,46 @@
 
 ## Supported Versions
 
-| Version | Supported          |
-|---------|--------------------|
-| 0.1.x   | Yes                |
-
-Older versions are not supported. Always run the latest release.
-
----
+| Version | Supported |
+| ------- | --------- |
+| 1.0.x   | Yes       |
 
 ## Reporting a Vulnerability
 
-**Do not open a public GitHub issue for security vulnerabilities.**
+**Please do not report security vulnerabilities through public GitHub issues.**
 
-Please report security issues through one of these private channels:
+Instead, email us at **security@conductor.dev** with:
 
-- **Email:** [security@thealxlabs.ca](mailto:security@thealxlabs.ca)
-- **GitHub Security Advisories:** https://github.com/thealxlabs/conductor/security/advisories/new
+- A description of the vulnerability
+- Steps to reproduce
+- Potential impact
+- Suggested fix (if any)
 
-You will receive an acknowledgement within **48 hours**. If the vulnerability is confirmed, a fix will be released as soon as possible and you will be credited in the release notes (unless you prefer to remain anonymous).
+We will acknowledge receipt within 24 hours and provide a detailed response within 72 hours.
 
-Please include as much detail as possible:
+## Security Best Practices
 
-- A clear description of the vulnerability and its potential impact
-- Steps to reproduce or a proof-of-concept
-- The version of Conductor you are running
-- Your operating system and Node.js version
-- Any relevant logs or screenshots (redact sensitive values)
+### For Users
 
----
+1. **Keep Conductor updated** — always run the latest version
+2. **Use strong API keys** — rotate credentials regularly
+3. **Enable plugin approval** — don't run with `full-auto` mode in production
+4. **Review tool calls** — audit what tools the AI is calling
+5. **Use the encrypted keychain** — never store credentials in plaintext config files
 
-## Credential & Keychain Security
+### For Plugin Developers
 
-Conductor stores all credentials encrypted at rest. No raw secrets are ever written to `config.json` or logs.
+1. **Validate all inputs** — use Zod schemas, never trust AI-generated arguments
+2. **Use `execFile` not `exec`** — never pass user input through a shell
+3. **Principle of least privilege** — request only the permissions you need
+4. **No `eval()` or `new Function()`** — use safe parsers like `mathjs`
+5. **Rate limit your endpoints** — protect against abuse
 
-**Encryption scheme:**
-- Algorithm: **AES-256-GCM**
-- Key derivation: **scrypt** from your machine's hardware ID
-- Credentials are **machine-bound** — they cannot be decrypted on any other machine
+### Architecture
 
-**Keychain location:** `~/.conductor/keychain/`
-**Directory permissions:** `0700` (owner read/write/execute only)
-
-**Best practices:**
-- Never share or back up your `~/.conductor/keychain/` directory to untrusted locations (cloud storage, USB drives, etc.)
-- If you suspect your keychain has been compromised, revoke all associated tokens (Google OAuth, API keys, Slack/Telegram tokens) immediately and re-run `conductor ai setup` / `conductor auth google`
-- On shared or multi-user machines, ensure your home directory permissions restrict access to your user only
-
----
-
-## Scope
-
-### In scope — please report these
-
-- Keychain bypass or credential exposure without physical machine access
-- Authentication flaws in the Google OAuth or Slack/Telegram token flows
-- Arbitrary code execution via the plugin system or tool calling loop
-- Privilege escalation beyond the running user's permissions
-- Prompt injection attacks that cause Conductor to exfiltrate data or take unintended actions
-- Path traversal or unauthorized filesystem access
-- Any vulnerability that could expose user tokens, API keys, or secrets
-
-### Out of scope — please do not report these
-
-- Deprecation warnings or known vulnerabilities in npm dependencies with no available fix
-- Issues that require physical access to the machine (the keychain is intentionally machine-bound)
-- Social engineering attacks targeting the user directly
-- Rate limiting or denial-of-service against third-party APIs (report to the respective provider)
-- Security issues in third-party services that Conductor integrates with (Google, Slack, Telegram, Spotify, etc.)
-
----
-
-## Proactive Mode & Approval Gates
-
-Conductor's Proactive Mode runs an autonomous AI reasoning loop. To reduce risk:
-
-- **Approval gates** are built into the tool system. Tools marked `requiresApproval` will pause execution and notify you via Slack or Telegram before running.
-- You can approve or deny any pending action with `/approve <id>` or `/deny <id>`.
-- Review which tools are enabled with `conductor plugins list` and disable any you don't need.
-
----
-
-## Responsible Disclosure
-
-We follow a coordinated disclosure process:
-
-1. You report the issue privately (email or GitHub advisory)
-2. We confirm receipt within 48 hours
-3. We investigate and develop a fix
-4. We release a patch and publish a security advisory
-5. You are credited (with your permission)
-
-We ask that you give us reasonable time to address the issue before any public disclosure.
-
----
-
-## Contact
-
-For security issues: [security@thealxlabs.ca](mailto:security@thealxlabs.ca)
-For general questions: open a [GitHub Discussion](https://github.com/thealxlabs/conductor/discussions) or issue
+- **Encrypted keychain** — AES-256-GCM with machine-bound key derivation
+- **Zod validation** — every tool input is validated before execution
+- **Safe shell** — whitelist-based command filtering, no shell interpretation
+- **Plugin sandboxing** — plugins run with minimal permissions
+- **Approval workflow** — dangerous operations require explicit user approval
+- **Rate limiting** — all endpoints protected against abuse

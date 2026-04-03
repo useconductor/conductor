@@ -30,6 +30,11 @@ import { GitHubActionsPlugin } from './github-actions.js';
 import { VercelPlugin } from './vercel.js';
 import { N8nPlugin } from './n8n.js';
 
+// ── Infrastructure ─────────────────────────────────────────────────────────
+import { DockerPlugin } from './docker.js';
+import { DatabasePlugin } from './database.js';
+import { ShellPlugin } from './shell.js';
+
 // ── Third-party services ───────────────────────────────────────────────────
 import { NotionPlugin } from './notion.js';
 import { XPlugin } from './x.js';
@@ -63,6 +68,11 @@ export function getAllBuiltinPlugins(): Plugin[] {
     new MemoryPlugin(),
     new NotesPlugin(),
     new CronPlugin(),
+
+    // ── Infrastructure (zero config for shell, needs URLs for database) ────
+    new ShellPlugin(),
+    new DockerPlugin(),
+    new DatabasePlugin(),
 
     // ── Google (require Google OAuth) ──────────────────────────────────────
     new GmailPlugin(),

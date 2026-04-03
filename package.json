@@ -1,7 +1,7 @@
 {
-  "name": "@thealxlabs/conductor",
-  "version": "0.1.0",
-  "description": "Universal integration hub - Connect AI and services through conversation",
+  "name": "@conductor/cli",
+  "version": "1.0.0",
+  "description": "The AI Tool Hub — One MCP server. 100+ tools. Every AI agent.",
   "main": "dist/index.js",
   "bin": {
     "conductor": "./dist/cli/index.js"
@@ -11,9 +11,14 @@
     "postbuild": "chmod +x dist/cli/index.js && cp src/dashboard/index.html dist/dashboard/index.html",
     "dev": "tsx watch src/cli/index.ts",
     "start": "node dist/cli/index.js",
-    "test": "node test-all.mjs --skip-auth",
-    "test:full": "node test-all.mjs",
-    "test:plugins": "node test.mjs --skip-auth"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src/ --ext .ts",
+    "lint:fix": "eslint src/ --ext .ts --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "typecheck": "tsc --noEmit"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -21,9 +26,9 @@
   "keywords": [
     "ai",
     "mcp",
-    "integration",
+    "tool-hub",
     "automation",
-    "telegram"
+    "agent-tools"
   ],
   "author": "Alexander Wondwossen",
   "license": "Apache-2.0",
@@ -38,11 +43,17 @@
     "commander": "^14.0.3",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.3.2",
+    "glob": "^13.0.6",
     "googleapis": "^171.4.0",
     "inquirer": "^13.2.5",
+    "mathjs": "^15.1.1",
     "open": "^11.0.0",
     "openai": "^6.22.0",
     "ora": "^9.3.0",
+    "pino": "^10.3.1",
+    "pino-pretty": "^13.1.3",
+    "redis": "^5.11.0",
     "spotify-web-api-node": "^5.0.2",
     "sql.js": "^1.14.0",
     "systeminformation": "^5.31.0",
@@ -55,7 +66,14 @@
     "@types/node": "^25.2.3",
     "@types/spotify-web-api-node": "^5.0.11",
     "@types/sql.js": "^1.4.9",
+    "@typescript-eslint/eslint-plugin": "^8.58.0",
+    "@typescript-eslint/parser": "^8.58.0",
+    "@vitest/coverage-v8": "^4.1.2",
+    "eslint": "^10.1.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.8.1",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.2"
   }
 }

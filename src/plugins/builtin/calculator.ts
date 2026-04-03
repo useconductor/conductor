@@ -1,5 +1,9 @@
 import { Plugin, PluginTool } from '../manager.js';
 import { Conductor } from '../../core/conductor.js';
+import { create, type MathJsInstance } from 'mathjs';
+import * as mathjs from 'mathjs';
+
+const math: MathJsInstance = create(mathjs.all, {});
 
 export class CalculatorPlugin implements Plugin {
   name = 'calculator';
@@ -22,32 +26,16 @@ export class CalculatorPlugin implements Plugin {
           required: ['expression'],
         },
         handler: async (input: { expression: string }) => {
-          // Sanitize: only allow math-safe characters
-          const sanitized = input.expression
-            .replace(/\bsqrt\b/g, 'Math.sqrt')
-            .replace(/\babs\b/g, 'Math.abs')
-            .replace(/\bsin\b/g, 'Math.sin')
-            .replace(/\bcos\b/g, 'Math.cos')
-            .replace(/\btan\b/g, 'Math.tan')
-            .replace(/\blog\b/g, 'Math.log')
-            .replace(/\bceil\b/g, 'Math.ceil')
-            .replace(/\bfloor\b/g, 'Math.floor')
-            .replace(/\bround\b/g, 'Math.round')
-            .replace(/\bPI\b/g, 'Math.PI')
-            .replace(/\bE\b/g, 'Math.E');
-
-          // Validate: only allow digits, operators, parens, dots, Math.*
-          if (!/^[0-9+\-*/().%\s,Math.sqrtabincostelgflorundPIE]+$/.test(sanitized)) {
-            throw new Error('Invalid expression: only math operators and functions are allowed');
+          try {
+            const result = math.evaluate(input.expression);
+            if (typeof result === 'number' && !isFinite(result)) {
+              throw new Error('Result is not a finite number');
+            }
+            return { expression: input.expression, result };
+          } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : String(err);
+            throw new Error(`Math evaluation failed: ${msg}`);
           }
-
-          // Use Function constructor instead of eval for slightly better isolation
-          const fn = new Function(`"use strict"; return (${sanitized})`);
-          const result = fn();
-          if (typeof result !== 'number' || !isFinite(result)) {
-            throw new Error(`Result is not a finite number: ${result}`);
-          }
-          return { expression: input.expression, result };
         },
       },
       {
@@ -67,32 +55,26 @@ export class CalculatorPlugin implements Plugin {
           const t = input.to.toLowerCase().trim();
           const v = input.value;
 
-          // Convert everything to a base unit first, then to target
           type ConversionTable = Record<string, Record<string, (n: number) => number>>;
           const conversions: ConversionTable = {
-            // Length → meters
             km: { m: n => n * 1000, mi: n => n * 0.621371, ft: n => n * 3280.84, cm: n => n * 100000, 'in': n => n * 39370.1 },
             mi: { km: n => n * 1.60934, m: n => n * 1609.34, ft: n => n * 5280, cm: n => n * 160934, 'in': n => n * 63360 },
             m: { km: n => n / 1000, mi: n => n / 1609.34, ft: n => n * 3.28084, cm: n => n * 100, 'in': n => n * 39.3701 },
             ft: { m: n => n * 0.3048, km: n => n * 0.0003048, mi: n => n / 5280, cm: n => n * 30.48, 'in': n => n * 12 },
             cm: { m: n => n / 100, km: n => n / 100000, ft: n => n / 30.48, 'in': n => n / 2.54, mi: n => n / 160934 },
             'in': { cm: n => n * 2.54, ft: n => n / 12, m: n => n * 0.0254, km: n => n * 0.0000254, mi: n => n / 63360 },
-            // Weight → grams
             kg: { lb: n => n * 2.20462, oz: n => n * 35.274, g: n => n * 1000 },
             lb: { kg: n => n * 0.453592, oz: n => n * 16, g: n => n * 453.592 },
             oz: { kg: n => n * 0.0283495, lb: n => n / 16, g: n => n * 28.3495 },
             g: { kg: n => n / 1000, lb: n => n / 453.592, oz: n => n / 28.3495 },
-            // Temperature
             c: { f: n => (n * 9/5) + 32, k: n => n + 273.15 },
             f: { c: n => (n - 32) * 5/9, k: n => (n - 32) * 5/9 + 273.15 },
             k: { c: n => n - 273.15, f: n => (n - 273.15) * 9/5 + 32 },
             '°c': { '°f': n => (n * 9/5) + 32, k: n => n + 273.15 },
             '°f': { '°c': n => (n - 32) * 5/9, k: n => (n - 32) * 5/9 + 273.15 },
-            // Volume
             l: { gal: n => n * 0.264172, ml: n => n * 1000 },
             gal: { l: n => n * 3.78541, ml: n => n * 3785.41 },
             ml: { l: n => n / 1000, gal: n => n / 3785.41 },
-            // Digital
             tb: { gb: n => n * 1024, mb: n => n * 1048576, kb: n => n * 1073741824 },
             gb: { tb: n => n / 1024, mb: n => n * 1024, kb: n => n * 1048576 },
             mb: { gb: n => n / 1024, tb: n => n / 1048576, kb: n => n * 1024 },
