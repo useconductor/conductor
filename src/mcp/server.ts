@@ -10,8 +10,11 @@
  *   - HTTP/SSE transport for web dashboards and remote agents
  *   - Auto-discovery of all enabled plugins
  *   - Zod-validated input schemas
- *   - Structured error responses
- *   - Tool call logging and metrics
+ *   - Circuit breakers per tool (prevents cascading failures)
+ *   - Automatic retries with exponential backoff
+ *   - Audit logging (tamper-evident, SHA-256 chained)
+ *   - Health check system with per-plugin status
+ *   - Tool call metrics and latency tracking
  */
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
@@ -28,6 +31,12 @@ import type { Conductor } from '../core/conductor.js';
 import type { PluginTool } from '../plugins/manager.js';
 import { PluginManager } from '../plugins/manager.js';
 import { validateTools } from '../plugins/validation.js';
+import { CircuitBreaker, CircuitOpenError } from '../core/circuit-breaker.js';
+import { withRetry } from '../core/retry.js';
+import { AuditLogger } from '../core/audit.js';
+import { HealthChecker } from '../core/health.js';
+import { WebhookManager } from '../core/webhooks.js';
+import { logger } from '../core/logger.js';
 
 const _require = createRequire(import.meta.url);
 const { version } = _require('../../package.json') as { version: string };
@@ -77,10 +86,7 @@ async function buildToolRegistry(
     description: 'Get the current status of Conductor including enabled plugins and AI provider',
     plugin: 'conductor',
     requiresApproval: false,
-    inputSchema: {
-      type: 'object',
-      properties: {},
-    },
+    inputSchema: { type: 'object', properties: {} },
     handler: async () => {
       const config = conductor.getConfig();
       return {
@@ -115,18 +121,58 @@ async function buildToolRegistry(
   });
 
   tools.push({
-    name: 'conductor_metrics',
-    description: 'Get tool call metrics (calls, errors, avg latency)',
+    name: 'conductor_health',
+    description: 'Get detailed health report for all Conductor subsystems',
+    plugin: 'conductor',
+    requiresApproval: false,
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => {
+      return await globalHealthChecker.detailed(version);
+    },
+  });
+
+  tools.push({
+    name: 'conductor_audit_query',
+    description: 'Query the audit log for recent events. Supports filtering by actor, action, resource, result.',
     plugin: 'conductor',
     requiresApproval: false,
     inputSchema: {
       type: 'object',
-      properties: {},
+      properties: {
+        actor: { type: 'string', description: 'Filter by actor' },
+        action: { type: 'string', description: 'Filter by action type' },
+        resource: { type: 'string', description: 'Filter by resource' },
+        result: { type: 'string', enum: ['success', 'failure', 'denied', 'timeout'], description: 'Filter by result' },
+        limit: { type: 'number', description: 'Max entries to return', default: 50 },
+      },
     },
+    handler: async (args: { actor?: string; action?: string; resource?: string; result?: string; limit?: number }) => {
+      return globalAuditLogger.query({ ...args, limit: args.limit ?? 50 });
+    },
+  });
+
+  tools.push({
+    name: 'conductor_metrics',
+    description: 'Get tool call metrics (calls, errors, avg latency)',
+    plugin: 'conductor',
+    requiresApproval: false,
+    inputSchema: { type: 'object', properties: {} },
     handler: async () => {
       const result: Record<string, ToolMetrics> = {};
       for (const [name, m] of metrics) result[name] = m;
       return { metrics: result };
+    },
+  });
+
+  tools.push({
+    name: 'conductor_webhooks_list',
+    description: 'List all webhook subscriptions',
+    plugin: 'conductor',
+    requiresApproval: false,
+    inputSchema: { type: 'object', properties: {} },
+    handler: async () => {
+      const subs = globalWebhookManager.list();
+      return { subscriptions: subs.map((s) => ({ id: s.id, url: s.url, events: s.events, active: s.active, failures: s.consecutiveFailures })) };
     },
   });
 
@@ -147,6 +193,53 @@ async function buildToolRegistry(
   return tools;
 }
 
+// ── Global Infrastructure ────────────────────────────────────────────────────
+
+let globalAuditLogger: AuditLogger;
+let globalHealthChecker: HealthChecker;
+let globalWebhookManager: WebhookManager;
+const circuitBreakers: Map<string, CircuitBreaker> = new Map();
+
+/**
+ * Initialize global infrastructure (audit, health, webhooks).
+ * Called once when the MCP server starts.
+ */
+async function initInfrastructure(conductor: Conductor): Promise<void> {
+  const configDir = conductor.getConfig().getConfigDir();
+
+  // Audit logger
+  globalAuditLogger = new AuditLogger(configDir);
+
+  // Health checker
+  globalHealthChecker = new HealthChecker();
+
+  // Register health checks for each plugin
+  const pluginManager = new PluginManager(conductor);
+  await pluginManager.loadBuiltins();
+  for (const plugin of pluginManager.listPlugins()) {
+    globalHealthChecker.register(`plugin:${plugin.name}`, async () => ({
+      name: plugin.name,
+      status: plugin.enabled ? 'ok' : 'down',
+      message: plugin.enabled ? `${plugin.description}` : 'Plugin disabled',
+    }));
+  }
+
+  // Webhook manager
+  globalWebhookManager = new WebhookManager(configDir);
+  await globalWebhookManager.load();
+  globalHealthChecker.setWebhookCount(globalWebhookManager.list().filter((s) => s.active).length);
+
+  // Graceful shutdown
+  process.on('SIGINT', async () => {
+    await globalAuditLogger.close();
+    process.exit(0);
+  });
+  process.on('SIGTERM', async () => {
+    await globalAuditLogger.close();
+    process.exit(0);
+  });
+}
+
 // ── Server ───────────────────────────────────────────────────────────────────
 
 export interface MCPServerOptions {
@@ -160,11 +253,22 @@ export async function startMCPServer(
   conductor: Conductor,
   options: MCPServerOptions = {},
 ): Promise<void> {
+  // Initialize infrastructure
+  await initInfrastructure(conductor);
+
   const pluginManager = new PluginManager(conductor);
   const tools = await buildToolRegistry(conductor, pluginManager);
 
+  // Create circuit breakers for each tool
+  for (const tool of tools) {
+    circuitBreakers.set(tool.name, new CircuitBreaker());
+    globalHealthChecker.registerCircuitBreaker(tool.name, circuitBreakers.get(tool.name)!);
+  }
+
   process.stderr.write(`[MCP] Starting Conductor MCP server v${version}\n`);
   process.stderr.write(`[MCP] ${tools.length} tools available\n`);
+  process.stderr.write(`[MCP] Audit logging enabled\n`);
+  process.stderr.write(`[MCP] Circuit breakers active for all tools\n`);
 
   const server = new Server(
     { name: 'conductor', version },
@@ -199,11 +303,39 @@ export async function startMCPServer(
     }
 
     const start = Date.now();
+
     try {
       process.stderr.write(`[MCP] → ${name}\n`);
-      const result = await tool.handler(args);
+
+      // Get or create circuit breaker for this tool
+      let breaker = circuitBreakers.get(name);
+      if (!breaker) {
+        breaker = new CircuitBreaker();
+        circuitBreakers.set(name, breaker);
+        globalHealthChecker.registerCircuitBreaker(name, breaker);
+      }
+
+      // Execute through circuit breaker + retry
+      const result = await breaker.execute(async () =>
+        withRetry(
+          async () => tool.handler(args),
+          { maxAttempts: 3, baseDelay: 500, maxDelay: 10000 },
+        ),
+      );
+
       const latency = Date.now() - start;
       recordCall(name, true, latency);
+      globalHealthChecker.recordToolCall(true, latency);
+
+      // Audit log
+      await globalAuditLogger.toolCall('mcp', name, args, 'success', { latency_ms: latency });
+
+      // Emit webhook event
+      await globalWebhookManager.emit({
+        type: 'tool_called',
+        resource: name,
+        data: { latency_ms: latency, success: true },
+      });
 
       const text = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
       process.stderr.write(`[MCP] ← ${name} (${latency}ms)\n`);
@@ -214,23 +346,43 @@ export async function startMCPServer(
     } catch (err: unknown) {
       const latency = Date.now() - start;
       recordCall(name, false, latency);
+      globalHealthChecker.recordToolCall(false, latency);
 
       const message = err instanceof Error ? err.message : String(err);
+      const isCircuitOpen = err instanceof CircuitOpenError;
+      const result = isCircuitOpen ? 'denied' : 'failure';
+
+      // Audit log
+      await globalAuditLogger.toolCall('mcp', name, args, result as 'success' | 'failure' | 'denied' | 'timeout', {
+        latency_ms: latency,
+        error: message,
+        circuit_open: isCircuitOpen,
+      });
+
+      // Emit webhook event
+      await globalWebhookManager.emit({
+        type: 'tool_failed',
+        resource: name,
+        data: { latency_ms: latency, error: message, circuit_open: isCircuitOpen },
+      });
+
+      logger.warn({ tool: name, error: message, latency_ms: latency, circuit_open: isCircuitOpen }, 'Tool call failed');
+
       process.stderr.write(`[MCP] ✗ ${name}: ${message} (${latency}ms)\n`);
 
       return {
-        content: [{ type: 'text' as const, text: `Error: ${message}` }],
+        content: [{ type: 'text' as const, text: isCircuitOpen ? `Service unavailable: ${name} is temporarily disabled due to repeated failures. Try again later.` : `Error: ${message}` }],
         isError: true,
       };
     }
   });
 
-  // ── resources/list (stub for future file/resource exposure) ──────────────
+  // ── resources/list ───────────────────────────────────────────────────────
   server.setRequestHandler(ListResourcesRequestSchema, async () => ({
     resources: [],
   }));
 
-  // ── prompts/list (stub for future prompt templates) ──────────────────────
+  // ── prompts/list ─────────────────────────────────────────────────────────
   server.setRequestHandler(ListPromptsRequestSchema, async () => ({
     prompts: [],
   }));
@@ -239,11 +391,25 @@ export async function startMCPServer(
   const transportMode = options.transport ?? 'stdio';
 
   if (transportMode === 'http') {
-    // HTTP/SSE transport for web dashboards and remote agents
     const { SSEServerTransport } = await import('@modelcontextprotocol/sdk/server/sse.js');
     const express = (await import('express')).default;
+    const rateLimit = (await import('express-rate-limit')).default;
     const app = express();
     const port = options.port ?? 3000;
+
+    // Rate limiting
+    app.use(rateLimit({ windowMs: 60_000, max: 1000, standardHeaders: true, legacyHeaders: false }));
+
+    // Health endpoints
+    app.get('/health', async (_req, res) => {
+      const report = await globalHealthChecker.detailed(version);
+      res.status(report.status === 'down' ? 503 : 200).json(report);
+    });
+
+    app.get('/health/ready', async (_req, res) => {
+      const ready = await globalHealthChecker.ready();
+      res.status(ready.ready ? 200 : 503).json(ready);
+    });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let sseTransport: any = null;
@@ -266,7 +432,6 @@ export async function startMCPServer(
       process.stderr.write(`[MCP] HTTP server listening on port ${port}\n`);
     });
   } else {
-    // Stdio transport for direct AI agent integration (Claude Code, Cursor, etc.)
     const transport = new StdioServerTransport();
     await server.connect(transport);
     process.stderr.write('[MCP] Connected via stdio\n');
