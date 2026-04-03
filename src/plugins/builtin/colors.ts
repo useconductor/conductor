@@ -7,22 +7,31 @@ export class ColorPlugin implements Plugin {
   version = '1.0.0';
 
   async initialize(_conductor: Conductor): Promise<void> {}
-  isConfigured(): boolean { return true; }
+  isConfigured(): boolean {
+    return true;
+  }
 
   private hexToRgb(hex: string): { r: number; g: number; b: number } {
     hex = hex.replace('#', '');
-    if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+    if (hex.length === 3)
+      hex = hex
+        .split('')
+        .map((c) => c + c)
+        .join('');
     const n = parseInt(hex, 16);
     return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
   }
 
   private rgbToHex(r: number, g: number, b: number): string {
-    return '#' + [r, g, b].map(c => c.toString(16).padStart(2, '0')).join('');
+    return '#' + [r, g, b].map((c) => c.toString(16).padStart(2, '0')).join('');
   }
 
   private rgbToHsl(r: number, g: number, b: number): { h: number; s: number; l: number } {
-    r /= 255; g /= 255; b /= 255;
-    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    r /= 255;
+    g /= 255;
+    b /= 255;
+    const max = Math.max(r, g, b),
+      min = Math.min(r, g, b);
     const l = (max + min) / 2;
     if (max === min) return { h: 0, s: 0, l: Math.round(l * 100) };
     const d = max - min;
@@ -35,7 +44,7 @@ export class ColorPlugin implements Plugin {
   }
 
   private luminance(r: number, g: number, b: number): number {
-    const a = [r, g, b].map(v => {
+    const a = [r, g, b].map((v) => {
       v /= 255;
       return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
     });
@@ -112,7 +121,11 @@ export class ColorPlugin implements Plugin {
           type: 'object',
           properties: {
             base: { type: 'string', description: 'Base color in hex (e.g. "#ff5733")' },
-            type: { type: 'string', description: 'Palette type: complementary, analogous, triadic, random', default: 'analogous' },
+            type: {
+              type: 'string',
+              description: 'Palette type: complementary, analogous, triadic, random',
+              default: 'analogous',
+            },
           },
           required: ['base'],
         },
@@ -123,22 +136,34 @@ export class ColorPlugin implements Plugin {
 
           const hslToHex = (h: number, s: number, l: number): string => {
             h = ((h % 360) + 360) % 360;
-            s /= 100; l /= 100;
+            s /= 100;
+            l /= 100;
             const c = (1 - Math.abs(2 * l - 1)) * s;
-            const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+            const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
             const m = l - c / 2;
-            let rr = 0, gg = 0, bb = 0;
-            if (h < 60) { rr = c; gg = x; }
-            else if (h < 120) { rr = x; gg = c; }
-            else if (h < 180) { gg = c; bb = x; }
-            else if (h < 240) { gg = x; bb = c; }
-            else if (h < 300) { rr = x; bb = c; }
-            else { rr = c; bb = x; }
-            return this.rgbToHex(
-              Math.round((rr + m) * 255),
-              Math.round((gg + m) * 255),
-              Math.round((bb + m) * 255)
-            );
+            let rr = 0,
+              gg = 0,
+              bb = 0;
+            if (h < 60) {
+              rr = c;
+              gg = x;
+            } else if (h < 120) {
+              rr = x;
+              gg = c;
+            } else if (h < 180) {
+              gg = c;
+              bb = x;
+            } else if (h < 240) {
+              gg = x;
+              bb = c;
+            } else if (h < 300) {
+              rr = x;
+              bb = c;
+            } else {
+              rr = c;
+              bb = x;
+            }
+            return this.rgbToHex(Math.round((rr + m) * 255), Math.round((gg + m) * 255), Math.round((bb + m) * 255));
           };
 
           let colors: string[];
@@ -150,8 +175,13 @@ export class ColorPlugin implements Plugin {
               colors = [input.base, hslToHex(hsl.h + 120, hsl.s, hsl.l), hslToHex(hsl.h + 240, hsl.s, hsl.l)];
               break;
             case 'random':
-              colors = Array.from({ length: 5 }, () =>
-                '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')
+              colors = Array.from(
+                { length: 5 },
+                () =>
+                  '#' +
+                  Math.floor(Math.random() * 16777215)
+                    .toString(16)
+                    .padStart(6, '0'),
               );
               break;
             default: // analogous

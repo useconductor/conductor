@@ -7,7 +7,9 @@ export class TextToolsPlugin implements Plugin {
   version = '1.0.0';
 
   async initialize(_conductor: Conductor): Promise<void> {}
-  isConfigured(): boolean { return true; }
+  isConfigured(): boolean {
+    return true;
+  }
 
   getTools(): PluginTool[] {
     return [
@@ -25,9 +27,7 @@ export class TextToolsPlugin implements Plugin {
         handler: async (input: { json: string; minify?: boolean }) => {
           try {
             const parsed = JSON.parse(input.json);
-            const formatted = input.minify
-              ? JSON.stringify(parsed)
-              : JSON.stringify(parsed, null, 2);
+            const formatted = input.minify ? JSON.stringify(parsed) : JSON.stringify(parsed, null, 2);
             return { valid: true, formatted, keys: typeof parsed === 'object' ? Object.keys(parsed) : undefined };
           } catch (e: any) {
             return { valid: false, error: e.message };
@@ -46,9 +46,12 @@ export class TextToolsPlugin implements Plugin {
         },
         handler: async (input: { text: string }) => {
           const t = input.text;
-          const words = t.trim().split(/\s+/).filter(w => w.length > 0);
-          const sentences = t.split(/[.!?]+/).filter(s => s.trim().length > 0);
-          const paragraphs = t.split(/\n\n+/).filter(p => p.trim().length > 0);
+          const words = t
+            .trim()
+            .split(/\s+/)
+            .filter((w) => w.length > 0);
+          const sentences = t.split(/[.!?]+/).filter((s) => s.trim().length > 0);
+          const paragraphs = t.split(/\n\n+/).filter((p) => p.trim().length > 0);
           return {
             characters: t.length,
             characters_no_spaces: t.replace(/\s/g, '').length,
@@ -80,7 +83,7 @@ export class TextToolsPlugin implements Plugin {
               pattern: input.pattern,
               flags: input.flags || 'g',
               matches_found: matches.length,
-              matches: matches.map(m => ({
+              matches: matches.map((m) => ({
                 match: m[0],
                 index: m.index,
                 groups: m.groups || undefined,
@@ -106,14 +109,38 @@ export class TextToolsPlugin implements Plugin {
           const t = input.text;
           let result: string;
           switch (input.transform.toLowerCase()) {
-            case 'uppercase': result = t.toUpperCase(); break;
-            case 'lowercase': result = t.toLowerCase(); break;
-            case 'title': result = t.replace(/\w\S*/g, w => w[0].toUpperCase() + w.slice(1).toLowerCase()); break;
-            case 'camel': result = t.toLowerCase().replace(/[^a-zA-Z0-9]+(.)/g, (_, c) => c.toUpperCase()); break;
-            case 'snake': result = t.replace(/\s+/g, '_').replace(/[A-Z]/g, c => '_' + c.toLowerCase()).replace(/^_/, '').toLowerCase(); break;
-            case 'slug': result = t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); break;
-            case 'reverse': result = t.split('').reverse().join(''); break;
-            default: throw new Error(`Unknown transform: ${input.transform}. Use: uppercase, lowercase, title, camel, snake, slug, reverse`);
+            case 'uppercase':
+              result = t.toUpperCase();
+              break;
+            case 'lowercase':
+              result = t.toLowerCase();
+              break;
+            case 'title':
+              result = t.replace(/\w\S*/g, (w) => w[0].toUpperCase() + w.slice(1).toLowerCase());
+              break;
+            case 'camel':
+              result = t.toLowerCase().replace(/[^a-zA-Z0-9]+(.)/g, (_, c) => c.toUpperCase());
+              break;
+            case 'snake':
+              result = t
+                .replace(/\s+/g, '_')
+                .replace(/[A-Z]/g, (c) => '_' + c.toLowerCase())
+                .replace(/^_/, '')
+                .toLowerCase();
+              break;
+            case 'slug':
+              result = t
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-|-$/g, '');
+              break;
+            case 'reverse':
+              result = t.split('').reverse().join('');
+              break;
+            default:
+              throw new Error(
+                `Unknown transform: ${input.transform}. Use: uppercase, lowercase, title, camel, snake, slug, reverse`,
+              );
           }
           return { original: t, transform: input.transform, result };
         },

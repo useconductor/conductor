@@ -3,7 +3,7 @@ import path from 'path';
 import { Conductor } from '../../core/conductor.js';
 
 const REGISTRY_URL = 'https://conductor.thealxlabs.ca/registry.json';
-const GITHUB_RAW   = 'https://raw.githubusercontent.com';
+const GITHUB_RAW = 'https://raw.githubusercontent.com';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -46,12 +46,24 @@ function pluginsDir(conductor: Conductor): string {
   return path.join(conductor.getConfig().getConfigDir(), 'plugins');
 }
 
-function dim(s: string)    { return `\x1b[2m${s}\x1b[0m`; }
-function green(s: string)  { return `\x1b[32m${s}\x1b[0m`; }
-function red(s: string)    { return `\x1b[31m${s}\x1b[0m`; }
-function cyan(s: string)   { return `\x1b[36m${s}\x1b[0m`; }
-function bold(s: string)   { return `\x1b[1m${s}\x1b[0m`; }
-function yellow(s: string) { return `\x1b[33m${s}\x1b[0m`; }
+function dim(s: string) {
+  return `\x1b[2m${s}\x1b[0m`;
+}
+function green(s: string) {
+  return `\x1b[32m${s}\x1b[0m`;
+}
+function red(s: string) {
+  return `\x1b[31m${s}\x1b[0m`;
+}
+function cyan(s: string) {
+  return `\x1b[36m${s}\x1b[0m`;
+}
+function bold(s: string) {
+  return `\x1b[1m${s}\x1b[0m`;
+}
+function yellow(s: string) {
+  return `\x1b[33m${s}\x1b[0m`;
+}
 
 // ── Commands ──────────────────────────────────────────────────────────────────
 
@@ -61,10 +73,10 @@ export async function installPlugin(conductor: Conductor, pluginId: string): Pro
   console.log(`  ${cyan('▶')} Fetching registry…`);
 
   const registry = await fetchRegistry();
-  const plugin   = registry.plugins.find(p => p.id === pluginId);
+  const plugin = registry.plugins.find((p) => p.id === pluginId);
 
   if (!plugin) {
-    const ids = registry.plugins.map(p => p.id).join(', ');
+    const ids = registry.plugins.map((p) => p.id).join(', ');
     console.error(`  ${red('✗')} Plugin "${pluginId}" not found in registry.`);
     console.error(`  ${dim('Available:')} ${ids}`);
     console.error(`  ${dim('Browse:')} conductor marketplace`);
@@ -77,7 +89,9 @@ export async function installPlugin(conductor: Conductor, pluginId: string): Pro
   try {
     await fs.access(dest);
     console.log(`  ${yellow('⚠')}  ${bold(plugin.name)} is already installed. Reinstalling…`);
-  } catch { /* not installed, continue */ }
+  } catch {
+    /* not installed, continue */
+  }
 
   // Download from GitHub
   const url = `${GITHUB_RAW}/${plugin.repo}/main/${plugin.path}/${plugin.asset}`;
@@ -125,7 +139,7 @@ export async function installPlugin(conductor: Conductor, pluginId: string): Pro
 /** conductor uninstall <plugin> */
 export async function uninstallPlugin(conductor: Conductor, pluginId: string): Promise<void> {
   console.log('');
-  const dir  = pluginsDir(conductor);
+  const dir = pluginsDir(conductor);
   const dest = path.join(dir, `${pluginId}.js`);
 
   try {
@@ -138,9 +152,9 @@ export async function uninstallPlugin(conductor: Conductor, pluginId: string): P
   await fs.unlink(dest);
 
   // Remove from installed + enabled lists
-  const cfg       = conductor.getConfig();
-  const installed = (cfg.get<string[]>('plugins.installed') ?? []).filter(p => p !== pluginId);
-  const enabled   = (cfg.get<string[]>('plugins.enabled')   ?? []).filter(p => p !== pluginId);
+  const cfg = conductor.getConfig();
+  const installed = (cfg.get<string[]>('plugins.installed') ?? []).filter((p) => p !== pluginId);
+  const enabled = (cfg.get<string[]>('plugins.enabled') ?? []).filter((p) => p !== pluginId);
   await cfg.set('plugins.installed', installed);
   await cfg.set('plugins.enabled', enabled);
 
@@ -149,7 +163,10 @@ export async function uninstallPlugin(conductor: Conductor, pluginId: string): P
 }
 
 /** conductor marketplace (list) */
-export async function listMarketplace(_conductor: Conductor, opts: { category?: string; search?: string }): Promise<void> {
+export async function listMarketplace(
+  _conductor: Conductor,
+  opts: { category?: string; search?: string },
+): Promise<void> {
   console.log('');
   console.log(`  ${bold(cyan('Conductor Marketplace'))}`);
   console.log(`  ${dim('Browse at: https://conductor.thealxlabs.ca/marketplace')}`);
@@ -166,20 +183,23 @@ export async function listMarketplace(_conductor: Conductor, opts: { category?: 
   let plugins = registry.plugins;
 
   if (opts.category) {
-    plugins = plugins.filter(p => p.category === opts.category);
+    plugins = plugins.filter((p) => p.category === opts.category);
   }
   if (opts.search) {
     const q = opts.search.toLowerCase();
-    plugins = plugins.filter(p =>
-      p.id.includes(q) || p.name.toLowerCase().includes(q) ||
-      p.description.toLowerCase().includes(q) || p.tags.includes(q)
+    plugins = plugins.filter(
+      (p) =>
+        p.id.includes(q) ||
+        p.name.toLowerCase().includes(q) ||
+        p.description.toLowerCase().includes(q) ||
+        p.tags.includes(q),
     );
   }
 
   // Group by category
-  const categories = [...new Set(plugins.map(p => p.category))];
+  const categories = [...new Set(plugins.map((p) => p.category))];
   for (const cat of categories) {
-    const group = plugins.filter(p => p.category === cat);
+    const group = plugins.filter((p) => p.category === cat);
     console.log(`  ${bold(cat.toUpperCase())}`);
     for (const p of group) {
       console.log(`    ${p.icon}  ${bold(p.name.padEnd(20))} ${dim(p.id.padEnd(18))} ${p.description.slice(0, 55)}…`);
@@ -197,7 +217,7 @@ export async function listMarketplace(_conductor: Conductor, opts: { category?: 
 export async function pluginInfo(_conductor: Conductor, pluginId: string): Promise<void> {
   console.log('');
   const registry = await fetchRegistry();
-  const plugin   = registry.plugins.find(p => p.id === pluginId);
+  const plugin = registry.plugins.find((p) => p.id === pluginId);
 
   if (!plugin) {
     console.error(`  ${red('✗')} Plugin "${pluginId}" not found.`);

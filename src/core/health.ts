@@ -124,9 +124,8 @@ export class HealthChecker {
     const hasDegraded = components.some((c) => c.status === 'degraded');
     const status = hasDown ? 'down' : hasDegraded ? 'degraded' : 'ok';
 
-    const avgLatency = this.metrics.totalToolCalls > 0
-      ? Math.round(this.metrics.totalLatencyMs / this.metrics.totalToolCalls)
-      : 0;
+    const avgLatency =
+      this.metrics.totalToolCalls > 0 ? Math.round(this.metrics.totalLatencyMs / this.metrics.totalToolCalls) : 0;
 
     return {
       status,

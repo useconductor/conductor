@@ -7,7 +7,9 @@ export class FunPlugin implements Plugin {
   version = '1.0.0';
 
   async initialize(_conductor: Conductor): Promise<void> {}
-  isConfigured(): boolean { return true; }
+  isConfigured(): boolean {
+    return true;
+  }
 
   getTools(): PluginTool[] {
     return [
@@ -41,7 +43,7 @@ export class FunPlugin implements Plugin {
         handler: async (input: { difficulty?: string }) => {
           const diff = input.difficulty || 'medium';
           const res = await fetch(`https://opentdb.com/api.php?amount=1&difficulty=${diff}&type=multiple`);
-          const data = await res.json() as any;
+          const data = (await res.json()) as any;
           if (!data.results?.length) return { error: 'No trivia found' };
           const q = data.results[0];
           const answers = [...q.incorrect_answers, q.correct_answer].sort(() => Math.random() - 0.5);
@@ -49,7 +51,13 @@ export class FunPlugin implements Plugin {
             category: q.category,
             difficulty: q.difficulty,
             question: q.question.replace(/&[^;]+;/g, (m: string) => {
-              const map: Record<string, string> = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#039;': "'" };
+              const map: Record<string, string> = {
+                '&amp;': '&',
+                '&lt;': '<',
+                '&gt;': '>',
+                '&quot;': '"',
+                '&#039;': "'",
+              };
               return map[m] || m;
             }),
             answers,
@@ -81,17 +89,24 @@ export class FunPlugin implements Plugin {
           // Built-in quotes — zero latency, no dead API dependencies
           const quotes = [
             { quote: 'The best way to predict the future is to create it.', author: 'Peter Drucker' },
-            { quote: 'Code is like humor. When you have to explain it, it\'s bad.', author: 'Cory House' },
+            { quote: "Code is like humor. When you have to explain it, it's bad.", author: 'Cory House' },
             { quote: 'First, solve the problem. Then, write the code.', author: 'John Johnson' },
-            { quote: 'Any fool can write code that a computer can understand. Good programmers write code that humans can understand.', author: 'Martin Fowler' },
-            { quote: 'Programs must be written for people to read, and only incidentally for machines to execute.', author: 'Harold Abelson' },
+            {
+              quote:
+                'Any fool can write code that a computer can understand. Good programmers write code that humans can understand.',
+              author: 'Martin Fowler',
+            },
+            {
+              quote: 'Programs must be written for people to read, and only incidentally for machines to execute.',
+              author: 'Harold Abelson',
+            },
             { quote: 'Simplicity is the soul of efficiency.', author: 'Austin Freeman' },
             { quote: 'Make it work, make it right, make it fast.', author: 'Kent Beck' },
             { quote: 'Talk is cheap. Show me the code.', author: 'Linus Torvalds' },
             { quote: 'In order to be irreplaceable, one must always be different.', author: 'Coco Chanel' },
             { quote: 'The secret of getting ahead is getting started.', author: 'Mark Twain' },
-            { quote: 'It always seems impossible until it\'s done.', author: 'Nelson Mandela' },
-            { quote: 'Whether you think you can or you think you can\'t, you\'re right.', author: 'Henry Ford' },
+            { quote: "It always seems impossible until it's done.", author: 'Nelson Mandela' },
+            { quote: "Whether you think you can or you think you can't, you're right.", author: 'Henry Ford' },
             { quote: 'The only way to do great work is to love what you do.', author: 'Steve Jobs' },
             { quote: 'Stay hungry, stay foolish.', author: 'Steve Jobs' },
           ];

@@ -11,13 +11,16 @@ export class CalculatorPlugin implements Plugin {
   version = '1.0.0';
 
   async initialize(_conductor: Conductor): Promise<void> {}
-  isConfigured(): boolean { return true; }
+  isConfigured(): boolean {
+    return true;
+  }
 
   getTools(): PluginTool[] {
     return [
       {
         name: 'calc_math',
-        description: 'Evaluate a math expression. Supports +, -, *, /, **, %, sqrt(), abs(), sin(), cos(), tan(), log(), ceil(), floor(), round(), PI, E',
+        description:
+          'Evaluate a math expression. Supports +, -, *, /, **, %, sqrt(), abs(), sin(), cos(), tan(), log(), ceil(), floor(), round(), PI, E',
         inputSchema: {
           type: 'object',
           properties: {
@@ -57,34 +60,73 @@ export class CalculatorPlugin implements Plugin {
 
           type ConversionTable = Record<string, Record<string, (n: number) => number>>;
           const conversions: ConversionTable = {
-            km: { m: n => n * 1000, mi: n => n * 0.621371, ft: n => n * 3280.84, cm: n => n * 100000, 'in': n => n * 39370.1 },
-            mi: { km: n => n * 1.60934, m: n => n * 1609.34, ft: n => n * 5280, cm: n => n * 160934, 'in': n => n * 63360 },
-            m: { km: n => n / 1000, mi: n => n / 1609.34, ft: n => n * 3.28084, cm: n => n * 100, 'in': n => n * 39.3701 },
-            ft: { m: n => n * 0.3048, km: n => n * 0.0003048, mi: n => n / 5280, cm: n => n * 30.48, 'in': n => n * 12 },
-            cm: { m: n => n / 100, km: n => n / 100000, ft: n => n / 30.48, 'in': n => n / 2.54, mi: n => n / 160934 },
-            'in': { cm: n => n * 2.54, ft: n => n / 12, m: n => n * 0.0254, km: n => n * 0.0000254, mi: n => n / 63360 },
-            kg: { lb: n => n * 2.20462, oz: n => n * 35.274, g: n => n * 1000 },
-            lb: { kg: n => n * 0.453592, oz: n => n * 16, g: n => n * 453.592 },
-            oz: { kg: n => n * 0.0283495, lb: n => n / 16, g: n => n * 28.3495 },
-            g: { kg: n => n / 1000, lb: n => n / 453.592, oz: n => n / 28.3495 },
-            c: { f: n => (n * 9/5) + 32, k: n => n + 273.15 },
-            f: { c: n => (n - 32) * 5/9, k: n => (n - 32) * 5/9 + 273.15 },
-            k: { c: n => n - 273.15, f: n => (n - 273.15) * 9/5 + 32 },
-            '°c': { '°f': n => (n * 9/5) + 32, k: n => n + 273.15 },
-            '°f': { '°c': n => (n - 32) * 5/9, k: n => (n - 32) * 5/9 + 273.15 },
-            l: { gal: n => n * 0.264172, ml: n => n * 1000 },
-            gal: { l: n => n * 3.78541, ml: n => n * 3785.41 },
-            ml: { l: n => n / 1000, gal: n => n / 3785.41 },
-            tb: { gb: n => n * 1024, mb: n => n * 1048576, kb: n => n * 1073741824 },
-            gb: { tb: n => n / 1024, mb: n => n * 1024, kb: n => n * 1048576 },
-            mb: { gb: n => n / 1024, tb: n => n / 1048576, kb: n => n * 1024 },
-            kb: { mb: n => n / 1024, gb: n => n / 1048576, tb: n => n / 1073741824 },
+            km: {
+              m: (n) => n * 1000,
+              mi: (n) => n * 0.621371,
+              ft: (n) => n * 3280.84,
+              cm: (n) => n * 100000,
+              in: (n) => n * 39370.1,
+            },
+            mi: {
+              km: (n) => n * 1.60934,
+              m: (n) => n * 1609.34,
+              ft: (n) => n * 5280,
+              cm: (n) => n * 160934,
+              in: (n) => n * 63360,
+            },
+            m: {
+              km: (n) => n / 1000,
+              mi: (n) => n / 1609.34,
+              ft: (n) => n * 3.28084,
+              cm: (n) => n * 100,
+              in: (n) => n * 39.3701,
+            },
+            ft: {
+              m: (n) => n * 0.3048,
+              km: (n) => n * 0.0003048,
+              mi: (n) => n / 5280,
+              cm: (n) => n * 30.48,
+              in: (n) => n * 12,
+            },
+            cm: {
+              m: (n) => n / 100,
+              km: (n) => n / 100000,
+              ft: (n) => n / 30.48,
+              in: (n) => n / 2.54,
+              mi: (n) => n / 160934,
+            },
+            in: {
+              cm: (n) => n * 2.54,
+              ft: (n) => n / 12,
+              m: (n) => n * 0.0254,
+              km: (n) => n * 0.0000254,
+              mi: (n) => n / 63360,
+            },
+            kg: { lb: (n) => n * 2.20462, oz: (n) => n * 35.274, g: (n) => n * 1000 },
+            lb: { kg: (n) => n * 0.453592, oz: (n) => n * 16, g: (n) => n * 453.592 },
+            oz: { kg: (n) => n * 0.0283495, lb: (n) => n / 16, g: (n) => n * 28.3495 },
+            g: { kg: (n) => n / 1000, lb: (n) => n / 453.592, oz: (n) => n / 28.3495 },
+            c: { f: (n) => (n * 9) / 5 + 32, k: (n) => n + 273.15 },
+            f: { c: (n) => ((n - 32) * 5) / 9, k: (n) => ((n - 32) * 5) / 9 + 273.15 },
+            k: { c: (n) => n - 273.15, f: (n) => ((n - 273.15) * 9) / 5 + 32 },
+            '°c': { '°f': (n) => (n * 9) / 5 + 32, k: (n) => n + 273.15 },
+            '°f': { '°c': (n) => ((n - 32) * 5) / 9, k: (n) => ((n - 32) * 5) / 9 + 273.15 },
+            l: { gal: (n) => n * 0.264172, ml: (n) => n * 1000 },
+            gal: { l: (n) => n * 3.78541, ml: (n) => n * 3785.41 },
+            ml: { l: (n) => n / 1000, gal: (n) => n / 3785.41 },
+            tb: { gb: (n) => n * 1024, mb: (n) => n * 1048576, kb: (n) => n * 1073741824 },
+            gb: { tb: (n) => n / 1024, mb: (n) => n * 1024, kb: (n) => n * 1048576 },
+            mb: { gb: (n) => n / 1024, tb: (n) => n / 1048576, kb: (n) => n * 1024 },
+            kb: { mb: (n) => n / 1024, gb: (n) => n / 1048576, tb: (n) => n / 1073741824 },
           };
 
           if (f === t) return { value: v, from: f, to: t, result: v };
 
           const conv = conversions[f]?.[t];
-          if (!conv) throw new Error(`Cannot convert from "${input.from}" to "${input.to}". Supported: km/mi/m/ft/in/cm, kg/lb/oz/g, C/F/K, L/gal/ml, GB/MB/KB/TB`);
+          if (!conv)
+            throw new Error(
+              `Cannot convert from "${input.from}" to "${input.to}". Supported: km/mi/m/ft/in/cm, kg/lb/oz/g, C/F/K, L/gal/ml, GB/MB/KB/TB`,
+            );
 
           return { value: v, from: input.from, to: input.to, result: Number(conv(v).toFixed(6)) };
         },

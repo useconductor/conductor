@@ -38,9 +38,7 @@ export class SlackPlugin implements Plugin {
   private async getToken(): Promise<string> {
     const token = await this.keychain.get('slack', 'bot_token');
     if (!token) {
-      throw new Error(
-        'Slack bot token not configured.\nRun: conductor slack setup'
-      );
+      throw new Error('Slack bot token not configured.\nRun: conductor slack setup');
     }
     return token;
   }
@@ -48,7 +46,7 @@ export class SlackPlugin implements Plugin {
   private async slackFetch(
     method: string,
     params: Record<string, any> = {},
-    httpMethod: 'GET' | 'POST' = 'GET'
+    httpMethod: 'GET' | 'POST' = 'GET',
   ): Promise<any> {
     const token = await this.getToken();
     const base = 'https://slack.com/api';
@@ -71,8 +69,8 @@ export class SlackPlugin implements Plugin {
         Object.fromEntries(
           Object.entries(params)
             .filter(([, v]) => v !== undefined && v !== null)
-            .map(([k, v]) => [k, String(v)])
-        )
+            .map(([k, v]) => [k, String(v)]),
+        ),
       ).toString();
       url = `${base}/${method}${qs ? '?' + qs : ''}`;
       init = {
@@ -92,7 +90,6 @@ export class SlackPlugin implements Plugin {
 
   getTools(): PluginTool[] {
     return [
-
       // ── slack_send_message ─────────────────────────────────────────────────
       {
         name: 'slack_send_message',
@@ -120,7 +117,7 @@ export class SlackPlugin implements Plugin {
           const data = await this.slackFetch(
             'chat.postMessage',
             { channel, text, ...(thread_ts ? { thread_ts } : {}) },
-            'POST'
+            'POST',
           );
           return {
             ok: true,
@@ -273,16 +270,14 @@ export class SlackPlugin implements Plugin {
         },
         handler: async ({ query, limit = 50 }: any) => {
           const data = await this.slackFetch('users.list', { limit: 200 });
-          let members = (data.members as any[]).filter(
-            (u: any) => !u.is_bot && !u.deleted && u.id !== 'USLACKBOT'
-          );
+          let members = (data.members as any[]).filter((u: any) => !u.is_bot && !u.deleted && u.id !== 'USLACKBOT');
           if (query) {
             const q = query.toLowerCase();
             members = members.filter(
               (u: any) =>
                 (u.real_name ?? '').toLowerCase().includes(q) ||
                 (u.name ?? '').toLowerCase().includes(q) ||
-                (u.profile?.email ?? '').toLowerCase().includes(q)
+                (u.profile?.email ?? '').toLowerCase().includes(q),
             );
           }
           return {
@@ -323,15 +318,10 @@ export class SlackPlugin implements Plugin {
         },
         requiresApproval: true,
         handler: async ({ channel, timestamp, emoji }: any) => {
-          await this.slackFetch(
-            'reactions.add',
-            { channel, timestamp, name: emoji.replace(/:/g, '') },
-            'POST'
-          );
+          await this.slackFetch('reactions.add', { channel, timestamp, name: emoji.replace(/:/g, '') }, 'POST');
           return { ok: true, emoji, channel, timestamp };
         },
       },
-
     ];
   }
 }

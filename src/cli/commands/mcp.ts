@@ -9,7 +9,7 @@ const CLAUDE_DESKTOP_CONFIG = path.join(
     ? 'Library/Application Support/Claude/claude_desktop_config.json'
     : process.platform === 'win32'
       ? 'AppData/Roaming/Claude/claude_desktop_config.json'
-      : '.config/Claude/claude_desktop_config.json'
+      : '.config/Claude/claude_desktop_config.json',
 );
 
 export async function mcpSetup(conductor: Conductor): Promise<void> {
@@ -66,10 +66,7 @@ export async function mcpStatus(_conductor: Conductor): Promise<void> {
 
 export async function mcpStart(_conductor: Conductor): Promise<void> {
   // Start in MCP stdio mode — quiet to avoid polluting stdout
-  const quietConductor = new (await import('../../core/conductor.js')).Conductor(
-    undefined,
-    { quiet: true }
-  );
+  const quietConductor = new (await import('../../core/conductor.js')).Conductor(undefined, { quiet: true });
   await quietConductor.initialize();
 
   // Import and start MCP server (writes JSON-RPC to stdout)

@@ -39,8 +39,7 @@ const _SCOPES = [
 
 export class SpotifyPlugin implements Plugin {
   name = 'spotify';
-  description =
-    'Full Spotify control — playback, search, playlists, queue, recommendations, top tracks';
+  description = 'Full Spotify control — playback, search, playlists, queue, recommendations, top tracks';
   version = '1.0.0';
 
   configSchema = {
@@ -50,7 +49,7 @@ export class SpotifyPlugin implements Plugin {
         label: 'Spotify Client ID',
         type: 'string' as const,
         required: true,
-        secret: false
+        secret: false,
       },
       {
         key: 'client_secret',
@@ -58,10 +57,11 @@ export class SpotifyPlugin implements Plugin {
         type: 'password' as const,
         required: true,
         secret: true,
-        service: 'spotify'
-      }
+        service: 'spotify',
+      },
     ],
-    setupInstructions: 'Create an app in the Spotify Developer Dashboard. Set Redirect URI to http://localhost:8888/callback'
+    setupInstructions:
+      'Create an app in the Spotify Developer Dashboard. Set Redirect URI to http://localhost:8888/callback',
   };
 
   private keychain!: Keychain;
@@ -83,8 +83,8 @@ export class SpotifyPlugin implements Plugin {
     if (!token) {
       throw new Error(
         'Spotify not authenticated.\n' +
-        'Run: conductor plugins auth spotify\n' +
-        'Or manually set: conductor plugins config spotify access_token <TOKEN>'
+          'Run: conductor plugins auth spotify\n' +
+          'Or manually set: conductor plugins config spotify access_token <TOKEN>',
       );
     }
     return token;
@@ -122,7 +122,7 @@ export class SpotifyPlugin implements Plugin {
   private async spotifyFetch(
     path: string,
     options: { method?: string; body?: any; params?: Record<string, string> } = {},
-    retry = true
+    retry = true,
   ): Promise<any> {
     const token = await this.getToken();
     const url = new URL(`${SPOTIFY_BASE}${path}`);
@@ -477,9 +477,7 @@ export class SpotifyPlugin implements Plugin {
           });
           return {
             total: data.total ?? 0,
-            tracks: (data.items ?? [])
-              .filter((i: any) => i.track)
-              .map((i: any) => this.formatTrack(i.track)),
+            tracks: (data.items ?? []).filter((i: any) => i.track).map((i: any) => this.formatTrack(i.track)),
           };
         },
       },
@@ -535,8 +533,7 @@ export class SpotifyPlugin implements Plugin {
       // ── spotify_recommendations ────────────────────────────────────────────
       {
         name: 'spotify_recommendations',
-        description:
-          'Get personalized track recommendations based on seed tracks, artists, or genres',
+        description: 'Get personalized track recommendations based on seed tracks, artists, or genres',
         inputSchema: {
           type: 'object',
           properties: {

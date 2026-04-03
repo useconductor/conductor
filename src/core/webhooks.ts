@@ -172,10 +172,7 @@ export class WebhookManager {
       data: event.data,
     });
 
-    const signature = crypto
-      .createHmac('sha256', subscription.secret)
-      .update(payload)
-      .digest('hex');
+    const signature = crypto.createHmac('sha256', subscription.secret).update(payload).digest('hex');
 
     try {
       const controller = new AbortController();

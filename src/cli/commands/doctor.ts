@@ -35,7 +35,12 @@ export async function doctor(conductor: Conductor): Promise<void> {
   if (major >= 18) {
     checks.push({ name: 'Node.js', status: 'ok', message: `${nodeVersion}` });
   } else if (major >= 16) {
-    checks.push({ name: 'Node.js', status: 'warning', message: `${nodeVersion} (upgrade to 18+ recommended)`, fix: 'nvm install 18' });
+    checks.push({
+      name: 'Node.js',
+      status: 'warning',
+      message: `${nodeVersion} (upgrade to 18+ recommended)`,
+      fix: 'nvm install 18',
+    });
   } else {
     checks.push({ name: 'Node.js', status: 'error', message: `${nodeVersion} (requires 18+)`, fix: 'nvm install 18' });
   }
@@ -47,7 +52,12 @@ export async function doctor(conductor: Conductor): Promise<void> {
     await fs.access(configDir);
     checks.push({ name: 'Config directory', status: 'ok', message: configDir });
   } catch {
-    checks.push({ name: 'Config directory', status: 'error', message: `${configDir} does not exist`, fix: `mkdir -p ${configDir}` });
+    checks.push({
+      name: 'Config directory',
+      status: 'error',
+      message: `${configDir} does not exist`,
+      fix: `mkdir -p ${configDir}`,
+    });
   }
 
   // Config file
@@ -58,7 +68,12 @@ export async function doctor(conductor: Conductor): Promise<void> {
     checks.push({ name: 'Config file', status: 'ok', message: configFile });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    checks.push({ name: 'Config file', status: 'warning', message: `Not found or invalid: ${msg}`, fix: 'Run: conductor ai setup' });
+    checks.push({
+      name: 'Config file',
+      status: 'warning',
+      message: `Not found or invalid: ${msg}`,
+      fix: 'Run: conductor ai setup',
+    });
   }
 
   // Keychain
@@ -68,7 +83,12 @@ export async function doctor(conductor: Conductor): Promise<void> {
     const files = await fs.readdir(keychainDir);
     checks.push({ name: 'Keychain', status: 'ok', message: `${files.length} credentials stored` });
   } catch {
-    checks.push({ name: 'Keychain', status: 'warning', message: 'Not initialized', fix: 'Run: conductor ai setup or conductor auth google' });
+    checks.push({
+      name: 'Keychain',
+      status: 'warning',
+      message: 'Not initialized',
+      fix: 'Run: conductor ai setup or conductor auth google',
+    });
   }
 
   // AI Provider
@@ -82,9 +102,18 @@ export async function doctor(conductor: Conductor): Promise<void> {
   // Enabled plugins
   const enabledPlugins = conductor.getConfig().get<string[]>('plugins.enabled') || [];
   if (enabledPlugins.length > 0) {
-    checks.push({ name: 'Plugins', status: 'ok', message: `${enabledPlugins.length} enabled: ${enabledPlugins.join(', ')}` });
+    checks.push({
+      name: 'Plugins',
+      status: 'ok',
+      message: `${enabledPlugins.length} enabled: ${enabledPlugins.join(', ')}`,
+    });
   } else {
-    checks.push({ name: 'Plugins', status: 'warning', message: 'No plugins enabled', fix: 'Run: conductor plugins enable <name>' });
+    checks.push({
+      name: 'Plugins',
+      status: 'warning',
+      message: 'No plugins enabled',
+      fix: 'Run: conductor plugins enable <name>',
+    });
   }
 
   // Disk space
@@ -97,11 +126,24 @@ export async function doctor(conductor: Conductor): Promise<void> {
     if (homeFs) {
       const usedPercent = homeFs.use;
       if (usedPercent > 90) {
-        checks.push({ name: 'Disk space', status: 'error', message: `${usedPercent.toFixed(1)}% used on ${homeFs.mount}`, fix: 'Free up disk space' });
+        checks.push({
+          name: 'Disk space',
+          status: 'error',
+          message: `${usedPercent.toFixed(1)}% used on ${homeFs.mount}`,
+          fix: 'Free up disk space',
+        });
       } else if (usedPercent > 80) {
-        checks.push({ name: 'Disk space', status: 'warning', message: `${usedPercent.toFixed(1)}% used on ${homeFs.mount}` });
+        checks.push({
+          name: 'Disk space',
+          status: 'warning',
+          message: `${usedPercent.toFixed(1)}% used on ${homeFs.mount}`,
+        });
       } else {
-        checks.push({ name: 'Disk space', status: 'ok', message: `${usedPercent.toFixed(1)}% used on ${homeFs.mount}` });
+        checks.push({
+          name: 'Disk space',
+          status: 'ok',
+          message: `${usedPercent.toFixed(1)}% used on ${homeFs.mount}`,
+        });
       }
     }
   } catch {
@@ -112,9 +154,18 @@ export async function doctor(conductor: Conductor): Promise<void> {
   const envVars = ['CLAUDE_API_KEY', 'OPENAI_API_KEY', 'GEMINI_API_KEY', 'GITHUB_TOKEN'];
   const setVars = envVars.filter((v) => process.env[v]);
   if (setVars.length > 0) {
-    checks.push({ name: 'Environment', status: 'ok', message: `${setVars.length} env vars set: ${setVars.join(', ')}` });
+    checks.push({
+      name: 'Environment',
+      status: 'ok',
+      message: `${setVars.length} env vars set: ${setVars.join(', ')}`,
+    });
   } else {
-    checks.push({ name: 'Environment', status: 'warning', message: 'No API keys in environment', fix: 'Add keys to .env or run conductor ai setup' });
+    checks.push({
+      name: 'Environment',
+      status: 'warning',
+      message: 'No API keys in environment',
+      fix: 'Add keys to .env or run conductor ai setup',
+    });
   }
 
   // Audit log integrity
@@ -125,7 +176,12 @@ export async function doctor(conductor: Conductor): Promise<void> {
     if (integrity.valid) {
       checks.push({ name: 'Audit log', status: 'ok', message: 'Integrity verified' });
     } else {
-      checks.push({ name: 'Audit log', status: 'error', message: `Integrity broken at ${integrity.brokenAt}`, fix: 'Audit log may have been tampered with' });
+      checks.push({
+        name: 'Audit log',
+        status: 'error',
+        message: `Integrity broken at ${integrity.brokenAt}`,
+        fix: 'Audit log may have been tampered with',
+      });
     }
     await audit.close();
   } catch {

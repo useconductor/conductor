@@ -7,7 +7,9 @@ export class TranslatePlugin implements Plugin {
   version = '1.0.0';
 
   async initialize(_conductor: Conductor): Promise<void> {}
-  isConfigured(): boolean { return true; }
+  isConfigured(): boolean {
+    return true;
+  }
 
   getTools(): PluginTool[] {
     return [
@@ -27,10 +29,10 @@ export class TranslatePlugin implements Plugin {
           const from = input.from || 'auto';
           const pair = `${from}|${input.to}`;
           const res = await fetch(
-            `https://api.mymemory.translated.net/get?q=${encodeURIComponent(input.text)}&langpair=${encodeURIComponent(pair)}`
+            `https://api.mymemory.translated.net/get?q=${encodeURIComponent(input.text)}&langpair=${encodeURIComponent(pair)}`,
           );
           if (!res.ok) throw new Error(`Translation API error: ${res.statusText}`);
-          const data = await res.json() as any;
+          const data = (await res.json()) as any;
           return {
             original: input.text,
             translated: data.responseData?.translatedText || 'Translation failed',

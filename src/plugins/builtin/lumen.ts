@@ -98,7 +98,10 @@ async function executeTool(name: string, args: unknown): Promise<string> {
   if (name === 'run_shell') {
     const parsed = RunShellArgsSchema.safeParse(args);
     if (!parsed.success) {
-      return JSON.stringify({ error: `Invalid run_shell args: ${parsed.error.issues.map(i => i.message).join(', ')}`, returncode: 1 });
+      return JSON.stringify({
+        error: `Invalid run_shell args: ${parsed.error.issues.map((i) => i.message).join(', ')}`,
+        returncode: 1,
+      });
     }
     const { command, working_dir, timeout } = parsed.data;
     try {
@@ -120,7 +123,10 @@ async function executeTool(name: string, args: unknown): Promise<string> {
   if (name === 'read_file') {
     const parsed = ReadFileArgsSchema.safeParse(args);
     if (!parsed.success) {
-      return JSON.stringify({ error: `Invalid read_file args: ${parsed.error.issues.map(i => i.message).join(', ')}`, success: false });
+      return JSON.stringify({
+        error: `Invalid read_file args: ${parsed.error.issues.map((i) => i.message).join(', ')}`,
+        success: false,
+      });
     }
     try {
       const content = await readFile(parsed.data.path, 'utf8');
@@ -133,7 +139,10 @@ async function executeTool(name: string, args: unknown): Promise<string> {
   if (name === 'write_file') {
     const parsed = WriteFileArgsSchema.safeParse(args);
     if (!parsed.success) {
-      return JSON.stringify({ error: `Invalid write_file args: ${parsed.error.issues.map(i => i.message).join(', ')}`, success: false });
+      return JSON.stringify({
+        error: `Invalid write_file args: ${parsed.error.issues.map((i) => i.message).join(', ')}`,
+        success: false,
+      });
     }
     const { path, content } = parsed.data;
     try {
@@ -152,7 +161,7 @@ export async function runLumenAgent(
   task: string,
   endpoint: string,
   model: string,
-  maxIterations = 10
+  maxIterations = 10,
 ): Promise<{ result: string; iterations: number; toolCalls: string[] }> {
   const messages: OllamaMessage[] = [
     { role: 'system', content: LUMEN_SYSTEM },
@@ -221,7 +230,8 @@ export async function runLumenAgent(
 
 export class LumenPlugin implements Plugin {
   name = 'lumen';
-  description = 'Lumen — agentic AI coding assistant by TheAlxLabs. Writes code, runs shell commands, uses git/GitHub autonomously.';
+  description =
+    'Lumen — agentic AI coding assistant by TheAlxLabs. Writes code, runs shell commands, uses git/GitHub autonomously.';
   version = '1.0.0';
 
   private endpoint = 'http://localhost:11434';
@@ -262,17 +272,13 @@ Lumen Setup:
     // Verify Ollama is reachable
     const ok = await this.ping();
     if (!ok) {
-      throw new Error(
-        `Lumen: Cannot reach Ollama at ${this.endpoint}. Run: ollama serve`
-      );
+      throw new Error(`Lumen: Cannot reach Ollama at ${this.endpoint}. Run: ollama serve`);
     }
 
     // Check if the model exists
     const models = await this.listModels();
-    if (!models.some(m => m.includes(this.model))) {
-      throw new Error(
-        `Lumen: Model "${this.model}" not found in Ollama. Run: ollama pull thealxlabs/lumen`
-      );
+    if (!models.some((m) => m.includes(this.model))) {
+      throw new Error(`Lumen: Model "${this.model}" not found in Ollama. Run: ollama pull thealxlabs/lumen`);
     }
   }
 
@@ -326,7 +332,7 @@ Lumen Setup:
             input.task,
             this.endpoint,
             this.model,
-            input.max_iterations || 10
+            input.max_iterations || 10,
           );
           return { result, iterations, toolCalls };
         },
@@ -349,7 +355,7 @@ Lumen Setup:
           const { result, toolCalls } = await runLumenAgent(
             `Stage all changes and commit with message: "${input.message}". Working directory: ${cwd}`,
             this.endpoint,
-            this.model
+            this.model,
           );
           return { result, toolCalls };
         },
@@ -370,7 +376,7 @@ Lumen Setup:
           const { result, toolCalls } = await runLumenAgent(
             `Push the current branch to origin. Working directory: ${cwd}`,
             this.endpoint,
-            this.model
+            this.model,
           );
           return { result, toolCalls };
         },
@@ -391,7 +397,7 @@ Lumen Setup:
           const { result, toolCalls } = await runLumenAgent(
             `Show git status and a brief summary of changes. Working directory: ${cwd}`,
             this.endpoint,
-            this.model
+            this.model,
           );
           return { result, toolCalls };
         },
@@ -415,7 +421,7 @@ Lumen Setup:
           const { result, toolCalls } = await runLumenAgent(
             `Investigate and fix this bug: ${input.description}\nWorking directory: ${cwd}`,
             this.endpoint,
-            this.model
+            this.model,
           );
           return { result, toolCalls };
         },
@@ -437,7 +443,7 @@ Lumen Setup:
           const { result, toolCalls } = await runLumenAgent(
             `Write a file at "${input.path}" with these requirements: ${input.requirements}`,
             this.endpoint,
-            this.model
+            this.model,
           );
           return { result, toolCalls };
         },
@@ -461,7 +467,7 @@ Lumen Setup:
           const { result, toolCalls } = await runLumenAgent(
             `${input.task}\nWorking directory: ${cwd}`,
             this.endpoint,
-            this.model
+            this.model,
           );
           return { result, toolCalls };
         },
@@ -476,7 +482,7 @@ Lumen Setup:
           const ok = await this.ping();
           if (!ok) return { status: 'offline', endpoint: this.endpoint };
           const models = await this.listModels();
-          const hasLumen = models.some(m => m.includes(this.model));
+          const hasLumen = models.some((m) => m.includes(this.model));
           return {
             status: hasLumen ? 'ready' : 'ollama_running_but_model_missing',
             model: this.model,

@@ -41,9 +41,7 @@ export function getBuiltinTools(conductor: Conductor): MCPTool[] {
 }
 
 /** Get tools from enabled plugins only (not all registered plugins). */
-export async function getPluginTools(
-  pluginManager: PluginManager
-): Promise<MCPTool[]> {
+export async function getPluginTools(pluginManager: PluginManager): Promise<MCPTool[]> {
   // Only returns tools from plugins that are both enabled AND initialized
   const pluginTools = await pluginManager.getEnabledTools();
 
@@ -56,10 +54,7 @@ export async function getPluginTools(
 }
 
 /** Get all available MCP tools (builtin + enabled plugins). */
-export async function getAllTools(
-  conductor: Conductor,
-  pluginManager: PluginManager
-): Promise<MCPTool[]> {
+export async function getAllTools(conductor: Conductor, pluginManager: PluginManager): Promise<MCPTool[]> {
   const builtin = getBuiltinTools(conductor);
   const pluginTools = await getPluginTools(pluginManager);
   return [...builtin, ...pluginTools];

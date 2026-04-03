@@ -29,9 +29,9 @@ export class GoogleCalendarPlugin implements Plugin {
         required: true,
         secret: true,
         service: 'google',
-        description: 'Shared with Gmail plugin. Run "conductor auth google" to setup.'
-      }
-    ]
+        description: 'Shared with Gmail plugin. Run "conductor auth google" to setup.',
+      },
+    ],
   };
 
   private keychain!: Keychain;
@@ -40,7 +40,9 @@ export class GoogleCalendarPlugin implements Plugin {
     this.keychain = new Keychain(conductor.getConfig().getConfigDir());
   }
 
-  isConfigured(): boolean { return true; }
+  isConfigured(): boolean {
+    return true;
+  }
 
   async getContext(): Promise<string | null> {
     try {
@@ -48,7 +50,7 @@ export class GoogleCalendarPlugin implements Plugin {
       const endOfDay = new Date(now);
       endOfDay.setHours(23, 59, 59, 999);
       const data = await this.calFetch(
-        `/calendars/primary/events?timeMin=${encodeURIComponent(now.toISOString())}&timeMax=${encodeURIComponent(endOfDay.toISOString())}&singleEvents=true&orderBy=startTime&maxResults=5`
+        `/calendars/primary/events?timeMin=${encodeURIComponent(now.toISOString())}&timeMax=${encodeURIComponent(endOfDay.toISOString())}&singleEvents=true&orderBy=startTime&maxResults=5`,
       );
       const events = data?.items ?? [];
       if (events.length === 0) return null;
@@ -166,9 +168,7 @@ export class GoogleCalendarPlugin implements Plugin {
           if (timeMax) params.set('timeMax', timeMax);
           if (q) params.set('q', q);
 
-          const res = await this.calFetch(
-            `/calendars/${encodeURIComponent(calendarId)}/events?${params}`
-          );
+          const res = await this.calFetch(`/calendars/${encodeURIComponent(calendarId)}/events?${params}`);
           return {
             count: res.items?.length ?? 0,
             timeZone: res.timeZone ?? '',
@@ -191,7 +191,7 @@ export class GoogleCalendarPlugin implements Plugin {
         },
         handler: async ({ eventId, calendarId = 'primary' }: any) => {
           const e = await this.calFetch(
-            `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`
+            `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
           );
           return this.formatEvent(e);
         },
@@ -238,10 +238,10 @@ export class GoogleCalendarPlugin implements Plugin {
             end: allDay ? { date: end.split('T')[0] } : { dateTime: end },
           };
 
-          const e = await this.calFetch(
-            `/calendars/${encodeURIComponent(calendarId)}/events`,
-            { method: 'POST', body }
-          );
+          const e = await this.calFetch(`/calendars/${encodeURIComponent(calendarId)}/events`, {
+            method: 'POST',
+            body,
+          });
           return { created: true, ...this.formatEvent(e) };
         },
       },
@@ -274,7 +274,7 @@ export class GoogleCalendarPlugin implements Plugin {
 
           const e = await this.calFetch(
             `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
-            { method: 'PATCH', body: patch }
+            { method: 'PATCH', body: patch },
           );
           return { updated: true, ...this.formatEvent(e) };
         },
@@ -294,10 +294,9 @@ export class GoogleCalendarPlugin implements Plugin {
           required: ['eventId'],
         },
         handler: async ({ eventId, calendarId = 'primary' }: any) => {
-          await this.calFetch(
-            `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
-            { method: 'DELETE' }
-          );
+          await this.calFetch(`/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`, {
+            method: 'DELETE',
+          });
           return { deleted: true, eventId };
         },
       },

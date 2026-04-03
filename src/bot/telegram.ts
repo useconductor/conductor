@@ -28,14 +28,11 @@ export class TelegramBot {
     }
 
     if (!token) {
-      throw new Error(
-        'Telegram bot token not found. Run the installer or set it with: conductor telegram setup'
-      );
+      throw new Error('Telegram bot token not found. Run the installer or set it with: conductor telegram setup');
     }
 
     // Load authorized user ID from config (set during install verification)
-    this.authorizedUserId =
-      this.conductor.getConfig().get<number>('telegram.user_id') ?? null;
+    this.authorizedUserId = this.conductor.getConfig().get<number>('telegram.user_id') ?? null;
 
     this.bot = new Telegraf(token);
 
@@ -69,9 +66,7 @@ export class TelegramBot {
     });
 
     this.bot.command('start', async (ctx) => {
-      await ctx.reply(
-        '👋 Conductor is online.\n\nSend me a message and I\'ll route it through your AI provider.'
-      );
+      await ctx.reply("👋 Conductor is online.\n\nSend me a message and I'll route it through your AI provider.");
     });
 
     this.bot.command('status', async (ctx) => {
@@ -81,9 +76,9 @@ export class TelegramBot {
 
       await ctx.reply(
         `📊 Status:\n` +
-        `AI: ${provider}\n` +
-        `Plugins: ${plugins.length > 0 ? plugins.join(', ') : 'none'}\n` +
-        `User: ${config.get<string>('user.name') || 'not set'}`
+          `AI: ${provider}\n` +
+          `Plugins: ${plugins.length > 0 ? plugins.join(', ') : 'none'}\n` +
+          `User: ${config.get<string>('user.name') || 'not set'}`,
       );
     });
 
@@ -159,10 +154,10 @@ export class TelegramBot {
           inline_keyboard: [
             [
               { text: '✅ Approve', callback_data: `approve:${toolCallId}` },
-              { text: '❌ Deny', callback_data: `deny:${toolCallId}` }
-            ]
-          ]
-        }
+              { text: '❌ Deny', callback_data: `deny:${toolCallId}` },
+            ],
+          ],
+        },
       });
     } else {
       await ctx.reply(res.text);

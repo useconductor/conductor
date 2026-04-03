@@ -8,7 +8,9 @@ export class NetworkPlugin implements Plugin {
   version = '1.0.0';
 
   async initialize(_conductor: Conductor): Promise<void> {}
-  isConfigured(): boolean { return true; }
+  isConfigured(): boolean {
+    return true;
+  }
 
   getTools(): PluginTool[] {
     return [
@@ -27,14 +29,22 @@ export class NetworkPlugin implements Plugin {
           const t = (input.type || 'A').toUpperCase();
           try {
             switch (t) {
-              case 'A': return { domain: input.domain, type: t, records: await dns.resolve4(input.domain) };
-              case 'AAAA': return { domain: input.domain, type: t, records: await dns.resolve6(input.domain) };
-              case 'MX': return { domain: input.domain, type: t, records: await dns.resolveMx(input.domain) };
-              case 'TXT': return { domain: input.domain, type: t, records: await dns.resolveTxt(input.domain) };
-              case 'NS': return { domain: input.domain, type: t, records: await dns.resolveNs(input.domain) };
-              case 'CNAME': return { domain: input.domain, type: t, records: await dns.resolveCname(input.domain) };
-              case 'SOA': return { domain: input.domain, type: t, records: await dns.resolveSoa(input.domain) };
-              default: throw new Error(`Unsupported record type: ${t}`);
+              case 'A':
+                return { domain: input.domain, type: t, records: await dns.resolve4(input.domain) };
+              case 'AAAA':
+                return { domain: input.domain, type: t, records: await dns.resolve6(input.domain) };
+              case 'MX':
+                return { domain: input.domain, type: t, records: await dns.resolveMx(input.domain) };
+              case 'TXT':
+                return { domain: input.domain, type: t, records: await dns.resolveTxt(input.domain) };
+              case 'NS':
+                return { domain: input.domain, type: t, records: await dns.resolveNs(input.domain) };
+              case 'CNAME':
+                return { domain: input.domain, type: t, records: await dns.resolveCname(input.domain) };
+              case 'SOA':
+                return { domain: input.domain, type: t, records: await dns.resolveSoa(input.domain) };
+              default:
+                throw new Error(`Unsupported record type: ${t}`);
             }
           } catch (e: any) {
             return { domain: input.domain, type: t, error: e.code || e.message };
@@ -52,7 +62,9 @@ export class NetworkPlugin implements Plugin {
         },
         handler: async (input: { ip?: string }) => {
           const target = input.ip || '';
-          const res = await fetch(`http://ip-api.com/json/${target}?fields=status,message,country,regionName,city,zip,lat,lon,timezone,isp,org,as,query`);
+          const res = await fetch(
+            `http://ip-api.com/json/${target}?fields=status,message,country,regionName,city,zip,lat,lon,timezone,isp,org,as,query`,
+          );
           return await res.json();
         },
       },

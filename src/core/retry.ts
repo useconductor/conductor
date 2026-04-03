@@ -49,10 +49,7 @@ export async function withRetry<T>(fn: () => Promise<T>, options?: Partial<Retry
       }
 
       // Calculate delay with exponential backoff and jitter
-      const delay = Math.min(
-        opts.baseDelay * Math.pow(2, attempt - 1) + Math.random() * 1000,
-        opts.maxDelay,
-      );
+      const delay = Math.min(opts.baseDelay * Math.pow(2, attempt - 1) + Math.random() * 1000, opts.maxDelay);
 
       opts.onRetry?.(attempt, lastError, delay);
 

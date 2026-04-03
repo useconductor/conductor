@@ -26,8 +26,7 @@ import { Keychain } from '../../security/keychain.js';
 
 export class N8nPlugin implements Plugin {
   name = 'n8n';
-  description =
-    'Trigger and manage n8n workflows, inspect executions, fire webhooks — requires n8n API key';
+  description = 'Trigger and manage n8n workflows, inspect executions, fire webhooks — requires n8n API key';
   version = '1.0.0';
 
   configSchema = {
@@ -38,7 +37,7 @@ export class N8nPlugin implements Plugin {
         type: 'password' as const,
         required: true,
         secret: true,
-        service: 'n8n'
+        service: 'n8n',
       },
       {
         key: 'base_url',
@@ -46,10 +45,10 @@ export class N8nPlugin implements Plugin {
         type: 'string' as const,
         required: true,
         secret: false,
-        description: 'e.g. https://n8n.yourdomain.com'
-      }
+        description: 'e.g. https://n8n.yourdomain.com',
+      },
     ],
-    setupInstructions: 'Create an API Key in your n8n instance: Settings > API > Create Key.'
+    setupInstructions: 'Create an API Key in your n8n instance: Settings > API > Create Key.',
   };
 
   private keychain!: Keychain;
@@ -67,8 +66,8 @@ export class N8nPlugin implements Plugin {
     if (!apiKey) {
       throw new Error(
         'n8n API key not configured.\n' +
-        'Get one from your n8n instance: Settings → API → Create Key\n' +
-        'Then run: conductor plugins config n8n api_key <KEY>'
+          'Get one from your n8n instance: Settings → API → Create Key\n' +
+          'Then run: conductor plugins config n8n api_key <KEY>',
       );
     }
     const rawUrl = await this.keychain.get('n8n', 'base_url');
@@ -79,7 +78,7 @@ export class N8nPlugin implements Plugin {
 
   private async n8nFetch(
     path: string,
-    options: { method?: string; body?: any; params?: Record<string, string> } = {}
+    options: { method?: string; body?: any; params?: Record<string, string> } = {},
   ): Promise<any> {
     const { apiKey, baseUrl } = await this.getConfig();
     const url = new URL(`${baseUrl}${path}`);
@@ -109,7 +108,7 @@ export class N8nPlugin implements Plugin {
     webhookUrl: string,
     method: string,
     body?: any,
-    headers?: Record<string, string>
+    headers?: Record<string, string>,
   ): Promise<any> {
     const res = await fetch(webhookUrl, {
       method,
@@ -147,7 +146,7 @@ export class N8nPlugin implements Plugin {
       id: e.id,
       workflowId: e.workflowId,
       workflowName: e.workflowData?.name ?? null,
-      status: e.status ?? e.finished ? 'success' : 'running',
+      status: (e.status ?? e.finished) ? 'success' : 'running',
       mode: e.mode ?? 'unknown',
       startedAt: e.startedAt ?? null,
       stoppedAt: e.stoppedAt ?? null,
@@ -158,8 +157,8 @@ export class N8nPlugin implements Plugin {
   }
 
   private detectTriggerType(nodes: any[]): string {
-    const triggerNode = nodes.find((n: any) =>
-      n.type?.includes('Trigger') || n.type?.includes('Webhook') || n.type?.includes('Cron')
+    const triggerNode = nodes.find(
+      (n: any) => n.type?.includes('Trigger') || n.type?.includes('Webhook') || n.type?.includes('Cron'),
     );
     if (!triggerNode) return 'manual';
     if (triggerNode.type?.includes('Webhook')) return 'webhook';
@@ -169,9 +168,7 @@ export class N8nPlugin implements Plugin {
   }
 
   private extractWebhookPath(nodes: any[]): string | null {
-    const webhookNode = nodes.find(
-      (n: any) => n.type === 'n8n-nodes-base.webhook' || n.type?.includes('Webhook')
-    );
+    const webhookNode = nodes.find((n: any) => n.type === 'n8n-nodes-base.webhook' || n.type?.includes('Webhook'));
     return webhookNode?.parameters?.path ?? webhookNode?.parameters?.webhookId ?? null;
   }
 
@@ -444,9 +441,7 @@ export class N8nPlugin implements Plugin {
               node: nodeName,
               itemCount: outputData.length,
               error: lastRun?.error?.message ?? null,
-              sample: outputData[0]?.json
-                ? JSON.stringify(outputData[0].json).slice(0, 500)
-                : null,
+              sample: outputData[0]?.json ? JSON.stringify(outputData[0].json).slice(0, 500) : null,
             };
           });
 
@@ -553,24 +548,15 @@ export class N8nPlugin implements Plugin {
         description: 'Check n8n instance health, version, and queue metrics',
         inputSchema: { type: 'object', properties: {} },
         handler: async () => {
-          const [health, version] = await Promise.allSettled([
-            this.n8nFetch('/health'),
-            this.n8nFetch('/version'),
-          ]);
+          const [health, version] = await Promise.allSettled([this.n8nFetch('/health'), this.n8nFetch('/version')]);
 
           const { baseUrl } = await this.getConfig();
 
           return {
             instanceUrl: baseUrl.replace('/api/v1', ''),
             healthy: health.status === 'fulfilled',
-            version:
-              version.status === 'fulfilled'
-                ? (version.value as any).version ?? 'unknown'
-                : 'unknown',
-            status:
-              health.status === 'fulfilled'
-                ? ((health.value as any).status ?? 'ok')
-                : 'unreachable',
+            version: version.status === 'fulfilled' ? ((version.value as any).version ?? 'unknown') : 'unknown',
+            status: health.status === 'fulfilled' ? ((health.value as any).status ?? 'ok') : 'unreachable',
           };
         },
       },

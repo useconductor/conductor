@@ -33,10 +33,11 @@ export class GmailPlugin implements Plugin {
         required: true,
         secret: true,
         service: 'google',
-        description: 'Run "conductor auth google" to obtain this automatically.'
-      }
+        description: 'Run "conductor auth google" to obtain this automatically.',
+      },
     ],
-    setupInstructions: 'Authentication for Google services is best handled via the CLI command `conductor auth google` which manages OAuth flows securely.'
+    setupInstructions:
+      'Authentication for Google services is best handled via the CLI command `conductor auth google` which manages OAuth flows securely.',
   };
 
   private keychain!: Keychain;
@@ -65,17 +66,12 @@ export class GmailPlugin implements Plugin {
   private async getToken(): Promise<string> {
     const token = await this.keychain.get('google', 'access_token');
     if (!token) {
-      throw new Error(
-        'Google not authenticated. Run: conductor auth google'
-      );
+      throw new Error('Google not authenticated. Run: conductor auth google');
     }
     return token;
   }
 
-  private async gmailFetch(
-    path: string,
-    options: { method?: string; body?: any } = {}
-  ): Promise<any> {
+  private async gmailFetch(path: string, options: { method?: string; body?: any } = {}): Promise<any> {
     const token = await this.getToken();
     const res = await fetch(`${GMAIL_BASE}${path}`, {
       method: options.method ?? 'GET',
@@ -182,7 +178,7 @@ export class GmailPlugin implements Plugin {
           const emails = await Promise.all(
             list.messages.map(async (msg: any) => {
               const m = await this.gmailFetch(
-                `/messages/${msg.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`
+                `/messages/${msg.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`,
               );
               const h = m.payload?.headers ?? [];
               return {
@@ -194,7 +190,7 @@ export class GmailPlugin implements Plugin {
                 snippet: m.snippet,
                 unread: m.labelIds?.includes('UNREAD') ?? false,
               };
-            })
+            }),
           );
 
           return { count: emails.length, emails };
@@ -255,7 +251,7 @@ export class GmailPlugin implements Plugin {
           const emails = await Promise.all(
             list.messages.map(async (msg: any) => {
               const m = await this.gmailFetch(
-                `/messages/${msg.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`
+                `/messages/${msg.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`,
               );
               const h = m.payload?.headers ?? [];
               return {
@@ -267,7 +263,7 @@ export class GmailPlugin implements Plugin {
                 snippet: m.snippet,
                 unread: m.labelIds?.includes('UNREAD') ?? false,
               };
-            })
+            }),
           );
 
           return { count: emails.length, emails };
@@ -313,7 +309,7 @@ export class GmailPlugin implements Plugin {
         handler: async ({ messageId, body }: any) => {
           // Fetch original to get headers for reply
           const orig = await this.gmailFetch(
-            `/messages/${messageId}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Message-ID`
+            `/messages/${messageId}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Message-ID`,
           );
           const h = orig.payload?.headers ?? [];
           const to = this.getHeader(h, 'From');
@@ -344,9 +340,7 @@ export class GmailPlugin implements Plugin {
         handler: async ({ messageId, read }: any) => {
           await this.gmailFetch(`/messages/${messageId}/modify`, {
             method: 'POST',
-            body: read
-              ? { removeLabelIds: ['UNREAD'] }
-              : { addLabelIds: ['UNREAD'] },
+            body: read ? { removeLabelIds: ['UNREAD'] } : { addLabelIds: ['UNREAD'] },
           });
           return { success: true, messageId, read };
         },

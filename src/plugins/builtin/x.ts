@@ -45,7 +45,7 @@ export class XPlugin implements Plugin {
         type: 'password' as const,
         required: true,
         secret: true,
-        service: 'x'
+        service: 'x',
       },
       {
         key: 'api_key',
@@ -53,7 +53,7 @@ export class XPlugin implements Plugin {
         type: 'password' as const,
         required: true,
         secret: true,
-        service: 'x'
+        service: 'x',
       },
       {
         key: 'api_secret',
@@ -61,7 +61,7 @@ export class XPlugin implements Plugin {
         type: 'password' as const,
         required: true,
         secret: true,
-        service: 'x'
+        service: 'x',
       },
       {
         key: 'access_token',
@@ -69,7 +69,7 @@ export class XPlugin implements Plugin {
         type: 'password' as const,
         required: true,
         secret: true,
-        service: 'x'
+        service: 'x',
       },
       {
         key: 'access_secret',
@@ -77,10 +77,11 @@ export class XPlugin implements Plugin {
         type: 'password' as const,
         required: true,
         secret: true,
-        service: 'x'
-      }
+        service: 'x',
+      },
     ],
-    setupInstructions: 'Create a Project and App in developer.x.com. Enable "User authentication settings" with OAuth 1.0a permissions for write access.'
+    setupInstructions:
+      'Create a Project and App in developer.x.com. Enable "User authentication settings" with OAuth 1.0a permissions for write access.',
   };
 
   private keychain!: Keychain;
@@ -89,15 +90,17 @@ export class XPlugin implements Plugin {
     this.keychain = new Keychain(conductor.getConfig().getConfigDir());
   }
 
-  isConfigured(): boolean { return true; }
+  isConfigured(): boolean {
+    return true;
+  }
 
   private async getBearerToken(): Promise<string> {
     const token = await this.keychain.get('x', 'bearer_token');
     if (!token) {
       throw new Error(
         'X Bearer Token not configured.\n' +
-        'Get one at https://developer.x.com and run:\n' +
-        '  conductor plugins config x bearer_token <YOUR_TOKEN>'
+          'Get one at https://developer.x.com and run:\n' +
+          '  conductor plugins config x bearer_token <YOUR_TOKEN>',
       );
     }
     return token;
@@ -118,10 +121,10 @@ export class XPlugin implements Plugin {
     if (!apiKey || !apiSecret || !accessToken || !accessSecret) {
       throw new Error(
         'X write credentials not fully configured. Run:\n' +
-        '  conductor plugins config x api_key <KEY>\n' +
-        '  conductor plugins config x api_secret <SECRET>\n' +
-        '  conductor plugins config x access_token <TOKEN>\n' +
-        '  conductor plugins config x access_secret <SECRET>'
+          '  conductor plugins config x api_key <KEY>\n' +
+          '  conductor plugins config x api_secret <SECRET>\n' +
+          '  conductor plugins config x access_token <TOKEN>\n' +
+          '  conductor plugins config x access_secret <SECRET>',
       );
     }
     return { apiKey, apiSecret, accessToken, accessSecret };
@@ -141,9 +144,9 @@ export class XPlugin implements Plugin {
       if (!res.ok) {
         let errStr = res.statusText;
         try {
-          const errJSON = await res.json() as any;
+          const errJSON = (await res.json()) as any;
           errStr = errJSON.detail ?? errJSON.title ?? res.statusText;
-        } catch { }
+        } catch {}
         const error = new Error(`X API ${res.status}: ${errStr}`);
         (error as any).status = res.status;
         throw error;
@@ -155,7 +158,7 @@ export class XPlugin implements Plugin {
   private buildOAuthHeader(
     method: string,
     url: string,
-    creds: { apiKey: string; apiSecret: string; accessToken: string; accessSecret: string }
+    creds: { apiKey: string; apiSecret: string; accessToken: string; accessSecret: string },
   ): string {
     const nonce = crypto.randomBytes(16).toString('hex');
     const timestamp = Math.floor(Date.now() / 1000).toString();
@@ -175,17 +178,10 @@ export class XPlugin implements Plugin {
       .map((k) => `${encodeURIComponent(k)}=${encodeURIComponent(allParams[k])}`)
       .join('&');
 
-    const baseString = [
-      method.toUpperCase(),
-      encodeURIComponent(url),
-      encodeURIComponent(sortedParams),
-    ].join('&');
+    const baseString = [method.toUpperCase(), encodeURIComponent(url), encodeURIComponent(sortedParams)].join('&');
 
     const signingKey = `${encodeURIComponent(creds.apiSecret)}&${encodeURIComponent(creds.accessSecret)}`;
-    const signature = crypto
-      .createHmac('sha1', signingKey)
-      .update(baseString)
-      .digest('base64');
+    const signature = crypto.createHmac('sha1', signingKey).update(baseString).digest('base64');
 
     oauthParams['oauth_signature'] = signature;
 
@@ -213,9 +209,9 @@ export class XPlugin implements Plugin {
       if (!res.ok) {
         let errStr = res.statusText;
         try {
-          const errJSON = await res.json() as any;
+          const errJSON = (await res.json()) as any;
           errStr = errJSON.detail ?? errJSON.title ?? res.statusText;
-        } catch { }
+        } catch {}
         const error = new Error(`X API ${res.status}: ${errStr}`);
         (error as any).status = res.status;
         throw error;
@@ -229,9 +225,7 @@ export class XPlugin implements Plugin {
     return {
       id: t.id,
       text: t.text,
-      author: author
-        ? { id: author.id, username: author.username, name: author.name }
-        : { id: t.author_id },
+      author: author ? { id: author.id, username: author.username, name: author.name } : { id: t.author_id },
       createdAt: t.created_at ?? '',
       publicMetrics: t.public_metrics ?? {},
       url: t.author_id ? `https://x.com/i/web/status/${t.id}` : '',
@@ -243,8 +237,7 @@ export class XPlugin implements Plugin {
       // ── x_search ────────────────────────────────────────────────────────────
       {
         name: 'x_search',
-        description:
-          'Search recent tweets on X. Supports operators like from:user, #hashtag, -filter:retweets',
+        description: 'Search recent tweets on X. Supports operators like from:user, #hashtag, -filter:retweets',
         inputSchema: {
           type: 'object',
           properties: {
@@ -419,7 +412,7 @@ export class XPlugin implements Plugin {
             headers: { Authorization: authHeader },
           });
           if (!res.ok) throw new Error(`Delete failed: ${res.status} ${res.statusText}`);
-          const data = await res.json() as any;
+          const data = (await res.json()) as any;
           return { deleted: data.data?.deleted ?? true, tweetId };
         },
       },

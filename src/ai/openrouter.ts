@@ -28,13 +28,13 @@ export class OpenRouterProvider extends AIProvider {
 
     const requestTools: ChatCompletionTool[] | undefined = tools?.length
       ? tools.map((t) => ({
-        type: 'function',
-        function: {
-          name: t.name,
-          description: t.description,
-          parameters: t.inputSchema as any,
-        },
-      }))
+          type: 'function',
+          function: {
+            name: t.name,
+            description: t.description,
+            parameters: t.inputSchema as any,
+          },
+        }))
       : undefined;
 
     const formattedMessages: ChatCompletionMessageParam[] = messages.map((m) => {
@@ -58,7 +58,7 @@ export class OpenRouterProvider extends AIProvider {
       return {
         role: m.role as 'user' | 'assistant' | 'system',
         content: m.content,
-        ...(m.name ? { name: m.name } : {})
+        ...(m.name ? { name: m.name } : {}),
       };
     });
 
@@ -91,13 +91,13 @@ export class OpenRouterProvider extends AIProvider {
 
     const requestTools: ChatCompletionTool[] | undefined = tools?.length
       ? tools.map((t) => ({
-        type: 'function',
-        function: {
-          name: t.name,
-          description: t.description,
-          parameters: t.inputSchema as any,
-        },
-      }))
+          type: 'function',
+          function: {
+            name: t.name,
+            description: t.description,
+            parameters: t.inputSchema as any,
+          },
+        }))
       : undefined;
 
     const formattedMessages: ChatCompletionMessageParam[] = messages.map((m) => {
@@ -121,7 +121,7 @@ export class OpenRouterProvider extends AIProvider {
       return {
         role: m.role as 'user' | 'assistant' | 'system',
         content: m.content,
-        ...(m.name ? { name: m.name } : {})
+        ...(m.name ? { name: m.name } : {}),
       };
     });
 

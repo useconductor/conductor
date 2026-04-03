@@ -35,10 +35,11 @@ export class NotionPlugin implements Plugin {
         required: true,
         secret: true,
         service: 'notion',
-        description: 'Copy your token (starts with ntn_) from Notion Developer portal.'
-      }
+        description: 'Copy your token (starts with ntn_) from Notion Developer portal.',
+      },
     ],
-    setupInstructions: '1. Visit Notion Settings > My integrations. 2. Create a new "Internal Integration". 3. Copy the token. 4. Ensure you "Connect" the integration to the pages you want Conductor to access.'
+    setupInstructions:
+      '1. Visit Notion Settings > My integrations. 2. Create a new "Internal Integration". 3. Copy the token. 4. Ensure you "Connect" the integration to the pages you want Conductor to access.',
   };
 
   private keychain!: Keychain;
@@ -47,23 +48,28 @@ export class NotionPlugin implements Plugin {
     this.keychain = new Keychain(conductor.getConfig().getConfigDir());
   }
 
-  isConfigured(): boolean { return true; }
+  isConfigured(): boolean {
+    return true;
+  }
 
   private async getToken(): Promise<string> {
     const token = await this.keychain.get('notion', 'api_key');
     if (!token) {
       throw new Error(
         'Notion not configured. Get your integration token from https://www.notion.so/my-integrations\n' +
-        'Then run: conductor plugins config notion token <YOUR_TOKEN>'
+          'Then run: conductor plugins config notion token <YOUR_TOKEN>',
       );
     }
     return token;
   }
 
-  private async notionFetch(path: string, options: {
-    method?: string;
-    body?: any;
-  } = {}): Promise<any> {
+  private async notionFetch(
+    path: string,
+    options: {
+      method?: string;
+      body?: any;
+    } = {},
+  ): Promise<any> {
     const token = await this.getToken();
     const res = await fetch(`${NOTION_BASE}${path}`, {
       method: options.method ?? 'GET',
@@ -75,7 +81,7 @@ export class NotionPlugin implements Plugin {
       body: options.body ? JSON.stringify(options.body) : undefined,
     });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ message: res.statusText })) as any;
+      const err = (await res.json().catch(() => ({ message: res.statusText }))) as any;
       throw new Error(`Notion API ${res.status}: ${err.message ?? res.statusText}`);
     }
     return res.json();
@@ -98,11 +104,7 @@ export class NotionPlugin implements Plugin {
   /** Format a page for clean output */
   private formatPage(page: any) {
     const props = page.properties ?? {};
-    const titleProp: any =
-      props.title ??
-      props.Name ??
-      Object.values(props).find((p: any) => p.type === 'title') ??
-      {};
+    const titleProp: any = props.title ?? props.Name ?? Object.values(props).find((p: any) => p.type === 'title') ?? {};
     const title = this.richText(titleProp.title ?? []);
     return {
       id: page.id,
@@ -111,11 +113,12 @@ export class NotionPlugin implements Plugin {
       createdTime: page.created_time ?? '',
       lastEditedTime: page.last_edited_time ?? '',
       archived: page.archived ?? false,
-      parent: page.parent?.type === 'database_id'
-        ? { type: 'database', id: page.parent.database_id }
-        : page.parent?.type === 'page_id'
-          ? { type: 'page', id: page.parent.page_id }
-          : { type: 'workspace' },
+      parent:
+        page.parent?.type === 'database_id'
+          ? { type: 'database', id: page.parent.database_id }
+          : page.parent?.type === 'page_id'
+            ? { type: 'page', id: page.parent.page_id }
+            : { type: 'workspace' },
     };
   }
 
@@ -210,7 +213,8 @@ export class NotionPlugin implements Plugin {
               if (type === 'numbered_list_item') return `1. ${text}`;
               if (type === 'to_do') return `[${b.to_do?.checked ? 'x' : ' '}] ${text}`;
               if (type === 'divider') return '---';
-              if (type === 'code') return `\`\`\`${b.code?.language ?? ''}\n${this.richText(b.code?.rich_text ?? [])}\n\`\`\``;
+              if (type === 'code')
+                return `\`\`\`${b.code?.language ?? ''}\n${this.richText(b.code?.rich_text ?? [])}\n\`\`\``;
               return text;
             })
             .filter(Boolean)
@@ -250,9 +254,7 @@ export class NotionPlugin implements Plugin {
             throw new Error('Provide either parentPageId or parentDatabaseId.');
           }
 
-          const parent = parentDatabaseId
-            ? { database_id: parentDatabaseId }
-            : { page_id: parentPageId };
+          const parent = parentDatabaseId ? { database_id: parentDatabaseId } : { page_id: parentPageId };
 
           const titleProp = parentDatabaseId
             ? { Name: { title: [{ text: { content: title } }] } }
@@ -260,13 +262,13 @@ export class NotionPlugin implements Plugin {
 
           const children = content
             ? content
-              .split('\n')
-              .filter(Boolean)
-              .map((line: string) => ({
-                object: 'block',
-                type: 'paragraph',
-                paragraph: { rich_text: [{ text: { content: line } }] },
-              }))
+                .split('\n')
+                .filter(Boolean)
+                .map((line: string) => ({
+                  object: 'block',
+                  type: 'paragraph',
+                  paragraph: { rich_text: [{ text: { content: line } }] },
+                }))
             : [];
 
           const page = await this.notionFetch('/pages', {

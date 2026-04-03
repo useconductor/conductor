@@ -57,7 +57,8 @@ export class AuditLogger {
   async log(entry: Omit<AuditEntry, 'hash' | 'previousHash' | 'timestamp'>): Promise<void> {
     const timestamp = new Date().toISOString();
     const content = JSON.stringify({ ...entry, timestamp, previousHash: '' });
-    const hash = crypto.createHash('sha256')
+    const hash = crypto
+      .createHash('sha256')
       .update(this.lastHash + content)
       .digest('hex');
 
@@ -80,7 +81,13 @@ export class AuditLogger {
   /**
    * Convenience: log a tool call.
    */
-  async toolCall(actor: string, tool: string, input: unknown, result: 'success' | 'failure' | 'denied' | 'timeout', metadata: Record<string, unknown> = {}): Promise<void> {
+  async toolCall(
+    actor: string,
+    tool: string,
+    input: unknown,
+    result: 'success' | 'failure' | 'denied' | 'timeout',
+    metadata: Record<string, unknown> = {},
+  ): Promise<void> {
     await this.log({
       actor,
       action: 'tool_call',
@@ -106,7 +113,12 @@ export class AuditLogger {
   /**
    * Convenience: log an auth event.
    */
-  async authEvent(actor: string, method: string, success: boolean, metadata: Record<string, unknown> = {}): Promise<void> {
+  async authEvent(
+    actor: string,
+    method: string,
+    success: boolean,
+    metadata: Record<string, unknown> = {},
+  ): Promise<void> {
     await this.log({
       actor,
       action: success ? 'auth_login' : 'auth_failure',
@@ -119,7 +131,12 @@ export class AuditLogger {
   /**
    * Convenience: log a plugin lifecycle event.
    */
-  async pluginEvent(actor: string, plugin: string, action: 'enable' | 'disable' | 'install' | 'uninstall' | 'update', metadata: Record<string, unknown> = {}): Promise<void> {
+  async pluginEvent(
+    actor: string,
+    plugin: string,
+    action: 'enable' | 'disable' | 'install' | 'uninstall' | 'update',
+    metadata: Record<string, unknown> = {},
+  ): Promise<void> {
     await this.log({
       actor,
       action: `plugin_${action}`,
@@ -184,7 +201,8 @@ export class AuditLogger {
         const entry = JSON.parse(line) as AuditEntry;
 
         // Reconstruct what the hash should be
-        const expectedHash = crypto.createHash('sha256')
+        const expectedHash = crypto
+          .createHash('sha256')
           .update(prevHash + JSON.stringify({ ...entry, previousHash: entry.previousHash }))
           .digest('hex');
 

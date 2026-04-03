@@ -13,11 +13,12 @@ export function getOAuthCredentials(conductor: Conductor, provider: string): OAu
 
   const clientId = process.env.CONDUCTOR_GOOGLE_CLIENT_ID || oauth.clientId || '';
   const clientSecret = process.env.CONDUCTOR_GOOGLE_CLIENT_SECRET || oauth.clientSecret || '';
-  const redirectUri = process.env.CONDUCTOR_GOOGLE_REDIRECT_URI || oauth.redirectUri || 'http://localhost:3000/callback';
+  const redirectUri =
+    process.env.CONDUCTOR_GOOGLE_REDIRECT_URI || oauth.redirectUri || 'http://localhost:3000/callback';
 
   if (!clientId || !clientSecret) {
     throw new Error(
-      `Google OAuth not configured. Run "conductor google" to setup your Client ID and Secret interactively.`
+      `Google OAuth not configured. Run "conductor google" to setup your Client ID and Secret interactively.`,
     );
   }
 

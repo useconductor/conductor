@@ -40,11 +40,7 @@ export class Keychain {
    */
   private getMachineSecret(): string {
     // Linux: /etc/machine-id or /var/lib/dbus/machine-id
-    const linuxSources = [
-      '/etc/machine-id',
-      '/var/lib/dbus/machine-id',
-      '/proc/sys/kernel/random/boot_id',
-    ];
+    const linuxSources = ['/etc/machine-id', '/var/lib/dbus/machine-id', '/proc/sys/kernel/random/boot_id'];
 
     for (const src of linuxSources) {
       try {
@@ -58,10 +54,12 @@ export class Keychain {
     // macOS: IOPlatformUUID
     if (process.platform === 'darwin') {
       try {
-        const out = execSync(
-          "ioreg -rd1 -c IOPlatformExpertDevice | awk '/IOPlatformUUID/{print $NF}'",
-          { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }
-        ).trim().replace(/"/g, '');
+        const out = execSync("ioreg -rd1 -c IOPlatformExpertDevice | awk '/IOPlatformUUID/{print $NF}'", {
+          encoding: 'utf8',
+          stdio: ['pipe', 'pipe', 'pipe'],
+        })
+          .trim()
+          .replace(/"/g, '');
         if (out) return out;
       } catch {
         // ioreg not available
@@ -71,10 +69,10 @@ export class Keychain {
     // Windows: MachineGuid from registry
     if (process.platform === 'win32') {
       try {
-        const out = execSync(
-          'reg query "HKLM\\SOFTWARE\\Microsoft\\Cryptography" /v MachineGuid',
-          { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }
-        );
+        const out = execSync('reg query "HKLM\\SOFTWARE\\Microsoft\\Cryptography" /v MachineGuid', {
+          encoding: 'utf8',
+          stdio: ['pipe', 'pipe', 'pipe'],
+        });
         const match = out.match(/MachineGuid\s+REG_SZ\s+(.+)/);
         if (match?.[1]?.trim()) return match[1].trim();
       } catch {
@@ -111,7 +109,7 @@ export class Keychain {
   async set(service: string, key: string, value: string): Promise<void> {
     await fs.mkdir(this.keychainDir, { recursive: true, mode: 0o700 });
     // Enforce 0700 permissions in case dir already existed with wrong perms
-    await fs.chmod(this.keychainDir, 0o700).catch(() => { });
+    await fs.chmod(this.keychainDir, 0o700).catch(() => {});
 
     const iv = crypto.randomBytes(12); // 96-bit IV for GCM
     const cipher = crypto.createCipheriv('aes-256-gcm', this.masterKey, iv);
@@ -173,8 +171,8 @@ export class Keychain {
     try {
       const files = await fs.readdir(this.keychainDir);
       return files
-        .filter(f => f.startsWith(`${service}.`) && f.endsWith('.enc'))
-        .map(f => f.replace(`${service}.`, '').replace('.enc', ''));
+        .filter((f) => f.startsWith(`${service}.`) && f.endsWith('.enc'))
+        .map((f) => f.replace(`${service}.`, '').replace('.enc', ''));
     } catch {
       return [];
     }

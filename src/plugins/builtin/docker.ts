@@ -11,7 +11,9 @@ export class DockerPlugin implements Plugin {
   version = '1.0.0';
 
   async initialize(_conductor: Conductor): Promise<void> {}
-  isConfigured(): boolean { return true; }
+  isConfigured(): boolean {
+    return true;
+  }
 
   private async docker(args: string[]): Promise<{ stdout: string; stderr: string }> {
     try {
@@ -41,9 +43,18 @@ export class DockerPlugin implements Plugin {
           if (input.filters) args.push('--filter', input.filters);
           const { stdout } = await this.docker(args);
           if (!stdout) return { containers: [] };
-          return { containers: stdout.split('\n').map((line) => {
-            try { return JSON.parse(line); } catch { return null; }
-          }).filter((c): c is Record<string, unknown> => c !== null) };
+          return {
+            containers: stdout
+              .split('\n')
+              .map((line) => {
+                try {
+                  return JSON.parse(line);
+                } catch {
+                  return null;
+                }
+              })
+              .filter((c): c is Record<string, unknown> => c !== null),
+          };
         },
       },
       {
@@ -70,7 +81,11 @@ export class DockerPlugin implements Plugin {
           type: 'object',
           properties: {
             container: { type: 'string', description: 'Container name or ID' },
-            action: { type: 'string', enum: ['start', 'stop', 'restart', 'pause', 'unpause', 'kill', 'remove'], description: 'Action to perform' },
+            action: {
+              type: 'string',
+              enum: ['start', 'stop', 'restart', 'pause', 'unpause', 'kill', 'remove'],
+              description: 'Action to perform',
+            },
           },
           required: ['container', 'action'],
         },
@@ -91,9 +106,18 @@ export class DockerPlugin implements Plugin {
         handler: async () => {
           const { stdout } = await this.docker(['images', '--format', '{{json .}}']);
           if (!stdout) return { images: [] };
-          return { images: stdout.split('\n').map((line) => {
-            try { return JSON.parse(line); } catch { return null; }
-          }).filter((c): c is Record<string, unknown> => c !== null) };
+          return {
+            images: stdout
+              .split('\n')
+              .map((line) => {
+                try {
+                  return JSON.parse(line);
+                } catch {
+                  return null;
+                }
+              })
+              .filter((c): c is Record<string, unknown> => c !== null),
+          };
         },
       },
       {
@@ -120,16 +144,29 @@ export class DockerPlugin implements Plugin {
             image: { type: 'string', description: 'Image to run' },
             name: { type: 'string', description: 'Container name' },
             ports: { type: 'array', items: { type: 'string' }, description: 'Port mappings (e.g. ["8080:80"])' },
-            env: { type: 'array', items: { type: 'string' }, description: 'Environment variables (e.g. ["KEY=value"])' },
-            volumes: { type: 'array', items: { type: 'string' }, description: 'Volume mounts (e.g. ["/host:/container"])' },
+            env: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Environment variables (e.g. ["KEY=value"])',
+            },
+            volumes: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Volume mounts (e.g. ["/host:/container"])',
+            },
             detach: { type: 'boolean', description: 'Run in background', default: true },
             command: { type: 'string', description: 'Command to run inside container' },
           },
           required: ['image'],
         },
         handler: async (input: {
-          image: string; name?: string; ports?: string[]; env?: string[];
-          volumes?: string[]; detach?: boolean; command?: string;
+          image: string;
+          name?: string;
+          ports?: string[];
+          env?: string[];
+          volumes?: string[];
+          detach?: boolean;
+          command?: string;
         }) => {
           const args = ['run'];
           if (input.name) args.push('--name', input.name);
@@ -151,9 +188,18 @@ export class DockerPlugin implements Plugin {
         handler: async () => {
           const { stdout } = await this.docker(['volume', 'ls', '--format', '{{json .}}']);
           if (!stdout) return { volumes: [] };
-          return { volumes: stdout.split('\n').map((line) => {
-            try { return JSON.parse(line); } catch { return null; }
-          }).filter((c): c is Record<string, unknown> => c !== null) };
+          return {
+            volumes: stdout
+              .split('\n')
+              .map((line) => {
+                try {
+                  return JSON.parse(line);
+                } catch {
+                  return null;
+                }
+              })
+              .filter((c): c is Record<string, unknown> => c !== null),
+          };
         },
       },
       {
@@ -163,9 +209,18 @@ export class DockerPlugin implements Plugin {
         handler: async () => {
           const { stdout } = await this.docker(['network', 'ls', '--format', '{{json .}}']);
           if (!stdout) return { networks: [] };
-          return { networks: stdout.split('\n').map((line) => {
-            try { return JSON.parse(line); } catch { return null; }
-          }).filter((c): c is Record<string, unknown> => c !== null) };
+          return {
+            networks: stdout
+              .split('\n')
+              .map((line) => {
+                try {
+                  return JSON.parse(line);
+                } catch {
+                  return null;
+                }
+              })
+              .filter((c): c is Record<string, unknown> => c !== null),
+          };
         },
       },
       {
@@ -182,9 +237,18 @@ export class DockerPlugin implements Plugin {
           if (input.container) args.push(input.container);
           const { stdout } = await this.docker(args);
           if (!stdout) return { stats: [] };
-          return { stats: stdout.split('\n').map((line) => {
-            try { return JSON.parse(line); } catch { return null; }
-          }).filter((c): c is Record<string, unknown> => c !== null) };
+          return {
+            stats: stdout
+              .split('\n')
+              .map((line) => {
+                try {
+                  return JSON.parse(line);
+                } catch {
+                  return null;
+                }
+              })
+              .filter((c): c is Record<string, unknown> => c !== null),
+          };
         },
       },
     ];

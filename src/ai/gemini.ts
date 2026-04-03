@@ -39,11 +39,7 @@ export class GeminiProvider extends AIProvider {
     clientSecret: string,
     redirectUri = 'http://localhost:3000/google/callback',
   ): Promise<string> {
-    this.oauth2Client = new google.auth.OAuth2(
-      clientId,
-      clientSecret,
-      redirectUri,
-    );
+    this.oauth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
 
     const authUrl = this.oauth2Client.generateAuthUrl({
       access_type: 'offline',
@@ -113,7 +109,7 @@ export class GeminiProvider extends AIProvider {
     const geminiMessages = messages
       .filter((m) => m.role !== 'system')
       .map((m) => ({
-        role: m.role === 'assistant' ? 'model' as const : 'user' as const,
+        role: m.role === 'assistant' ? ('model' as const) : ('user' as const),
         parts: [{ text: m.content }],
       }));
 
@@ -165,7 +161,7 @@ export class GeminiProvider extends AIProvider {
     const geminiMessages = messages
       .filter((m) => m.role !== 'system')
       .map((m) => ({
-        role: m.role === 'assistant' ? 'model' as const : 'user' as const,
+        role: m.role === 'assistant' ? ('model' as const) : ('user' as const),
         parts: [{ text: m.content }],
       }));
 

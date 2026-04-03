@@ -2,10 +2,7 @@ import { Conductor } from '../core/conductor.js';
 import { startDashboard } from './server.js';
 import { exec } from 'child_process';
 
-export async function dashboardCommand(
-  conductor: Conductor,
-  opts: { port?: string; open?: boolean }
-): Promise<void> {
+export async function dashboardCommand(conductor: Conductor, opts: { port?: string; open?: boolean }): Promise<void> {
   const port = parseInt(opts.port ?? '4242', 10);
 
   await conductor.initialize();
@@ -24,10 +21,10 @@ export async function dashboardCommand(
 
     // Auto-open browser unless --no-open passed
     if (opts.open !== false) {
-      const opener =
-        process.platform === 'darwin' ? 'open' :
-        process.platform === 'win32'  ? 'start' : 'xdg-open';
-      exec(`${opener} ${url}`, () => {/* ignore errors */});
+      const opener = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
+      exec(`${opener} ${url}`, () => {
+        /* ignore errors */
+      });
     }
 
     // Keep alive
@@ -37,7 +34,9 @@ export async function dashboardCommand(
       process.exit(0);
     });
 
-    await new Promise(() => {/* run forever */});
+    await new Promise(() => {
+      /* run forever */
+    });
   } catch (e: any) {
     if (e.code === 'EADDRINUSE') {
       console.error(`  \x1b[31m✗\x1b[0m Port ${port} is already in use. Try: conductor dashboard --port 4243`);

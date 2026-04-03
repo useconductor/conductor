@@ -8,7 +8,9 @@ export class SystemInfoPlugin implements Plugin {
   version = '1.0.0';
 
   async initialize(_conductor: Conductor): Promise<void> {}
-  isConfigured(): boolean { return true; }
+  isConfigured(): boolean {
+    return true;
+  }
 
   getTools(): PluginTool[] {
     return [
@@ -48,15 +50,19 @@ export class SystemInfoPlugin implements Plugin {
               return { note: 'Windows process list', processes: out.split('\n').slice(0, 15) };
             }
             // macOS uses different ps syntax than Linux
-            const psCmd = os.platform() === 'darwin'
-              ? 'ps aux -m | head -11'
-              : 'ps aux --sort=-%mem | head -11';
+            const psCmd = os.platform() === 'darwin' ? 'ps aux -m | head -11' : 'ps aux --sort=-%mem | head -11';
             const out = execSync(psCmd, { encoding: 'utf8' });
             const lines = out.trim().split('\n');
             return {
-              processes: lines.slice(1).map(line => {
+              processes: lines.slice(1).map((line) => {
                 const parts = line.trim().split(/\s+/);
-                return { user: parts[0], pid: parts[1], cpu: parts[2], mem: parts[3], command: parts.slice(10).join(' ') };
+                return {
+                  user: parts[0],
+                  pid: parts[1],
+                  cpu: parts[2],
+                  mem: parts[3],
+                  command: parts.slice(10).join(' '),
+                };
               }),
             };
           } catch {

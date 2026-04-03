@@ -112,7 +112,7 @@ export class MemoryPlugin implements Plugin {
             text,
             category: detectedCategory,
             importance: Math.max(0, Math.min(1, importance)),
-            tags
+            tags,
           };
 
           await db.addCoreMemory(entry);
@@ -133,7 +133,7 @@ export class MemoryPlugin implements Plugin {
           properties: {
             memoryId: { type: 'string', description: 'Exact memory UUID to delete' },
           },
-          required: ['memoryId']
+          required: ['memoryId'],
         },
         handler: async ({ memoryId }: any) => {
           const db = this.conductor.getDatabase();

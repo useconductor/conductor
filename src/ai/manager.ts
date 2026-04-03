@@ -45,8 +45,7 @@ export class AIManager {
       case 'claude':
       case 'anthropic': {
         const apiKey =
-          (await this.keychain.get('anthropic', 'api_key')) ||
-          (await this.keychain.get('claude', 'api_key'));
+          (await this.keychain.get('anthropic', 'api_key')) || (await this.keychain.get('claude', 'api_key'));
         if (!apiKey) throw new Error('Claude API key not found');
 
         const provider = new ClaudeProvider({
@@ -116,11 +115,8 @@ export class AIManager {
       }
 
       case 'ollama': {
-        const endpoint =
-          this.conductor.getConfig().get<string>('ai.local_config.endpoint') ||
-          'http://localhost:11434';
-        const model =
-          this.conductor.getConfig().get<string>('ai.model') || 'llama3.2';
+        const endpoint = this.conductor.getConfig().get<string>('ai.local_config.endpoint') || 'http://localhost:11434';
+        const model = this.conductor.getConfig().get<string>('ai.model') || 'llama3.2';
         const provider = new OllamaProvider({ endpoint, model });
         await provider.initialize();
         this.currentProvider = provider;
@@ -128,11 +124,8 @@ export class AIManager {
       }
 
       case 'maestro': {
-        const endpoint =
-          this.conductor.getConfig().get<string>('ai.local_config.endpoint') ||
-          'http://localhost:11434';
-        const model =
-          this.conductor.getConfig().get<string>('ai.model') || 'maestro';
+        const endpoint = this.conductor.getConfig().get<string>('ai.local_config.endpoint') || 'http://localhost:11434';
+        const model = this.conductor.getConfig().get<string>('ai.model') || 'maestro';
         const provider = new MaestroProvider({ endpoint, model });
         await provider.initialize();
         this.currentProvider = provider;
@@ -195,16 +188,11 @@ export class AIManager {
   /** Setup Gemini with OAuth (easiest — uses built-in OAuth app). */
   async setupGeminiOAuthEasy(): Promise<void> {
     const { getOAuthCredentials } = await import('../config/oauth.js');
-    const { clientId, clientSecret, redirectUri } =
-      getOAuthCredentials(this.conductor, 'google');
+    const { clientId, clientSecret, redirectUri } = getOAuthCredentials(this.conductor, 'google');
 
     const provider = new GeminiProvider({});
 
-    const authUrl = await provider.initializeWithOAuth(
-      clientId,
-      clientSecret,
-      redirectUri
-    );
+    const authUrl = await provider.initializeWithOAuth(clientId, clientSecret, redirectUri);
 
     const open = (await import('open')).default;
     await open(authUrl);
@@ -231,10 +219,7 @@ export class AIManager {
   }
 
   /** Setup Ollama (local). */
-  async setupOllama(
-    model: string = 'llama3.2',
-    endpoint: string = 'http://localhost:11434'
-  ): Promise<void> {
+  async setupOllama(model: string = 'llama3.2', endpoint: string = 'http://localhost:11434'): Promise<void> {
     await this.conductor.getConfig().set('ai.provider', 'ollama');
     await this.conductor.getConfig().set('ai.model', model);
     await this.conductor.getConfig().set('ai.local_config.endpoint', endpoint);
@@ -249,10 +234,7 @@ export class AIManager {
   }
 
   /** Setup Maestro (local, via Ollama). */
-  async setupMaestro(
-    model: string = 'maestro',
-    endpoint: string = 'http://localhost:11434'
-  ): Promise<void> {
+  async setupMaestro(model: string = 'maestro', endpoint: string = 'http://localhost:11434'): Promise<void> {
     await this.conductor.getConfig().set('ai.provider', 'maestro');
     await this.conductor.getConfig().set('ai.model', model);
     await this.conductor.getConfig().set('ai.local_config.endpoint', endpoint);
@@ -261,8 +243,7 @@ export class AIManager {
     const works = await provider.test();
     if (!works) {
       throw new Error(
-        'Maestro not found. Make sure Ollama is running and pull the model:\n' +
-        'ollama pull thealxlabs/maestro'
+        'Maestro not found. Make sure Ollama is running and pull the model:\n' + 'ollama pull thealxlabs/maestro',
       );
     }
 
@@ -296,10 +277,13 @@ User Request: "${text}"
 Respond with ONLY the exact literal string "coder", "social", "researcher", or "general". No punctuation. Always respond in English.`;
 
     try {
-      const response = await provider.complete([
-        { role: 'system', content: 'You are a strict routing classifier. Always respond in English.' },
-        { role: 'user', content: prompt }
-      ], []);
+      const response = await provider.complete(
+        [
+          { role: 'system', content: 'You are a strict routing classifier. Always respond in English.' },
+          { role: 'user', content: prompt },
+        ],
+        [],
+      );
 
       const choice = response.content?.toLowerCase().trim();
       if (['coder', 'social', 'researcher', 'general'].includes(choice!)) {
@@ -312,28 +296,32 @@ Respond with ONLY the exact literal string "coder", "social", "researcher", or "
   }
 
   /** Helper to process tool calls non-interactively or halt for approval */
-  private async processToolCalls(userId: string, messages: AIMessage[], tools: any[]): Promise<{ approvalRequired?: any, newMessages: AIMessage[] }> {
+  private async processToolCalls(
+    userId: string,
+    messages: AIMessage[],
+    tools: any[],
+  ): Promise<{ approvalRequired?: any; newMessages: AIMessage[] }> {
     const db = this.conductor.getDatabase();
 
-    const lastAssistantMessageIndex = [...messages].reverse().findIndex(m => m.role === 'assistant' && m.tool_calls);
+    const lastAssistantMessageIndex = [...messages].reverse().findIndex((m) => m.role === 'assistant' && m.tool_calls);
     if (lastAssistantMessageIndex === -1) return { newMessages: [] };
 
     const assistantMsg = messages[messages.length - 1 - lastAssistantMessageIndex];
     if (!assistantMsg.tool_calls) return { newMessages: [] };
 
     const subsequentMessages = messages.slice(messages.length - lastAssistantMessageIndex);
-    const completedToolCallIds = subsequentMessages.filter(m => m.role === 'tool').map(m => m.tool_call_id);
+    const completedToolCallIds = subsequentMessages.filter((m) => m.role === 'tool').map((m) => m.tool_call_id);
 
     const pendingToolCalls = assistantMsg.tool_calls.filter((tc: AIToolCall) => !completedToolCallIds.includes(tc.id));
 
     const newMessages: AIMessage[] = [];
 
     for (const tc of pendingToolCalls) {
-      const tool = tools.find(t => t.name === tc.name);
+      const tool = tools.find((t) => t.name === tc.name);
       if (tool?.requiresApproval) {
         return {
           approvalRequired: { toolCallId: tc.id, toolName: tc.name, arguments: tc.arguments },
-          newMessages
+          newMessages,
         };
       }
 
@@ -357,7 +345,7 @@ Respond with ONLY the exact literal string "coder", "social", "researcher", or "
         role: 'tool',
         content: resultStr,
         tool_call_id: tc.id,
-        name: tc.name
+        name: tc.name,
       };
       await db.addMessage(userId, toolMsg);
       newMessages.push(toolMsg);
@@ -381,7 +369,9 @@ Respond with ONLY the exact literal string "coder", "social", "researcher", or "
       if (memPlugin && typeof (memPlugin as any).setUserId === 'function') {
         (memPlugin as any).setUserId(userId);
       }
-    } catch { /* memory plugin may not be enabled */ }
+    } catch {
+      /* memory plugin may not be enabled */
+    }
 
     const tools = await this.conductor.getPluginsManager().getEnabledTools();
 
@@ -394,7 +384,7 @@ Respond with ONLY the exact literal string "coder", "social", "researcher", or "
 
     let userIntentText = text;
     if (!userIntentText && history.length > 0) {
-      const lastUser = [...history].reverse().find(m => m.role === 'user');
+      const lastUser = [...history].reverse().find((m) => m.role === 'user');
       if (lastUser) userIntentText = lastUser.content;
     }
 
@@ -403,19 +393,23 @@ Respond with ONLY the exact literal string "coder", "social", "researcher", or "
       persona = await this.determinePersona(userId, userIntentText);
     }
 
-    let systemContent = 'You are Conductor, an autonomous integration hub agent. You are helpful, concise, and capable of executing tools on behalf of the user. Only use tools when necessary. Always respond in English, regardless of the language of the user\'s message or your training data.';
+    let systemContent =
+      "You are Conductor, an autonomous integration hub agent. You are helpful, concise, and capable of executing tools on behalf of the user. Only use tools when necessary. Always respond in English, regardless of the language of the user's message or your training data.";
 
     if (persona === 'coder') {
-      systemContent = 'You are Conductor [Persona: The Coder]. You are an expert software engineer. You write excellent, clean, well-documented code. You prefer using shell and file tools to accomplish programming tasks. Always respond in English, regardless of the language of the user\'s message or your training data.';
+      systemContent =
+        "You are Conductor [Persona: The Coder]. You are an expert software engineer. You write excellent, clean, well-documented code. You prefer using shell and file tools to accomplish programming tasks. Always respond in English, regardless of the language of the user's message or your training data.";
     } else if (persona === 'social') {
-      systemContent = 'You are Conductor [Persona: The Social Manager]. You manage communications, social media, X/Twitter, Slack, and Telegram. You write engaging, professional, and concise updates. Always respond in English, regardless of the language of the user\'s message or your training data.';
+      systemContent =
+        "You are Conductor [Persona: The Social Manager]. You manage communications, social media, X/Twitter, Slack, and Telegram. You write engaging, professional, and concise updates. Always respond in English, regardless of the language of the user's message or your training data.";
     } else if (persona === 'researcher') {
-      systemContent = 'You are Conductor [Persona: The Researcher]. You are a meticulous investigator. You use web search and browser tools to thoroughly research and summarize factual information. Always respond in English, regardless of the language of the user\'s message or your training data.';
+      systemContent =
+        "You are Conductor [Persona: The Researcher]. You are a meticulous investigator. You use web search and browser tools to thoroughly research and summarize factual information. Always respond in English, regardless of the language of the user's message or your training data.";
     }
 
     const systemPrompt: AIMessage = {
       role: 'system',
-      content: systemContent
+      content: systemContent,
     };
 
     let messages = [systemPrompt, ...history];
@@ -425,7 +419,7 @@ Respond with ONLY the exact literal string "coder", "social", "researcher", or "
     const pendingProcess = await this.processToolCalls(userId, messages, tools);
     if (pendingProcess.newMessages.length > 0) messages.push(...pendingProcess.newMessages);
     if (pendingProcess.approvalRequired) {
-      return { text: "Action still requires approval.", approvalRequired: pendingProcess.approvalRequired };
+      return { text: 'Action still requires approval.', approvalRequired: pendingProcess.approvalRequired };
     }
 
     const lastMsg = messages[messages.length - 1];
@@ -440,7 +434,7 @@ Respond with ONLY the exact literal string "coder", "social", "researcher", or "
       const assistantMsg: AIMessage = {
         role: 'assistant',
         content: response.content || '',
-        ...(response.tool_calls ? { tool_calls: response.tool_calls } : {})
+        ...(response.tool_calls ? { tool_calls: response.tool_calls } : {}),
       };
 
       await db.addMessage(userId, assistantMsg);
@@ -455,12 +449,12 @@ Respond with ONLY the exact literal string "coder", "social", "researcher", or "
       if (processObj.approvalRequired) {
         return {
           text: response.content || `I need your permission to use ${processObj.approvalRequired.toolName}.`,
-          approvalRequired: processObj.approvalRequired
+          approvalRequired: processObj.approvalRequired,
         };
       }
     }
 
-    return { text: "Agent loop cap reached. Task aborted to prevent runaway execution." };
+    return { text: 'Agent loop cap reached. Task aborted to prevent runaway execution.' };
   }
 
   /** Execute a tool that was manually approved by the user */
@@ -473,14 +467,17 @@ Respond with ONLY the exact literal string "coder", "social", "researcher", or "
     for (const msg of history) {
       if (msg.role === 'assistant' && msg.tool_calls) {
         const tc = msg.tool_calls.find((t: AIToolCall) => t.id === toolCallId);
-        if (tc) { foundTc = tc; break; }
+        if (tc) {
+          foundTc = tc;
+          break;
+        }
       }
     }
     if (!foundTc) {
-      return { text: "Tool call not found or already executed." };
+      return { text: 'Tool call not found or already executed.' };
     }
 
-    const tool = tools.find(t => t.name === foundTc!.name);
+    const tool = tools.find((t) => t.name === foundTc!.name);
     let resultStr = '';
     if (tool) {
       try {
@@ -500,7 +497,7 @@ Respond with ONLY the exact literal string "coder", "social", "researcher", or "
       role: 'tool',
       content: resultStr,
       tool_call_id: toolCallId,
-      name: foundTc.name
+      name: foundTc.name,
     };
     await db.addMessage(userId, toolMsg);
 
@@ -516,19 +513,22 @@ Respond with ONLY the exact literal string "coder", "social", "researcher", or "
     for (const msg of history) {
       if (msg.role === 'assistant' && msg.tool_calls) {
         const tc = msg.tool_calls.find((t: AIToolCall) => t.id === toolCallId);
-        if (tc) { foundTc = tc; break; }
+        if (tc) {
+          foundTc = tc;
+          break;
+        }
       }
     }
 
     if (!foundTc) {
-      return { text: "Tool call not found." };
+      return { text: 'Tool call not found.' };
     }
 
     const toolMsg: AIMessage = {
       role: 'tool',
-      content: "User denied the execution of this action.",
+      content: 'User denied the execution of this action.',
       tool_call_id: toolCallId,
-      name: foundTc.name
+      name: foundTc.name,
     };
     await db.addMessage(userId, toolMsg);
 

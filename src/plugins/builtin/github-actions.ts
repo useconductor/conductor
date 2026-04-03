@@ -30,8 +30,7 @@ const GH_API_VERSION = '2022-11-28';
 
 export class GitHubActionsPlugin implements Plugin {
   name = 'github_actions';
-  description =
-    'GitHub CI/CD, PRs, issues, releases, notifications — full write access, requires PAT';
+  description = 'GitHub CI/CD, PRs, issues, releases, notifications — full write access, requires PAT';
   version = '1.0.0';
 
   private keychain!: Keychain;
@@ -50,7 +49,7 @@ export class GitHubActionsPlugin implements Plugin {
       throw new Error(
         'GitHub token not configured.\n' +
           'Create a PAT at https://github.com/settings/tokens\n' +
-          'Then run: conductor plugins config github_actions token <TOKEN>'
+          'Then run: conductor plugins config github_actions token <TOKEN>',
       );
     }
     return token;
@@ -58,7 +57,7 @@ export class GitHubActionsPlugin implements Plugin {
 
   private async ghFetch(
     path: string,
-    options: { method?: string; body?: any; params?: Record<string, string> } = {}
+    options: { method?: string; body?: any; params?: Record<string, string> } = {},
   ): Promise<any> {
     const token = await this.getToken();
     const url = new URL(`${GH_BASE}${path}`);
@@ -98,9 +97,10 @@ export class GitHubActionsPlugin implements Plugin {
       event: r.event,
       createdAt: r.created_at,
       updatedAt: r.updated_at,
-      duration: r.updated_at && r.created_at
-        ? `${Math.round((new Date(r.updated_at).getTime() - new Date(r.created_at).getTime()) / 1000)}s`
-        : null,
+      duration:
+        r.updated_at && r.created_at
+          ? `${Math.round((new Date(r.updated_at).getTime() - new Date(r.created_at).getTime()) / 1000)}s`
+          : null,
       url: r.html_url,
     };
   }
@@ -285,10 +285,10 @@ export class GitHubActionsPlugin implements Plugin {
           required: ['owner', 'repo', 'workflow'],
         },
         handler: async ({ owner, repo, workflow, ref = 'main', inputs = {} }: any) => {
-          await this.ghFetch(
-            `/repos/${owner}/${repo}/actions/workflows/${encodeURIComponent(workflow)}/dispatches`,
-            { method: 'POST', body: { ref, inputs } }
-          );
+          await this.ghFetch(`/repos/${owner}/${repo}/actions/workflows/${encodeURIComponent(workflow)}/dispatches`, {
+            method: 'POST',
+            body: { ref, inputs },
+          });
           // Give GitHub a moment then fetch the latest run
           await new Promise((r) => setTimeout(r, 2000));
           const runs = await this.ghFetch(`/repos/${owner}/${repo}/actions/runs`, {

@@ -126,8 +126,7 @@ const TEMPLATES: Record<string, string> = {
 
 export class NotesPlugin implements Plugin {
   name = 'notes';
-  description =
-    'Local markdown notes — create, search, tag, link, and manage notes entirely offline';
+  description = 'Local markdown notes — create, search, tag, link, and manage notes entirely offline';
   version = '1.0.0';
 
   private notesDir!: string;
@@ -348,7 +347,10 @@ export class NotesPlugin implements Plugin {
             for (const [nid, meta] of this.index.entries()) {
               if (meta.archived) continue;
               const score = this.scoreSearch(title, '', meta.title, meta.tags);
-              if (score > bestScore) { bestScore = score; noteId = nid; }
+              if (score > bestScore) {
+                bestScore = score;
+                noteId = nid;
+              }
             }
           }
 
@@ -357,9 +359,7 @@ export class NotesPlugin implements Plugin {
           if (!note) return { error: `Note ${noteId} not found.` };
 
           // Resolve backlink titles
-          const backlinkTitles = note.backlinks
-            .map((bid) => this.index.get(bid)?.title ?? bid)
-            .filter(Boolean);
+          const backlinkTitles = note.backlinks.map((bid) => this.index.get(bid)?.title ?? bid).filter(Boolean);
 
           return {
             ...note,
@@ -466,7 +466,8 @@ export class NotesPlugin implements Plugin {
               if (idx >= 0) {
                 const start = Math.max(0, idx - 60);
                 const end = Math.min(content.length, idx + 120);
-                preview = (start > 0 ? '...' : '') + content.slice(start, end).trim() + (end < content.length ? '...' : '');
+                preview =
+                  (start > 0 ? '...' : '') + content.slice(start, end).trim() + (end < content.length ? '...' : '');
               }
             } else {
               score = meta.pinned ? 100 : 1;
@@ -587,7 +588,7 @@ export class NotesPlugin implements Plugin {
         inputSchema: {
           type: 'object',
           properties: {
-            append: { type: 'string', description: 'Text to append to today\'s note' },
+            append: { type: 'string', description: "Text to append to today's note" },
           },
         },
         handler: async ({ append }: any) => {
@@ -620,7 +621,7 @@ export class NotesPlugin implements Plugin {
           }
 
           if (existingId) {
-            return await this.readNote(existingId) ?? { error: 'Could not read daily note.' };
+            return (await this.readNote(existingId)) ?? { error: 'Could not read daily note.' };
           }
 
           // Create new daily note
@@ -656,7 +657,11 @@ export class NotesPlugin implements Plugin {
           const active = all.filter((n) => !n.archived);
           const totalWords = active.reduce((s, n) => s + n.wordCount, 0);
           const tagCounts: Record<string, number> = {};
-          active.forEach((n) => n.tags.forEach((t) => { tagCounts[t] = (tagCounts[t] ?? 0) + 1; }));
+          active.forEach((n) =>
+            n.tags.forEach((t) => {
+              tagCounts[t] = (tagCounts[t] ?? 0) + 1;
+            }),
+          );
           const topTags = Object.entries(tagCounts)
             .sort((a, b) => b[1] - a[1])
             .slice(0, 10)

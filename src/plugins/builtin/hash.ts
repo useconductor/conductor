@@ -8,7 +8,9 @@ export class HashPlugin implements Plugin {
   version = '1.0.0';
 
   async initialize(_conductor: Conductor): Promise<void> {}
-  isConfigured(): boolean { return true; }
+  isConfigured(): boolean {
+    return true;
+  }
 
   getTools(): PluginTool[] {
     return [
@@ -85,7 +87,9 @@ export class HashPlugin implements Plugin {
           let chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
           if (input.symbols !== false) chars += '!@#$%^&*()_+-=[]{}|;:,.<>?';
           const bytes = crypto.randomBytes(len);
-          const password = Array.from(bytes).map(b => chars[b % chars.length]).join('');
+          const password = Array.from(bytes)
+            .map((b) => chars[b % chars.length])
+            .join('');
           return { password, length: len, has_symbols: input.symbols !== false };
         },
       },

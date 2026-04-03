@@ -116,15 +116,18 @@ export class Conductor {
     }
 
     // Run once immediately
-    this.runReasoningCycle().catch(err => {
+    this.runReasoningCycle().catch((err) => {
       process.stderr.write(`Proactive cycle error: ${err.message}\n`);
     });
 
-    this.proactiveTimer = setInterval(() => {
-      this.runReasoningCycle().catch(err => {
-        process.stderr.write(`Proactive cycle error: ${err.message}\n`);
-      });
-    }, intervalMinutes * 60 * 1000);
+    this.proactiveTimer = setInterval(
+      () => {
+        this.runReasoningCycle().catch((err) => {
+          process.stderr.write(`Proactive cycle error: ${err.message}\n`);
+        });
+      },
+      intervalMinutes * 60 * 1000,
+    );
   }
 
   async stopProactiveMode(): Promise<void> {
@@ -141,20 +144,24 @@ export class Conductor {
     try {
       const sysPlugin = await this.plugins.getPlugin('system');
       if (sysPlugin) {
-        const infoTool = sysPlugin.getTools().find(t => t.name === 'system_info');
+        const infoTool = sysPlugin.getTools().find((t) => t.name === 'system_info');
         if (infoTool) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const stats = await infoTool.handler({}) as any;
-          contextLines.push(`[SYSTEM] CPU: ${stats.cpu?.load || 'unknown'}%, RAM: ${stats.memory?.usedPercent || 'unknown'}%, Disk: ${stats.disk?.usedPercent || 'unknown'}%`);
+          const stats = (await infoTool.handler({})) as any;
+          contextLines.push(
+            `[SYSTEM] CPU: ${stats.cpu?.load || 'unknown'}%, RAM: ${stats.memory?.usedPercent || 'unknown'}%, Disk: ${stats.disk?.usedPercent || 'unknown'}%`,
+          );
         }
       }
-    } catch { /* plugin might be disabled */ }
+    } catch {
+      /* plugin might be disabled */
+    }
 
     // Recent Activity
     const activity = await this.getRecentActivity(5);
     if (activity.length > 0) {
       contextLines.push('[RECENT ACTIVITY]');
-      activity.forEach(a => contextLines.push(`- ${a.timestamp}: ${a.event_type} (${a.service})`));
+      activity.forEach((a) => contextLines.push(`- ${a.timestamp}: ${a.event_type} (${a.service})`));
     }
 
     // enabled plugins
@@ -169,7 +176,9 @@ export class Conductor {
           const ctx = await plugin.getContext();
           if (ctx) contextLines.push(ctx);
         }
-      } catch { /* ignore — plugin context is best-effort */ }
+      } catch {
+        /* ignore — plugin context is best-effort */
+      }
     }
 
     return contextLines.join('\n');

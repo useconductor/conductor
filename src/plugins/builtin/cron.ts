@@ -32,9 +32,9 @@ interface ScheduledTask {
   description: string;
   tags: string[];
   frequency: TaskFrequency;
-  cronExpression?: string;       // for custom frequency
-  nextRunAt: string;             // ISO
-  lastRunAt?: string;            // ISO
+  cronExpression?: string; // for custom frequency
+  nextRunAt: string; // ISO
+  lastRunAt?: string; // ISO
   lastStatus?: 'success' | 'failed' | 'skipped';
   paused: boolean;
   createdAt: string;
@@ -42,14 +42,14 @@ interface ScheduledTask {
   failCount: number;
   action: {
     type: 'webhook' | 'log' | 'notify';
-    url?: string;                // for webhook
-    message?: string;            // for log/notify
-    method?: string;             // for webhook
+    url?: string; // for webhook
+    message?: string; // for log/notify
+    method?: string; // for webhook
     headers?: Record<string, string>;
     body?: string;
   };
   timezone: string;
-  maxRuns?: number;              // auto-delete after N runs
+  maxRuns?: number; // auto-delete after N runs
   history: Array<{
     ranAt: string;
     status: 'success' | 'failed' | 'skipped';
@@ -61,7 +61,10 @@ interface ScheduledTask {
 
 // ── Natural language time parser ────────────────────────────────────────────
 
-function parseNaturalTime(expr: string, now = new Date()): { nextRun: Date; frequency: TaskFrequency; cronExpr?: string } | null {
+function parseNaturalTime(
+  expr: string,
+  now = new Date(),
+): { nextRun: Date; frequency: TaskFrequency; cronExpr?: string } | null {
   const e = expr.toLowerCase().trim();
 
   // "in X minutes/hours/days"
@@ -83,8 +86,14 @@ function parseNaturalTime(expr: string, now = new Date()): { nextRun: Date; freq
     const n = parseInt(everyMatch[1]);
     const unit = everyMatch[2];
     const next = new Date(now);
-    if (unit === 'minute') { next.setMinutes(next.getMinutes() + n); return { nextRun: next, frequency: 'custom', cronExpr: `*/${n} * * * *` }; }
-    if (unit === 'hour') { next.setHours(next.getHours() + n); return { nextRun: next, frequency: 'custom', cronExpr: `0 */${n} * * *` }; }
+    if (unit === 'minute') {
+      next.setMinutes(next.getMinutes() + n);
+      return { nextRun: next, frequency: 'custom', cronExpr: `*/${n} * * * *` };
+    }
+    if (unit === 'hour') {
+      next.setHours(next.getHours() + n);
+      return { nextRun: next, frequency: 'custom', cronExpr: `0 */${n} * * *` };
+    }
   }
 
   // "every day at HH:MM" or "daily at HH:MM"
@@ -117,8 +126,10 @@ function parseNaturalTime(expr: string, now = new Date()): { nextRun: Date; freq
   }
 
   // "every Monday/Tuesday/.../weekday at HH:MM"
-  const days = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
-  const weekdayMatch = e.match(/^every\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s+(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/);
+  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const weekdayMatch = e.match(
+    /^every\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s+(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/,
+  );
   if (weekdayMatch) {
     const targetDay = days.indexOf(weekdayMatch[1]);
     let h = parseInt(weekdayMatch[2]);
@@ -148,7 +159,9 @@ function parseNaturalTime(expr: string, now = new Date()): { nextRun: Date; freq
   }
 
   // "every month on the Xth at HH:MM"
-  const monthlyMatch = e.match(/^(?:every month|monthly)\s+(?:on the\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/);
+  const monthlyMatch = e.match(
+    /^(?:every month|monthly)\s+(?:on the\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/,
+  );
   if (monthlyMatch) {
     const day = parseInt(monthlyMatch[1]);
     let h = parseInt(monthlyMatch[2]);
@@ -175,8 +188,14 @@ function getNextRun(task: ScheduledTask, after = new Date()): Date | null {
   if (task.frequency === 'once') return null;
 
   const next = new Date(after);
-  if (task.frequency === 'minutely') { next.setMinutes(next.getMinutes() + 1, 0, 0); return next; }
-  if (task.frequency === 'hourly') { next.setHours(next.getHours() + 1, 0, 0, 0); return next; }
+  if (task.frequency === 'minutely') {
+    next.setMinutes(next.getMinutes() + 1, 0, 0);
+    return next;
+  }
+  if (task.frequency === 'hourly') {
+    next.setHours(next.getHours() + 1, 0, 0, 0);
+    return next;
+  }
 
   if (task.frequency === 'daily' || (task.frequency === 'custom' && task.cronExpression)) {
     // Simple: re-parse cron for next time
@@ -210,15 +229,20 @@ function getNextRun(task: ScheduledTask, after = new Date()): Date | null {
     return next;
   }
 
-  if (task.frequency === 'weekly') { next.setDate(next.getDate() + 7); return next; }
-  if (task.frequency === 'monthly') { next.setMonth(next.getMonth() + 1); return next; }
+  if (task.frequency === 'weekly') {
+    next.setDate(next.getDate() + 7);
+    return next;
+  }
+  if (task.frequency === 'monthly') {
+    next.setMonth(next.getMonth() + 1);
+    return next;
+  }
   return null;
 }
 
 export class CronPlugin implements Plugin {
   name = 'cron';
-  description =
-    'Schedule recurring and one-time tasks with natural language — "every day at 9am", "in 30 minutes"';
+  description = 'Schedule recurring and one-time tasks with natural language — "every day at 9am", "in 30 minutes"';
   version = '1.0.0';
 
   private storePath!: string;
@@ -290,9 +314,12 @@ export class CronPlugin implements Plugin {
       return;
     }
 
-    const timer = setTimeout(async () => {
-      await this.runTask(task);
-    }, Math.min(delay, 2147483647)); // setTimeout max
+    const timer = setTimeout(
+      async () => {
+        await this.runTask(task);
+      },
+      Math.min(delay, 2147483647),
+    ); // setTimeout max
 
     this.timers.set(task.id, timer);
   }
@@ -311,7 +338,10 @@ export class CronPlugin implements Plugin {
           body: task.action.body ?? JSON.stringify({ taskId: task.id, taskName: task.name }),
         });
         output = `HTTP ${res.status}`;
-        if (!res.ok) { status = 'failed'; error = `HTTP ${res.status}: ${res.statusText}`; }
+        if (!res.ok) {
+          status = 'failed';
+          error = `HTTP ${res.status}: ${res.statusText}`;
+        }
       } else if (task.action.type === 'log') {
         output = task.action.message ?? `Task "${task.name}" triggered`;
         process.stderr.write(`[Conductor Cron] ${output}\n`);
@@ -366,8 +396,7 @@ export class CronPlugin implements Plugin {
             name: { type: 'string', description: 'Task name' },
             when: {
               type: 'string',
-              description:
-                'When to run — natural language like "every day at 9am" or ISO datetime for one-time',
+              description: 'When to run — natural language like "every day at 9am" or ISO datetime for one-time',
             },
             action: {
               type: 'string',
@@ -509,7 +538,10 @@ export class CronPlugin implements Plugin {
           let taskId = id;
           if (!taskId && name) {
             for (const [tid, task] of this.tasks.entries()) {
-              if (task.name.toLowerCase().includes(name.toLowerCase())) { taskId = tid; break; }
+              if (task.name.toLowerCase().includes(name.toLowerCase())) {
+                taskId = tid;
+                break;
+              }
             }
           }
           if (!taskId || !this.tasks.has(taskId)) return { error: 'Task not found.' };

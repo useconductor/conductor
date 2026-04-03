@@ -213,7 +213,7 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
     '/api',
     rateLimit({
       windowMs: 60 * 1000, // 1 minute
-      max: 120,            // 120 requests per minute per IP
+      max: 120, // 120 requests per minute per IP
       standardHeaders: true,
       legacyHeaders: false,
       message: { error: 'COND-RATE-001: Too many requests. Slow down.' },

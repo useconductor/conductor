@@ -25,7 +25,7 @@ export class MaestroProvider extends AIProvider {
     if (!isRunning) {
       throw new Error(
         'Maestro is not running. Make sure Ollama is running and the Maestro model is pulled.\n' +
-        'Run: ollama pull thealxlabs/maestro'
+          'Run: ollama pull thealxlabs/maestro',
       );
     }
   }
@@ -41,7 +41,7 @@ export class MaestroProvider extends AIProvider {
         messages: formattedMessages,
         stream: false,
         options: {
-          temperature: 0.2,       // Lower = more precise code output
+          temperature: 0.2, // Lower = more precise code output
           top_p: 0.95,
           repeat_penalty: 1.1,
         },
@@ -92,7 +92,7 @@ export class MaestroProvider extends AIProvider {
       if (done) break;
 
       const chunk = decoder.decode(value);
-      const lines = chunk.split('\n').filter(l => l.trim());
+      const lines = chunk.split('\n').filter((l) => l.trim());
 
       for (const line of lines) {
         try {
@@ -116,13 +116,10 @@ export class MaestroProvider extends AIProvider {
       // Check Maestro model is available
       const data = (await tagsResponse.json()) as any;
       const models: string[] = data.models?.map((m: any) => m.name) || [];
-      const hasMaestro = models.some(m => m.includes('maestro'));
+      const hasMaestro = models.some((m) => m.includes('maestro'));
 
       if (!hasMaestro) {
-        console.warn(
-          '\n⚠️  Maestro model not found in Ollama.\n' +
-          'Pull it with: ollama pull thealxlabs/maestro\n'
-        );
+        console.warn('\n⚠️  Maestro model not found in Ollama.\n' + 'Pull it with: ollama pull thealxlabs/maestro\n');
         return false;
       }
 
@@ -150,7 +147,7 @@ export class MaestroProvider extends AIProvider {
 
   /** Format messages into Ollama-compatible format with Maestro system prompt */
   private formatMessages(messages: AIMessage[]) {
-    const hasSytem = messages.some(m => m.role === 'system');
+    const hasSytem = messages.some((m) => m.role === 'system');
 
     const maestroSystem: AIMessage = {
       role: 'system',
@@ -163,7 +160,7 @@ export class MaestroProvider extends AIProvider {
 
     const allMessages = hasSytem ? messages : [maestroSystem, ...messages];
 
-    return allMessages.map(m => ({
+    return allMessages.map((m) => ({
       role: m.role,
       content: m.content,
     }));

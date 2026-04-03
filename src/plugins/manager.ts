@@ -88,8 +88,7 @@ export class PluginManager {
     enabled: boolean;
     configSchema?: PluginConfigSchema;
   }> {
-    const enabledPlugins =
-      this.conductor.getConfig().get<string[]>('plugins.enabled') || [];
+    const enabledPlugins = this.conductor.getConfig().get<string[]>('plugins.enabled') || [];
 
     return Array.from(this.plugins.values()).map((plugin) => ({
       name: plugin.name,
@@ -101,8 +100,7 @@ export class PluginManager {
   }
 
   isPluginEnabled(name: string): boolean {
-    const enabled =
-      this.conductor.getConfig().get<string[]>('plugins.enabled') || [];
+    const enabled = this.conductor.getConfig().get<string[]>('plugins.enabled') || [];
     return enabled.includes(name);
   }
 
@@ -120,8 +118,7 @@ export class PluginManager {
       }
     }
 
-    const enabled =
-      this.conductor.getConfig().get<string[]>('plugins.enabled') || [];
+    const enabled = this.conductor.getConfig().get<string[]>('plugins.enabled') || [];
     if (!enabled.includes(name)) {
       enabled.push(name);
       await this.conductor.getConfig().set('plugins.enabled', enabled);
@@ -129,8 +126,7 @@ export class PluginManager {
   }
 
   async disablePlugin(name: string): Promise<void> {
-    const enabled =
-      this.conductor.getConfig().get<string[]>('plugins.enabled') || [];
+    const enabled = this.conductor.getConfig().get<string[]>('plugins.enabled') || [];
     const filtered = enabled.filter((p) => p !== name);
     await this.conductor.getConfig().set('plugins.enabled', filtered);
     this.initializedPlugins.delete(name);
@@ -139,8 +135,7 @@ export class PluginManager {
   /** Get MCP tools from enabled plugins only. */
   async getEnabledTools(): Promise<PluginTool[]> {
     const tools: PluginTool[] = [];
-    const enabledNames =
-      this.conductor.getConfig().get<string[]>('plugins.enabled') || [];
+    const enabledNames = this.conductor.getConfig().get<string[]>('plugins.enabled') || [];
 
     for (const name of enabledNames) {
       try {
@@ -149,9 +144,7 @@ export class PluginManager {
           tools.push(...plugin.getTools());
         }
       } catch (error: any) {
-        process.stderr.write(
-          `Warning: plugin "${name}" failed to load: ${error.message}\n`
-        );
+        process.stderr.write(`Warning: plugin "${name}" failed to load: ${error.message}\n`);
       }
     }
 

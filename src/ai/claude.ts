@@ -145,10 +145,7 @@ export class ClaudeProvider extends AIProvider {
     });
 
     for await (const chunk of stream) {
-      if (
-        chunk.type === 'content_block_delta' &&
-        chunk.delta.type === 'text_delta'
-      ) {
+      if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
         yield chunk.delta.text;
       }
     }
@@ -156,9 +153,7 @@ export class ClaudeProvider extends AIProvider {
 
   async test(): Promise<boolean> {
     try {
-      await this.complete([
-        { role: 'user', content: 'Say "OK" if you can hear me.' },
-      ]);
+      await this.complete([{ role: 'user', content: 'Say "OK" if you can hear me.' }]);
       return true;
     } catch {
       return false;

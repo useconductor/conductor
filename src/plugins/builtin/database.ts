@@ -8,10 +8,42 @@ export class DatabasePlugin implements Plugin {
 
   configSchema = {
     fields: [
-      { key: 'postgres_url', label: 'PostgreSQL Connection URL', type: 'password' as const, required: false, secret: true, service: 'database', description: 'postgresql://user:pass@host:5432/db' },
-      { key: 'mysql_url', label: 'MySQL Connection URL', type: 'password' as const, required: false, secret: true, service: 'database', description: 'mysql://user:pass@host:3306/db' },
-      { key: 'mongo_url', label: 'MongoDB Connection URL', type: 'password' as const, required: false, secret: true, service: 'database', description: 'mongodb://user:pass@host:27017/db' },
-      { key: 'redis_url', label: 'Redis Connection URL', type: 'password' as const, required: false, secret: true, service: 'database', description: 'redis://:pass@host:6379/0' },
+      {
+        key: 'postgres_url',
+        label: 'PostgreSQL Connection URL',
+        type: 'password' as const,
+        required: false,
+        secret: true,
+        service: 'database',
+        description: 'postgresql://user:pass@host:5432/db',
+      },
+      {
+        key: 'mysql_url',
+        label: 'MySQL Connection URL',
+        type: 'password' as const,
+        required: false,
+        secret: true,
+        service: 'database',
+        description: 'mysql://user:pass@host:3306/db',
+      },
+      {
+        key: 'mongo_url',
+        label: 'MongoDB Connection URL',
+        type: 'password' as const,
+        required: false,
+        secret: true,
+        service: 'database',
+        description: 'mongodb://user:pass@host:27017/db',
+      },
+      {
+        key: 'redis_url',
+        label: 'Redis Connection URL',
+        type: 'password' as const,
+        required: false,
+        secret: true,
+        service: 'database',
+        description: 'redis://:pass@host:6379/0',
+      },
     ],
     setupInstructions: 'Add database connection URLs. Only configured databases will be available.',
   };
@@ -22,7 +54,9 @@ export class DatabasePlugin implements Plugin {
     this.conductor = conductor;
   }
 
-  isConfigured(): boolean { return true; }
+  isConfigured(): boolean {
+    return true;
+  }
 
   private async getKeychain(): Promise<import('../../security/keychain.js').Keychain> {
     if (!this.conductor) throw new Error('Database plugin not initialized');
@@ -56,7 +90,13 @@ export class DatabasePlugin implements Plugin {
     }
   }
 
-  private async runMongo(url: string, db: string, collection: string, operation: string, filter: string): Promise<string> {
+  private async runMongo(
+    url: string,
+    db: string,
+    collection: string,
+    operation: string,
+    filter: string,
+  ): Promise<string> {
     const { execFile } = await import('child_process');
     const { promisify } = await import('util');
     const execFileAsync = promisify(execFile);
@@ -106,7 +146,8 @@ export class DatabasePlugin implements Plugin {
           if (!this.conductor) throw new Error('Database plugin not initialized');
           const keychain = await this.getKeychain();
           const url = await keychain.get('database', 'postgres_url');
-          if (!url) throw new Error('PostgreSQL URL not configured. Run: conductor config set database.postgres_url <url>');
+          if (!url)
+            throw new Error('PostgreSQL URL not configured. Run: conductor config set database.postgres_url <url>');
           const result = await this.runPsql(url, input.query);
           return { database: 'postgresql', query: input.query, result };
         },

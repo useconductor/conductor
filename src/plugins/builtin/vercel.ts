@@ -26,8 +26,7 @@ const VERCEL_BASE = 'https://api.vercel.com';
 
 export class VercelPlugin implements Plugin {
   name = 'vercel';
-  description =
-    'Manage Vercel deployments, projects, domains, and environment variables — requires Vercel token';
+  description = 'Manage Vercel deployments, projects, domains, and environment variables — requires Vercel token';
   version = '1.0.0';
 
   configSchema = {
@@ -39,7 +38,7 @@ export class VercelPlugin implements Plugin {
         required: true,
         secret: true,
         service: 'vercel',
-        description: 'Copy your token from Vercel Account Settings > Tokens.'
+        description: 'Copy your token from Vercel Account Settings > Tokens.',
       },
       {
         key: 'team_id',
@@ -47,10 +46,11 @@ export class VercelPlugin implements Plugin {
         type: 'string' as const,
         required: false,
         secret: false,
-        description: 'Enter your Team ID to scope API calls to a specific team.'
-      }
+        description: 'Enter your Team ID to scope API calls to a specific team.',
+      },
     ],
-    setupInstructions: '1. Go to vercel.com/account/tokens and create a new token. 2. If you are part of a team, copy the Team ID from your team settings page.'
+    setupInstructions:
+      '1. Go to vercel.com/account/tokens and create a new token. 2. If you are part of a team, copy the Team ID from your team settings page.',
   };
 
   private keychain!: Keychain;
@@ -68,8 +68,8 @@ export class VercelPlugin implements Plugin {
     if (!token) {
       throw new Error(
         'Vercel token not configured.\n' +
-        'Get one at https://vercel.com/account/tokens\n' +
-        'Then run: conductor plugins config vercel token <TOKEN>'
+          'Get one at https://vercel.com/account/tokens\n' +
+          'Then run: conductor plugins config vercel token <TOKEN>',
       );
     }
     const teamId = await this.keychain.get('vercel', 'team_id');
@@ -78,7 +78,7 @@ export class VercelPlugin implements Plugin {
 
   private async vercelFetch(
     path: string,
-    options: { method?: string; body?: any; params?: Record<string, string> } = {}
+    options: { method?: string; body?: any; params?: Record<string, string> } = {},
   ): Promise<any> {
     const { token, teamId } = await this.getAuth();
     const url = new URL(`${VERCEL_BASE}${path}`);
@@ -99,9 +99,7 @@ export class VercelPlugin implements Plugin {
     if (res.status === 204) return {};
     if (!res.ok) {
       const err = (await res.json().catch(() => ({}))) as any;
-      throw new Error(
-        `Vercel API ${res.status}: ${err.error?.message ?? err.message ?? res.statusText}`
-      );
+      throw new Error(`Vercel API ${res.status}: ${err.error?.message ?? err.message ?? res.statusText}`);
     }
     return res.json();
   }
@@ -133,9 +131,7 @@ export class VercelPlugin implements Plugin {
       createdAt: d.createdAt ? new Date(d.createdAt).toISOString() : null,
       buildingAt: d.buildingAt ? new Date(d.buildingAt).toISOString() : null,
       ready: d.ready ? new Date(d.ready).toISOString() : null,
-      buildDuration: d.buildingAt && d.ready
-        ? `${Math.round((d.ready - d.buildingAt) / 1000)}s`
-        : null,
+      buildDuration: d.buildingAt && d.ready ? `${Math.round((d.ready - d.buildingAt) / 1000)}s` : null,
       aliases: d.aliases ?? [],
       inspectUrl: `https://vercel.com/deployments/${d.uid ?? d.id}`,
     };
@@ -149,20 +145,20 @@ export class VercelPlugin implements Plugin {
       nodeVersion: p.nodeVersion ?? null,
       latestDeployment: p.latestDeployments?.[0]
         ? {
-          url: `https://${p.latestDeployments[0].url}`,
-          state: p.latestDeployments[0].readyState,
-          target: p.latestDeployments[0].target,
-        }
+            url: `https://${p.latestDeployments[0].url}`,
+            state: p.latestDeployments[0].readyState,
+            target: p.latestDeployments[0].target,
+          }
         : null,
       productionUrl: p.alias?.[0]?.domain ? `https://${p.alias[0].domain}` : null,
       createdAt: p.createdAt ? new Date(p.createdAt).toISOString() : null,
       updatedAt: p.updatedAt ? new Date(p.updatedAt).toISOString() : null,
       gitRepo: p.link
         ? {
-          provider: p.link.type,
-          repo: p.link.repo ?? p.link.projectName,
-          branch: p.link.productionBranch ?? 'main',
-        }
+            provider: p.link.type,
+            repo: p.link.repo ?? p.link.projectName,
+            branch: p.link.productionBranch ?? 'main',
+          }
         : null,
     };
   }
@@ -257,9 +253,7 @@ export class VercelPlugin implements Plugin {
         },
         handler: async ({ id }: any) => {
           // Accept full URLs
-          const deployId = id.includes('vercel.app') || id.includes('vercel.com')
-            ? id.split('/').pop()
-            : id;
+          const deployId = id.includes('vercel.app') || id.includes('vercel.com') ? id.split('/').pop() : id;
           const data = await this.vercelFetch(`/v13/deployments/${encodeURIComponent(deployId)}`);
           return this.formatDeployment(data);
         },
@@ -331,11 +325,10 @@ export class VercelPlugin implements Plugin {
           required: ['deploymentId'],
         },
         handler: async ({ deploymentId, limit = 100, direction = 'backward' }: any) => {
-          const data = await this.vercelFetch(
-            `/v2/deployments/${deploymentId}/events`,
-            { params: { limit: String(Math.min(limit, 2000)), direction } }
-          );
-          const events = (Array.isArray(data) ? data : data.events ?? []);
+          const data = await this.vercelFetch(`/v2/deployments/${deploymentId}/events`, {
+            params: { limit: String(Math.min(limit, 2000)), direction },
+          });
+          const events = Array.isArray(data) ? data : (data.events ?? []);
           const lines = events
             .filter((e: any) => e.type === 'stdout' || e.type === 'stderr' || e.type === 'command')
             .map((e: any) => ({
@@ -363,9 +356,7 @@ export class VercelPlugin implements Plugin {
           required: ['projectId'],
         },
         handler: async ({ projectId }: any) => {
-          const data = await this.vercelFetch(
-            `/v9/projects/${encodeURIComponent(projectId)}/env`
-          );
+          const data = await this.vercelFetch(`/v9/projects/${encodeURIComponent(projectId)}/env`);
           return {
             count: data.envs?.length ?? 0,
             envs: (data.envs ?? []).map((e: any) => ({
@@ -411,13 +402,10 @@ export class VercelPlugin implements Plugin {
           targets = ['production', 'preview', 'development'],
           type = 'encrypted',
         }: any) => {
-          const data = await this.vercelFetch(
-            `/v10/projects/${encodeURIComponent(projectId)}/env`,
-            {
-              method: 'POST',
-              body: { key, value, target: targets, type },
-            }
-          );
+          const data = await this.vercelFetch(`/v10/projects/${encodeURIComponent(projectId)}/env`, {
+            method: 'POST',
+            body: { key, value, target: targets, type },
+          });
           const created = Array.isArray(data) ? data[0] : data;
           return {
             added: true,
@@ -443,10 +431,7 @@ export class VercelPlugin implements Plugin {
           required: ['projectId', 'envId'],
         },
         handler: async ({ projectId, envId }: any) => {
-          await this.vercelFetch(
-            `/v9/projects/${encodeURIComponent(projectId)}/env/${envId}`,
-            { method: 'DELETE' }
-          );
+          await this.vercelFetch(`/v9/projects/${encodeURIComponent(projectId)}/env/${envId}`, { method: 'DELETE' });
           return { deleted: true, envId };
         },
       },
@@ -467,9 +452,7 @@ export class VercelPlugin implements Plugin {
         handler: async ({ projectId }: any) => {
           let data: any;
           if (projectId) {
-            data = await this.vercelFetch(
-              `/v9/projects/${encodeURIComponent(projectId)}/domains`
-            );
+            data = await this.vercelFetch(`/v9/projects/${encodeURIComponent(projectId)}/domains`);
           } else {
             data = await this.vercelFetch('/v5/domains');
           }
@@ -502,10 +485,10 @@ export class VercelPlugin implements Plugin {
           required: ['projectId', 'domain'],
         },
         handler: async ({ projectId, domain }: any) => {
-          const data = await this.vercelFetch(
-            `/v10/projects/${encodeURIComponent(projectId)}/domains`,
-            { method: 'POST', body: { name: domain } }
-          );
+          const data = await this.vercelFetch(`/v10/projects/${encodeURIComponent(projectId)}/domains`, {
+            method: 'POST',
+            body: { name: domain },
+          });
           return {
             added: true,
             name: data.name,
@@ -522,9 +505,7 @@ export class VercelPlugin implements Plugin {
         inputSchema: { type: 'object', properties: {} },
         handler: async () => {
           const { teamId } = await this.getAuth();
-          const data = teamId
-            ? await this.vercelFetch(`/v2/teams/${teamId}`)
-            : await this.vercelFetch('/v2/user');
+          const data = teamId ? await this.vercelFetch(`/v2/teams/${teamId}`) : await this.vercelFetch('/v2/user');
           return {
             id: data.id ?? data.uid,
             name: data.name ?? data.username,

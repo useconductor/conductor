@@ -7,7 +7,9 @@ export class URLToolsPlugin implements Plugin {
   version = '1.0.0';
 
   async initialize(_conductor: Conductor): Promise<void> {}
-  isConfigured(): boolean { return true; }
+  isConfigured(): boolean {
+    return true;
+  }
 
   getTools(): PluginTool[] {
     return [
@@ -60,7 +62,9 @@ export class URLToolsPlugin implements Plugin {
         handler: async (input: { url: string }) => {
           const res = await fetch(input.url, { method: 'HEAD' });
           const headers: Record<string, string> = {};
-          res.headers.forEach((v, k) => { headers[k] = v; });
+          res.headers.forEach((v, k) => {
+            headers[k] = v;
+          });
           return { url: input.url, status: res.status, headers };
         },
       },

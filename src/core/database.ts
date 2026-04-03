@@ -18,10 +18,18 @@ export class DatabaseManager {
     this.dbPath = path.join(configDir, 'conductor.db');
 
     // Ensure flush on process exit
-    const onExit = (): void => { this.flushSync(); };
+    const onExit = (): void => {
+      this.flushSync();
+    };
     process.on('exit', onExit);
-    process.on('SIGINT', () => { this.flushSync(); process.exit(0); });
-    process.on('SIGTERM', () => { this.flushSync(); process.exit(0); });
+    process.on('SIGINT', () => {
+      this.flushSync();
+      process.exit(0);
+    });
+    process.on('SIGTERM', () => {
+      this.flushSync();
+      process.exit(0);
+    });
   }
 
   /**
@@ -33,7 +41,7 @@ export class DatabaseManager {
     if (this.flushTimer) return; // timer already armed — do nothing more
     this.flushTimer = setTimeout(() => {
       this.flushTimer = null;
-      this.save().catch(err => {
+      this.save().catch((err) => {
         process.stderr.write(`DatabaseManager: flush error: ${(err as Error).message}\n`);
       });
     }, DatabaseManager.DEBOUNCE_MS);
@@ -56,7 +64,9 @@ export class DatabaseManager {
       writeFileSync(tmp, data);
       renameSync(tmp, this.dbPath);
       this.dirty = false;
-    } catch { /* best-effort on shutdown */ }
+    } catch {
+      /* best-effort on shutdown */
+    }
   }
 
   /** Cancel the debounce timer and flush immediately (async). */
@@ -156,14 +166,14 @@ export class DatabaseManager {
     action: string,
     plugin?: string,
     details?: string,
-    success: boolean = true
+    success: boolean = true,
   ): Promise<void> {
     if (!this.db) throw new Error('Database not initialized');
 
     this.db.run(
       `INSERT INTO activity_logs (user_id, action, plugin, details, success)
        VALUES (?, ?, ?, ?, ?)`,
-      [userId, action, plugin ?? null, details ?? null, success ? 1 : 0]
+      [userId, action, plugin ?? null, details ?? null, success ? 1 : 0],
     );
 
     this.scheduleFlush();
@@ -173,9 +183,7 @@ export class DatabaseManager {
     if (!this.db) throw new Error('Database not initialized');
 
     // sql.js exec() doesn't support parameterized queries — use prepare+bind
-    const stmt = this.db.prepare(
-      `SELECT * FROM activity_logs ORDER BY timestamp DESC LIMIT ?`
-    );
+    const stmt = this.db.prepare(`SELECT * FROM activity_logs ORDER BY timestamp DESC LIMIT ?`);
     stmt.bind([limit]);
 
     const results: any[] = [];
@@ -193,14 +201,7 @@ export class DatabaseManager {
     this.db.run(
       `INSERT INTO messages (user_id, role, content, tool_calls, tool_call_id, name)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        userId,
-        message.role,
-        message.content || null,
-        toolCalls,
-        message.tool_call_id || null,
-        message.name || null,
-      ]
+      [userId, message.role, message.content || null, toolCalls, message.tool_call_id || null, message.name || null],
     );
     this.scheduleFlush();
   }
@@ -209,7 +210,7 @@ export class DatabaseManager {
     if (!this.db) throw new Error('Database not initialized');
 
     const stmt = this.db.prepare(
-      `SELECT * FROM (SELECT * FROM messages WHERE user_id = ? ORDER BY id DESC LIMIT ?) ORDER BY id ASC`
+      `SELECT * FROM (SELECT * FROM messages WHERE user_id = ? ORDER BY id DESC LIMIT ?) ORDER BY id ASC`,
     );
     stmt.bind([userId, limit]);
 
@@ -234,12 +235,23 @@ export class DatabaseManager {
     this.scheduleFlush();
   }
 
-  async addCoreMemory(entry: { id: string, userId: string, text: string, category: string, importance: number, tags?: string[] }): Promise<void> {
+  async addCoreMemory(entry: {
+    id: string;
+    userId: string;
+    text: string;
+    category: string;
+    importance: number;
+    tags?: string[];
+  }): Promise<void> {
     if (!this.db) throw new Error('Database not initialized');
-    this.db.run(
-      `INSERT INTO core_memory (id, user_id, text, category, importance, tags) VALUES (?, ?, ?, ?, ?, ?)`,
-      [entry.id, entry.userId, entry.text, entry.category, entry.importance, entry.tags ? JSON.stringify(entry.tags) : null]
-    );
+    this.db.run(`INSERT INTO core_memory (id, user_id, text, category, importance, tags) VALUES (?, ?, ?, ?, ?, ?)`, [
+      entry.id,
+      entry.userId,
+      entry.text,
+      entry.category,
+      entry.importance,
+      entry.tags ? JSON.stringify(entry.tags) : null,
+    ]);
     this.scheduleFlush();
   }
 
@@ -305,7 +317,7 @@ export class DatabaseManager {
     const stmt = this.db.prepare(
       `SELECT user_id, role, content, timestamp FROM messages
        WHERE role IN ('user', 'assistant')
-       ORDER BY id DESC LIMIT ?`
+       ORDER BY id DESC LIMIT ?`,
     );
     stmt.bind([limit]);
     const results: any[] = [];
@@ -321,7 +333,7 @@ export class DatabaseManager {
 
     // Simple fast LIKE search to prevent heavy vector RAM usage
     const stmt = this.db.prepare(
-      `SELECT role, content, timestamp FROM messages WHERE user_id = ? AND content LIKE ? ORDER BY timestamp DESC LIMIT ?`
+      `SELECT role, content, timestamp FROM messages WHERE user_id = ? AND content LIKE ? ORDER BY timestamp DESC LIMIT ?`,
     );
     stmt.bind([userId, `%${query}%`, limit]);
 
@@ -348,14 +360,7 @@ export class DatabaseManager {
     this.db.run(
       `INSERT OR REPLACE INTO plugins (id, name, type, version, enabled, config)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        plugin.id,
-        plugin.name,
-        plugin.type,
-        plugin.version || '1.0.0',
-        plugin.enabled ? 1 : 0,
-        configJson,
-      ]
+      [plugin.id, plugin.name, plugin.type, plugin.version || '1.0.0', plugin.enabled ? 1 : 0, configJson],
     );
 
     this.scheduleFlush();
@@ -376,10 +381,10 @@ export class DatabaseManager {
   async updatePluginStatus(pluginId: string, enabled: boolean): Promise<void> {
     if (!this.db) throw new Error('Database not initialized');
 
-    this.db.run(
-      `UPDATE plugins SET enabled = ?, last_used = CURRENT_TIMESTAMP WHERE id = ?`,
-      [enabled ? 1 : 0, pluginId]
-    );
+    this.db.run(`UPDATE plugins SET enabled = ?, last_used = CURRENT_TIMESTAMP WHERE id = ?`, [
+      enabled ? 1 : 0,
+      pluginId,
+    ]);
 
     this.scheduleFlush();
   }

@@ -8,10 +8,7 @@ import { Conductor } from '../../core/conductor.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export function registerLifecycleCommands(
-  program: Command,
-  conductor: Conductor
-): void {
+export function registerLifecycleCommands(program: Command, conductor: Conductor): void {
   program
     .command('version')
     .description('Show Conductor version')
@@ -57,8 +54,7 @@ export function registerLifecycleCommands(
           {
             type: 'confirm',
             name: 'proceed',
-            message:
-              'This will reset all Conductor configuration. Are you sure?',
+            message: 'This will reset all Conductor configuration. Are you sure?',
             default: false,
           },
         ]);
@@ -90,7 +86,7 @@ export function registerLifecycleCommands(
 
       for (const entry of activities) {
         const time = new Date(entry.timestamp).toLocaleString();
-        console.log(`[${time}] ${entry.user_id ?? "system"}: ${entry.action}`);
+        console.log(`[${time}] ${entry.user_id ?? 'system'}: ${entry.action}`);
         if (entry.details) {
           console.log(`  ${entry.details}`);
         }

@@ -68,7 +68,7 @@ export async function setupAI(conductor: Conductor): Promise<void> {
           headers: { Authorization: `Bearer ${apiKey}` },
         });
         if (res.ok) {
-          const json = await res.json() as { data: { id: string; name: string }[] };
+          const json = (await res.json()) as { data: { id: string; name: string }[] };
           modelChoices = json.data
             .sort((a: { id: string; name: string }, b: { id: string; name: string }) => a.id.localeCompare(b.id))
             .map((m: { id: string; name: string }) => ({ name: `${m.name} (${m.id})`, value: m.id }));

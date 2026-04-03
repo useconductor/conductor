@@ -28,7 +28,9 @@ export class GoogleDrivePlugin implements Plugin {
     this.keychain = new Keychain(conductor.getConfig().getConfigDir());
   }
 
-  isConfigured(): boolean { return true; }
+  isConfigured(): boolean {
+    return true;
+  }
 
   private async getToken(): Promise<string> {
     const token = await this.keychain.get('google', 'access_token');
@@ -36,13 +38,16 @@ export class GoogleDrivePlugin implements Plugin {
     return token;
   }
 
-  private async driveFetch(path: string, options: {
-    method?: string;
-    body?: any;
-    base?: string;
-    rawBody?: Buffer | string;
-    contentType?: string;
-  } = {}): Promise<any> {
+  private async driveFetch(
+    path: string,
+    options: {
+      method?: string;
+      body?: any;
+      base?: string;
+      rawBody?: Buffer | string;
+      contentType?: string;
+    } = {},
+  ): Promise<any> {
     const token = await this.getToken();
     const base = options.base ?? DRIVE_BASE;
     const isRaw = options.rawBody !== undefined;
@@ -51,9 +56,7 @@ export class GoogleDrivePlugin implements Plugin {
       method: options.method ?? 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
-        ...(isRaw
-          ? { 'Content-Type': options.contentType ?? 'text/plain' }
-          : { 'Content-Type': 'application/json' }),
+        ...(isRaw ? { 'Content-Type': options.contentType ?? 'text/plain' } : { 'Content-Type': 'application/json' }),
       },
       body: isRaw ? options.rawBody : options.body ? JSON.stringify(options.body) : undefined,
     });
@@ -135,9 +138,10 @@ export class GoogleDrivePlugin implements Plugin {
         },
         handler: async ({ query, maxResults = 10 }: any) => {
           // If query looks like a plain name search (no Drive operators), wrap it
-          const q = query.includes('=') || query.includes(' and ') || query.includes(' or ')
-            ? `(${query}) and trashed = false`
-            : `name contains '${query.replace(/'/g, "\\'")}' and trashed = false`;
+          const q =
+            query.includes('=') || query.includes(' and ') || query.includes(' or ')
+              ? `(${query}) and trashed = false`
+              : `name contains '${query.replace(/'/g, "\\'")}' and trashed = false`;
 
           const fields = 'files(id,name,mimeType,size,modifiedTime,webViewLink,parents)';
           const params = new URLSearchParams({
@@ -191,9 +195,7 @@ export class GoogleDrivePlugin implements Plugin {
         },
         handler: async ({ fileId, maxChars = 10000 }: any) => {
           // Get metadata first to determine how to export
-          const meta = await this.driveFetch(
-            `/files/${encodeURIComponent(fileId)}?fields=name,mimeType,size`
-          );
+          const meta = await this.driveFetch(`/files/${encodeURIComponent(fileId)}?fields=name,mimeType,size`);
 
           let content: string;
           const mimeType: string = meta.mimeType ?? '';
@@ -206,7 +208,7 @@ export class GoogleDrivePlugin implements Plugin {
 
           if (GOOGLE_EXPORTS[mimeType]) {
             content = await this.driveFetch(
-              `/files/${encodeURIComponent(fileId)}/export?mimeType=${encodeURIComponent(GOOGLE_EXPORTS[mimeType])}`
+              `/files/${encodeURIComponent(fileId)}/export?mimeType=${encodeURIComponent(GOOGLE_EXPORTS[mimeType])}`,
             );
           } else if (mimeType.startsWith('text/') || mimeType === 'application/json') {
             content = await this.driveFetch(`/files/${encodeURIComponent(fileId)}?alt=media`);
@@ -297,7 +299,7 @@ export class GoogleDrivePlugin implements Plugin {
             body,
           });
           if (!res.ok) throw new Error(`Drive upload failed: ${res.status} ${res.statusText}`);
-          const f = await res.json() as any;
+          const f = (await res.json()) as any;
           return { uploaded: true, id: f.id, name: f.name };
         },
       },

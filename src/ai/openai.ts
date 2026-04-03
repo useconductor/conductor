@@ -21,13 +21,13 @@ export class OpenAIProvider extends AIProvider {
 
     const requestTools: ChatCompletionTool[] | undefined = tools?.length
       ? tools.map((t) => ({
-        type: 'function',
-        function: {
-          name: t.name,
-          description: t.description,
-          parameters: t.inputSchema as any,
-        },
-      }))
+          type: 'function',
+          function: {
+            name: t.name,
+            description: t.description,
+            parameters: t.inputSchema as any,
+          },
+        }))
       : undefined;
 
     const formattedMessages: ChatCompletionMessageParam[] = messages.map((m) => {
@@ -52,7 +52,7 @@ export class OpenAIProvider extends AIProvider {
       return {
         role: m.role as 'user' | 'assistant' | 'system',
         content: m.content,
-        ...(m.name ? { name: m.name } : {})
+        ...(m.name ? { name: m.name } : {}),
       };
     });
 
@@ -105,19 +105,19 @@ export class OpenAIProvider extends AIProvider {
       return {
         role: m.role as 'user' | 'assistant' | 'system',
         content: m.content,
-        ...(m.name ? { name: m.name } : {})
+        ...(m.name ? { name: m.name } : {}),
       };
     });
 
     const requestTools: ChatCompletionTool[] | undefined = tools?.length
       ? tools.map((t) => ({
-        type: 'function',
-        function: {
-          name: t.name,
-          description: t.description,
-          parameters: t.inputSchema as any,
-        },
-      }))
+          type: 'function',
+          function: {
+            name: t.name,
+            description: t.description,
+            parameters: t.inputSchema as any,
+          },
+        }))
       : undefined;
 
     const stream = await this.client.chat.completions.create({

@@ -7,7 +7,9 @@ export class CryptoPlugin implements Plugin {
   version = '1.0.0';
 
   async initialize(_conductor: Conductor): Promise<void> {}
-  isConfigured(): boolean { return true; } // No API key needed
+  isConfigured(): boolean {
+    return true;
+  } // No API key needed
 
   getTools(): PluginTool[] {
     return [
@@ -25,10 +27,10 @@ export class CryptoPlugin implements Plugin {
         handler: async (input: { coin: string; currency?: string }) => {
           const currency = input.currency || 'usd';
           const res = await fetch(
-            `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(input.coin)}&vs_currencies=${currency}&include_24hr_change=true&include_market_cap=true`
+            `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(input.coin)}&vs_currencies=${currency}&include_24hr_change=true&include_market_cap=true`,
           );
           if (!res.ok) throw new Error(`CoinGecko API error: ${res.statusText}`);
-          const data = await res.json() as any;
+          const data = (await res.json()) as any;
           const coinData = data[input.coin.toLowerCase()];
           if (!coinData) throw new Error(`Coin not found: ${input.coin}`);
           return {
@@ -47,7 +49,7 @@ export class CryptoPlugin implements Plugin {
         handler: async () => {
           const res = await fetch('https://api.coingecko.com/api/v3/search/trending');
           if (!res.ok) throw new Error(`CoinGecko API error: ${res.statusText}`);
-          const data = await res.json() as any;
+          const data = (await res.json()) as any;
           return data.coins.map((c: any) => ({
             name: c.item.name,
             symbol: c.item.symbol,
@@ -69,7 +71,7 @@ export class CryptoPlugin implements Plugin {
         handler: async (input: { query: string }) => {
           const res = await fetch(`https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(input.query)}`);
           if (!res.ok) throw new Error(`CoinGecko API error: ${res.statusText}`);
-          const data = await res.json() as any;
+          const data = (await res.json()) as any;
           return data.coins.slice(0, 10).map((c: any) => ({
             id: c.id,
             name: c.name,

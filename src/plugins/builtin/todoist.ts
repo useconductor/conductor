@@ -61,7 +61,6 @@ interface TodoistProject {
   url: string;
 }
 
-
 interface TodoistComment {
   id: string;
   task_id: string;
@@ -144,7 +143,7 @@ export class TodoistPlugin implements Plugin {
       throw new Error(
         'Todoist not configured. Get your API token from ' +
           'https://app.todoist.com/app/settings/integrations/developer\n' +
-          'Then run: conductor plugins config todoist api_token <YOUR_TOKEN>'
+          'Then run: conductor plugins config todoist api_token <YOUR_TOKEN>',
       );
     }
     return token;
@@ -160,7 +159,7 @@ export class TodoistPlugin implements Plugin {
       method?: 'GET' | 'POST' | 'DELETE';
       params?: Record<string, string>;
       body?: Record<string, unknown>;
-    } = {}
+    } = {},
   ): Promise<any> {
     const token = await this.getToken();
     const { method = 'GET', params, body } = options;
@@ -222,7 +221,6 @@ export class TodoistPlugin implements Plugin {
 
   getTools(): PluginTool[] {
     return [
-
       // ── todoist_list_tasks ────────────────────────────────────────────────
       {
         name: 'todoist_list_tasks',
@@ -282,7 +280,8 @@ export class TodoistPlugin implements Plugin {
 
             return `${header}\n\n${lines.join('\n')}`;
           } catch (err: unknown) {
-            if (err instanceof ZodError) return `Validation error: ${err.issues.map(e => `${e.path.join('.')}: ${(e as any).message}`).join('; ')}`;
+            if (err instanceof ZodError)
+              return `Validation error: ${err.issues.map((e) => `${e.path.join('.')}: ${(e as any).message}`).join('; ')}`;
             return `Error listing tasks: ${(err as Error).message}`;
           }
         },
@@ -349,11 +348,7 @@ export class TodoistPlugin implements Plugin {
               body,
             });
 
-            const lines = [
-              `Task created successfully.`,
-              ``,
-              `**${task.content}** [ID: ${task.id}]`,
-            ];
+            const lines = [`Task created successfully.`, ``, `**${task.content}** [ID: ${task.id}]`];
             if (task.description) lines.push(`Description: ${task.description}`);
             if (task.due) lines.push(`Due: ${formatDue(task.due)}`);
             if (task.priority > 1) lines.push(`Priority: ${priorityLabel(task.priority)}`);
@@ -362,7 +357,8 @@ export class TodoistPlugin implements Plugin {
 
             return lines.join('\n');
           } catch (err: unknown) {
-            if (err instanceof ZodError) return `Validation error: ${err.issues.map(e => `${e.path.join('.')}: ${(e as any).message}`).join('; ')}`;
+            if (err instanceof ZodError)
+              return `Validation error: ${err.issues.map((e) => `${e.path.join('.')}: ${(e as any).message}`).join('; ')}`;
             return `Error creating task: ${(err as Error).message}`;
           }
         },
@@ -391,7 +387,8 @@ export class TodoistPlugin implements Plugin {
             });
             return `Task ${task_id} marked as complete.`;
           } catch (err: unknown) {
-            if (err instanceof ZodError) return `Validation error: ${err.issues.map(e => `${e.path.join('.')}: ${(e as any).message}`).join('; ')}`;
+            if (err instanceof ZodError)
+              return `Validation error: ${err.issues.map((e) => `${e.path.join('.')}: ${(e as any).message}`).join('; ')}`;
             return `Error completing task: ${(err as Error).message}`;
           }
         },
@@ -400,8 +397,7 @@ export class TodoistPlugin implements Plugin {
       // ── todoist_update_task ───────────────────────────────────────────────
       {
         name: 'todoist_update_task',
-        description:
-          'Update an existing task — change its content, description, due date, or priority.',
+        description: 'Update an existing task — change its content, description, due date, or priority.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -456,16 +452,12 @@ export class TodoistPlugin implements Plugin {
               return 'No fields to update were provided.';
             }
 
-            const task: TodoistTask = await this.todoistFetch(
-              `/tasks/${encodeURIComponent(task_id)}`,
-              { method: 'POST', body }
-            );
+            const task: TodoistTask = await this.todoistFetch(`/tasks/${encodeURIComponent(task_id)}`, {
+              method: 'POST',
+              body,
+            });
 
-            const lines = [
-              `Task updated successfully.`,
-              ``,
-              `**${task.content}** [ID: ${task.id}]`,
-            ];
+            const lines = [`Task updated successfully.`, ``, `**${task.content}** [ID: ${task.id}]`];
             if (task.description) lines.push(`Description: ${task.description}`);
             if (task.due) lines.push(`Due: ${formatDue(task.due)}`);
             if (task.priority > 1) lines.push(`Priority: ${priorityLabel(task.priority)}`);
@@ -473,7 +465,8 @@ export class TodoistPlugin implements Plugin {
 
             return lines.join('\n');
           } catch (err: unknown) {
-            if (err instanceof ZodError) return `Validation error: ${err.issues.map(e => `${e.path.join('.')}: ${(e as any).message}`).join('; ')}`;
+            if (err instanceof ZodError)
+              return `Validation error: ${err.issues.map((e) => `${e.path.join('.')}: ${(e as any).message}`).join('; ')}`;
             return `Error updating task: ${(err as Error).message}`;
           }
         },
@@ -505,7 +498,8 @@ export class TodoistPlugin implements Plugin {
             });
             return `Task ${task_id} has been permanently deleted.`;
           } catch (err: unknown) {
-            if (err instanceof ZodError) return `Validation error: ${err.issues.map(e => `${e.path.join('.')}: ${(e as any).message}`).join('; ')}`;
+            if (err instanceof ZodError)
+              return `Validation error: ${err.issues.map((e) => `${e.path.join('.')}: ${(e as any).message}`).join('; ')}`;
             return `Error deleting task: ${(err as Error).message}`;
           }
         },
@@ -580,7 +574,8 @@ export class TodoistPlugin implements Plugin {
 
             return `${header}\n\n${lines.join('\n')}`;
           } catch (err: unknown) {
-            if (err instanceof ZodError) return `Validation error: ${err.issues.map(e => `${e.path.join('.')}: ${(e as any).message}`).join('; ')}`;
+            if (err instanceof ZodError)
+              return `Validation error: ${err.issues.map((e) => `${e.path.join('.')}: ${(e as any).message}`).join('; ')}`;
             return `Error searching tasks: ${(err as Error).message}`;
           }
         },
@@ -616,17 +611,15 @@ export class TodoistPlugin implements Plugin {
               body: { task_id, content },
             });
             return (
-              `Comment added to task ${task_id}.\n` +
-              `Comment ID: ${comment.id}\n` +
-              `Posted at: ${comment.posted_at}`
+              `Comment added to task ${task_id}.\n` + `Comment ID: ${comment.id}\n` + `Posted at: ${comment.posted_at}`
             );
           } catch (err: unknown) {
-            if (err instanceof ZodError) return `Validation error: ${err.issues.map(e => `${e.path.join('.')}: ${(e as any).message}`).join('; ')}`;
+            if (err instanceof ZodError)
+              return `Validation error: ${err.issues.map((e) => `${e.path.join('.')}: ${(e as any).message}`).join('; ')}`;
             return `Error adding comment: ${(err as Error).message}`;
           }
         },
       },
-
     ];
   }
 }

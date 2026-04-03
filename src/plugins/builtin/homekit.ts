@@ -20,8 +20,7 @@ import { Keychain } from '../../security/keychain.js';
 
 export class HomeKitPlugin implements Plugin {
   name = 'homekit';
-  description =
-    'Control HomeKit smart home devices via Homebridge — list, get, and control accessories';
+  description = 'Control HomeKit smart home devices via Homebridge — list, get, and control accessories';
   version = '1.0.0';
 
   configSchema = {
@@ -71,26 +70,22 @@ export class HomeKitPlugin implements Plugin {
   }
 
   private async getCredentials(): Promise<{ baseUrl: string; username: string; password: string }> {
-    const rawUrl  = await this.keychain.get('homekit', 'base_url');
+    const rawUrl = await this.keychain.get('homekit', 'base_url');
     const username = await this.keychain.get('homekit', 'username');
     const password = await this.keychain.get('homekit', 'password');
 
     if (!rawUrl) {
       throw new Error(
         'Homebridge URL not configured.\n' +
-        'Run: conductor plugins config homekit base_url http://homebridge.local:8581'
+          'Run: conductor plugins config homekit base_url http://homebridge.local:8581',
       );
     }
     if (!username) {
-      throw new Error(
-        'Homebridge username not configured.\n' +
-        'Run: conductor plugins config homekit username admin'
-      );
+      throw new Error('Homebridge username not configured.\n' + 'Run: conductor plugins config homekit username admin');
     }
     if (!password) {
       throw new Error(
-        'Homebridge password not configured.\n' +
-        'Run: conductor plugins config homekit password <YOUR_PASSWORD>'
+        'Homebridge password not configured.\n' + 'Run: conductor plugins config homekit password <YOUR_PASSWORD>',
       );
     }
 
@@ -125,10 +120,7 @@ export class HomeKitPlugin implements Plugin {
     return this.cachedToken!;
   }
 
-  private async homebridgeFetch(
-    path: string,
-    options: { method?: string; body?: any } = {}
-  ): Promise<any> {
+  private async homebridgeFetch(path: string, options: { method?: string; body?: any } = {}): Promise<any> {
     const { baseUrl } = await this.getCredentials();
     const token = await this.getToken();
 
@@ -171,12 +163,10 @@ export class HomeKitPlugin implements Plugin {
 
   getTools(): PluginTool[] {
     return [
-
       // ── homekit_status ────────────────────────────────────────────────────
       {
         name: 'homekit_status',
-        description:
-          'Check Homebridge connection status, version, and a summary of all accessories',
+        description: 'Check Homebridge connection status, version, and a summary of all accessories',
         inputSchema: { type: 'object', properties: {} },
         handler: async () => {
           const [accessoriesResult, serverResult] = await Promise.allSettled([
@@ -184,12 +174,8 @@ export class HomeKitPlugin implements Plugin {
             this.homebridgeFetch('/api/server/version'),
           ]);
 
-          const accessories =
-            accessoriesResult.status === 'fulfilled'
-              ? (accessoriesResult.value as any[])
-              : [];
-          const server =
-            serverResult.status === 'fulfilled' ? (serverResult.value as any) : {};
+          const accessories = accessoriesResult.status === 'fulfilled' ? (accessoriesResult.value as any[]) : [];
+          const server = serverResult.status === 'fulfilled' ? (serverResult.value as any) : {};
 
           const byType: Record<string, number> = {};
           for (const acc of accessories) {
@@ -219,8 +205,7 @@ export class HomeKitPlugin implements Plugin {
           properties: {
             type: {
               type: 'string',
-              description:
-                'Filter by accessory type (e.g. "Lightbulb", "Switch", "Thermostat", "Lock", "Fan")',
+              description: 'Filter by accessory type (e.g. "Lightbulb", "Switch", "Thermostat", "Lock", "Fan")',
             },
             room: {
               type: 'string',
@@ -234,16 +219,12 @@ export class HomeKitPlugin implements Plugin {
 
           if (type) {
             const q = type.toLowerCase();
-            filtered = filtered.filter((a: any) =>
-              (a.humanType ?? a.type ?? '').toLowerCase().includes(q)
-            );
+            filtered = filtered.filter((a: any) => (a.humanType ?? a.type ?? '').toLowerCase().includes(q));
           }
 
           if (room) {
             const q = room.toLowerCase();
-            filtered = filtered.filter((a: any) =>
-              (a.roomName ?? '').toLowerCase().includes(q)
-            );
+            filtered = filtered.filter((a: any) => (a.roomName ?? '').toLowerCase().includes(q));
           }
 
           return {
@@ -256,8 +237,7 @@ export class HomeKitPlugin implements Plugin {
       // ── homekit_get_accessory ─────────────────────────────────────────────
       {
         name: 'homekit_get_accessory',
-        description:
-          'Get the current state and all characteristics of a specific HomeKit accessory',
+        description: 'Get the current state and all characteristics of a specific HomeKit accessory',
         inputSchema: {
           type: 'object',
           properties: {
@@ -269,9 +249,7 @@ export class HomeKitPlugin implements Plugin {
           required: ['uniqueId'],
         },
         handler: async ({ uniqueId }: any) => {
-          const acc = await this.homebridgeFetch(
-            `/api/accessories/${encodeURIComponent(uniqueId)}`
-          );
+          const acc = await this.homebridgeFetch(`/api/accessories/${encodeURIComponent(uniqueId)}`);
           return {
             ...this.formatAccessory(acc),
             serviceCharacteristics: (acc.serviceCharacteristics ?? []).map((c: any) => ({
@@ -306,8 +284,7 @@ export class HomeKitPlugin implements Plugin {
             },
             characteristicType: {
               type: 'string',
-              description:
-                'The characteristic to set (e.g. "On", "Brightness", "TargetTemperature", "Hue")',
+              description: 'The characteristic to set (e.g. "On", "Brightness", "TargetTemperature", "Hue")',
             },
             value: {
               description: 'The value to set (boolean, number, or string)',
@@ -322,9 +299,7 @@ export class HomeKitPlugin implements Plugin {
             body: { characteristicType, value },
           });
 
-          const updated = await this.homebridgeFetch(
-            `/api/accessories/${encodeURIComponent(uniqueId)}`
-          );
+          const updated = await this.homebridgeFetch(`/api/accessories/${encodeURIComponent(uniqueId)}`);
 
           return {
             success: true,
@@ -349,8 +324,7 @@ export class HomeKitPlugin implements Plugin {
             },
             on: {
               type: 'boolean',
-              description:
-                'Force on (true) or off (false). If omitted, toggles the current state.',
+              description: 'Force on (true) or off (false). If omitted, toggles the current state.',
             },
           },
           required: ['name'],
@@ -359,9 +333,7 @@ export class HomeKitPlugin implements Plugin {
         handler: async ({ name, on }: any) => {
           const accessories = (await this.homebridgeFetch('/api/accessories')) as any[];
           const q = name.toLowerCase();
-          const acc = accessories.find((a: any) =>
-            (a.serviceName ?? a.displayName ?? '').toLowerCase().includes(q)
-          );
+          const acc = accessories.find((a: any) => (a.serviceName ?? a.displayName ?? '').toLowerCase().includes(q));
 
           if (!acc) {
             const available = accessories
@@ -375,7 +347,7 @@ export class HomeKitPlugin implements Plugin {
           }
 
           const currentOn = acc.values?.On ?? false;
-          const targetOn  = on !== undefined ? on : !currentOn;
+          const targetOn = on !== undefined ? on : !currentOn;
 
           await this.homebridgeFetch(`/api/accessories/${encodeURIComponent(acc.uniqueId)}`, {
             method: 'PUT',
@@ -412,7 +384,6 @@ export class HomeKitPlugin implements Plugin {
           };
         },
       },
-
     ];
   }
 }

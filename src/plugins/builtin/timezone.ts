@@ -7,25 +7,54 @@ export class TimezonePlugin implements Plugin {
   version = '1.0.0';
 
   async initialize(_conductor: Conductor): Promise<void> {}
-  isConfigured(): boolean { return true; }
+  isConfigured(): boolean {
+    return true;
+  }
 
   /** Map common city names to IANA timezone identifiers. */
   private cityToTz(city: string): string {
     const map: Record<string, string> = {
-      'new york': 'America/New_York', 'nyc': 'America/New_York', 'los angeles': 'America/Los_Angeles',
-      'la': 'America/Los_Angeles', 'chicago': 'America/Chicago', 'toronto': 'America/Toronto',
-      'vancouver': 'America/Vancouver', 'montreal': 'America/Toronto', 'london': 'Europe/London',
-      'paris': 'Europe/Paris', 'berlin': 'Europe/Berlin', 'tokyo': 'Asia/Tokyo',
-      'sydney': 'Australia/Sydney', 'dubai': 'Asia/Dubai', 'singapore': 'Asia/Singapore',
-      'hong kong': 'Asia/Hong_Kong', 'shanghai': 'Asia/Shanghai', 'beijing': 'Asia/Shanghai',
-      'mumbai': 'Asia/Kolkata', 'delhi': 'Asia/Kolkata', 'seoul': 'Asia/Seoul',
-      'moscow': 'Europe/Moscow', 'sao paulo': 'America/Sao_Paulo', 'cairo': 'Africa/Cairo',
-      'istanbul': 'Europe/Istanbul', 'bangkok': 'Asia/Bangkok', 'jakarta': 'Asia/Jakarta',
-      'mexico city': 'America/Mexico_City', 'denver': 'America/Denver',
-      'san francisco': 'America/Los_Angeles', 'sf': 'America/Los_Angeles',
-      'utc': 'UTC', 'gmt': 'UTC', 'est': 'America/New_York', 'pst': 'America/Los_Angeles',
-      'cst': 'America/Chicago', 'mst': 'America/Denver', 'cet': 'Europe/Paris',
-      'jst': 'Asia/Tokyo', 'ist': 'Asia/Kolkata', 'aest': 'Australia/Sydney',
+      'new york': 'America/New_York',
+      nyc: 'America/New_York',
+      'los angeles': 'America/Los_Angeles',
+      la: 'America/Los_Angeles',
+      chicago: 'America/Chicago',
+      toronto: 'America/Toronto',
+      vancouver: 'America/Vancouver',
+      montreal: 'America/Toronto',
+      london: 'Europe/London',
+      paris: 'Europe/Paris',
+      berlin: 'Europe/Berlin',
+      tokyo: 'Asia/Tokyo',
+      sydney: 'Australia/Sydney',
+      dubai: 'Asia/Dubai',
+      singapore: 'Asia/Singapore',
+      'hong kong': 'Asia/Hong_Kong',
+      shanghai: 'Asia/Shanghai',
+      beijing: 'Asia/Shanghai',
+      mumbai: 'Asia/Kolkata',
+      delhi: 'Asia/Kolkata',
+      seoul: 'Asia/Seoul',
+      moscow: 'Europe/Moscow',
+      'sao paulo': 'America/Sao_Paulo',
+      cairo: 'Africa/Cairo',
+      istanbul: 'Europe/Istanbul',
+      bangkok: 'Asia/Bangkok',
+      jakarta: 'Asia/Jakarta',
+      'mexico city': 'America/Mexico_City',
+      denver: 'America/Denver',
+      'san francisco': 'America/Los_Angeles',
+      sf: 'America/Los_Angeles',
+      utc: 'UTC',
+      gmt: 'UTC',
+      est: 'America/New_York',
+      pst: 'America/Los_Angeles',
+      cst: 'America/Chicago',
+      mst: 'America/Denver',
+      cet: 'Europe/Paris',
+      jst: 'Asia/Tokyo',
+      ist: 'Asia/Kolkata',
+      aest: 'Australia/Sydney',
     };
     return map[city.toLowerCase()] || city; // Fall back to raw timezone string
   }
@@ -47,13 +76,20 @@ export class TimezonePlugin implements Plugin {
           required: ['cities'],
         },
         handler: async (input: { cities: string[] }) => {
-          return input.cities.map(city => {
+          return input.cities.map((city) => {
             const tz = this.cityToTz(city);
             try {
               const now = new Date();
               const options: Intl.DateTimeFormatOptions = {
-                timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit',
-                hour12: true, weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+                timeZone: tz,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true,
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
               };
               return { city, timezone: tz, time: now.toLocaleString('en-US', options) };
             } catch {
@@ -110,8 +146,12 @@ export class TimezonePlugin implements Plugin {
           }
 
           const formatOpts: Intl.DateTimeFormatOptions = {
-            hour: '2-digit', minute: '2-digit', hour12: true,
-            weekday: 'short', month: 'short', day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
           };
 
           return {

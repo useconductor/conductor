@@ -39,91 +39,120 @@ ai.command('test')
 // ── MCP ──────────────────────────────────────────────────────────────
 const mcp = program.command('mcp').description('MCP server management');
 
-mcp.command('setup').description('Configure MCP for Claude Desktop').action(async () => {
-  const { mcpSetup } = await import('./commands/mcp.js');
-  await mcpSetup(conductor);
-});
+mcp
+  .command('setup')
+  .description('Configure MCP for Claude Desktop')
+  .action(async () => {
+    const { mcpSetup } = await import('./commands/mcp.js');
+    await mcpSetup(conductor);
+  });
 
-mcp.command('status').description('Show MCP server status').action(async () => {
-  const { mcpStatus } = await import('./commands/mcp.js');
-  await mcpStatus(conductor);
-});
+mcp
+  .command('status')
+  .description('Show MCP server status')
+  .action(async () => {
+    const { mcpStatus } = await import('./commands/mcp.js');
+    await mcpStatus(conductor);
+  });
 
-mcp.command('start').description('Start MCP server (stdio)').action(async () => {
-  const { mcpStart } = await import('./commands/mcp.js');
-  await mcpStart(conductor);
-});
+mcp
+  .command('start')
+  .description('Start MCP server (stdio)')
+  .action(async () => {
+    const { mcpStart } = await import('./commands/mcp.js');
+    await mcpStart(conductor);
+  });
 
-mcp.command('remove').description('Remove MCP configuration').action(async () => {
-  const { mcpRemove } = await import('./commands/mcp.js');
-  await mcpRemove(conductor);
-});
+mcp
+  .command('remove')
+  .description('Remove MCP configuration')
+  .action(async () => {
+    const { mcpRemove } = await import('./commands/mcp.js');
+    await mcpRemove(conductor);
+  });
 
 // ── Telegram ─────────────────────────────────────────────────────────
 const telegram = program.command('telegram').description('Telegram bot');
 
-telegram.command('start').description('Start the Telegram bot').action(async () => {
-  const { TelegramBot } = await import('../bot/telegram.js');
-  await conductor.initialize();
-  const bot = new TelegramBot(conductor);
-  await bot.start();
-});
+telegram
+  .command('start')
+  .description('Start the Telegram bot')
+  .action(async () => {
+    const { TelegramBot } = await import('../bot/telegram.js');
+    await conductor.initialize();
+    const bot = new TelegramBot(conductor);
+    await bot.start();
+  });
 
-telegram.command('setup').description('Configure Telegram bot token').action(async () => {
-  const { telegramSetup } = await import('./commands/telegram.js');
-  await telegramSetup(conductor);
-});
+telegram
+  .command('setup')
+  .description('Configure Telegram bot token')
+  .action(async () => {
+    const { telegramSetup } = await import('./commands/telegram.js');
+    await telegramSetup(conductor);
+  });
 
 // ── Plugins (register both "plugins" and "plugin") ──────────────────
 function registerPluginCommands(parent: Command, cmdName: string): void {
   const cmd = parent.command(cmdName).description('Plugin management');
 
-  cmd.command('list').description('List all plugins').action(async () => {
-    await conductor.initialize();
-    const pm = new PluginManager(conductor);
-    await pm.loadBuiltins();
+  cmd
+    .command('list')
+    .description('List all plugins')
+    .action(async () => {
+      await conductor.initialize();
+      const pm = new PluginManager(conductor);
+      await pm.loadBuiltins();
 
-    const list = pm.listPlugins();
-    const enabledNames = conductor.getConfig().get<string[]>('plugins.enabled') || [];
+      const list = pm.listPlugins();
+      const enabledNames = conductor.getConfig().get<string[]>('plugins.enabled') || [];
 
-    console.log('');
-    console.log(`  🔌 Plugins (${list.length} available)\n`);
-    for (const p of list) {
-      const icon = enabledNames.includes(p.name) ? '🟢' : '⚪';
-      console.log(`  ${icon} ${p.name}`);
-      console.log(`     ${p.description}`);
       console.log('');
-    }
-    if (enabledNames.length === 0) {
-      console.log(`  Enable plugins with: conductor plugins enable <name>\n`);
-    }
-  });
+      console.log(`  🔌 Plugins (${list.length} available)\n`);
+      for (const p of list) {
+        const icon = enabledNames.includes(p.name) ? '🟢' : '⚪';
+        console.log(`  ${icon} ${p.name}`);
+        console.log(`     ${p.description}`);
+        console.log('');
+      }
+      if (enabledNames.length === 0) {
+        console.log(`  Enable plugins with: conductor plugins enable <name>\n`);
+      }
+    });
 
-  cmd.command('enable').argument('<name>', 'Plugin name').description('Enable a plugin').action(async (name: string) => {
-    await conductor.initialize();
-    const pm = new PluginManager(conductor);
-    await pm.loadBuiltins();
-    try {
-      await pm.enablePlugin(name);
-      console.log(`  ✓ Plugin "${name}" enabled`);
-    } catch (e: any) {
-      console.error(`  ✗ ${e.message}`);
-      process.exit(1);
-    }
-  });
+  cmd
+    .command('enable')
+    .argument('<name>', 'Plugin name')
+    .description('Enable a plugin')
+    .action(async (name: string) => {
+      await conductor.initialize();
+      const pm = new PluginManager(conductor);
+      await pm.loadBuiltins();
+      try {
+        await pm.enablePlugin(name);
+        console.log(`  ✓ Plugin "${name}" enabled`);
+      } catch (e: any) {
+        console.error(`  ✗ ${e.message}`);
+        process.exit(1);
+      }
+    });
 
-  cmd.command('disable').argument('<name>', 'Plugin name').description('Disable a plugin').action(async (name: string) => {
-    await conductor.initialize();
-    const pm = new PluginManager(conductor);
-    await pm.loadBuiltins();
-    try {
-      await pm.disablePlugin(name);
-      console.log(`  ✓ Plugin "${name}" disabled`);
-    } catch (e: any) {
-      console.error(`  ✗ ${e.message}`);
-      process.exit(1);
-    }
-  });
+  cmd
+    .command('disable')
+    .argument('<name>', 'Plugin name')
+    .description('Disable a plugin')
+    .action(async (name: string) => {
+      await conductor.initialize();
+      const pm = new PluginManager(conductor);
+      await pm.loadBuiltins();
+      try {
+        await pm.disablePlugin(name);
+        console.log(`  ✓ Plugin "${name}" disabled`);
+      } catch (e: any) {
+        console.error(`  ✗ ${e.message}`);
+        process.exit(1);
+      }
+    });
 }
 
 registerPluginCommands(program, 'plugins');
@@ -132,7 +161,8 @@ registerPluginCommands(program, 'plugin');
 // ── Proactive (Autonomous) ──────────────────────────────────────────
 const proactive = program.command('proactive').description('Autonomous agent management');
 
-proactive.command('start')
+proactive
+  .command('start')
   .description('Start the proactive autonomous loop')
   .option('-i, --interval <minutes>', 'Interval between cycles', '30')
   .action(async (options: { interval: string }) => {
@@ -148,7 +178,8 @@ proactive.command('start')
   });
 
 // ── Google (Convenience Alias) ──────────────────────────────────────
-program.command('google')
+program
+  .command('google')
   .description('Alias for "auth google" — browser-based setup')
   .option('-f, --file <path>', 'Import credentials from Google JSON file')
   .action(async (options: { file?: string }) => {
@@ -168,7 +199,7 @@ program.command('google')
     const scopes = [
       'https://www.googleapis.com/auth/gmail.modify',
       'https://www.googleapis.com/auth/calendar',
-      'https://www.googleapis.com/auth/drive'
+      'https://www.googleapis.com/auth/drive',
     ];
 
     try {
@@ -184,7 +215,8 @@ program.command('google')
 // ── Slack ──────────────────────────────────────────────────────────
 const slack = program.command('slack').description('Slack bot management');
 
-slack.command('setup')
+slack
+  .command('setup')
   .description('Configure Slack Bot and App tokens')
   .action(async () => {
     const { Keychain } = await import('../security/keychain.js');
@@ -203,15 +235,15 @@ slack.command('setup')
         name: 'botToken',
         message: 'Enter Slack Bot User OAuth Token (xoxb-):',
         mask: '*',
-        validate: (input) => input.startsWith('xoxb-') || 'Must start with xoxb-'
+        validate: (input) => input.startsWith('xoxb-') || 'Must start with xoxb-',
       },
       {
         type: 'password',
         name: 'appToken',
         message: 'Enter Slack App-Level Token (xapp-):',
         mask: '*',
-        validate: (input) => input.startsWith('xapp-') || 'Must start with xapp-'
-      }
+        validate: (input) => input.startsWith('xapp-') || 'Must start with xapp-',
+      },
     ]);
 
     await keychain.set('slack', 'bot_token', answers.botToken);
@@ -220,7 +252,8 @@ slack.command('setup')
     console.log('\n  ✅ Slack tokens saved to keychain.\n');
   });
 
-slack.command('start')
+slack
+  .command('start')
   .description('Start the Slack bot')
   .action(async () => {
     const { SlackBot } = await import('../bot/slack.js');
@@ -237,7 +270,8 @@ slack.command('start')
 // ── Auth ───────────────────────────────────────────────────────────
 const auth = program.command('auth').description('Authentication management');
 
-auth.command('google')
+auth
+  .command('google')
   .description('Browser-based Google authentication')
   .option('-f, --file <path>', 'Import credentials from Google JSON file')
   .action(async (options: { file?: string }) => {
@@ -257,7 +291,7 @@ auth.command('google')
     const scopes = [
       'https://www.googleapis.com/auth/gmail.modify',
       'https://www.googleapis.com/auth/calendar',
-      'https://www.googleapis.com/auth/drive'
+      'https://www.googleapis.com/auth/drive',
     ];
 
     try {
@@ -271,7 +305,8 @@ auth.command('google')
   });
 
 // ── Marketplace ───────────────────────────────────────────────────────────────
-program.command('install')
+program
+  .command('install')
   .argument('<plugin>', 'Plugin ID to install (e.g. gmail, github, slack)')
   .description('Install a plugin from the Conductor marketplace')
   .action(async (pluginId: string) => {
@@ -280,7 +315,8 @@ program.command('install')
     await installPlugin(conductor, pluginId);
   });
 
-program.command('uninstall')
+program
+  .command('uninstall')
   .argument('<plugin>', 'Plugin ID to uninstall')
   .description('Uninstall a marketplace plugin')
   .action(async (pluginId: string) => {
@@ -300,7 +336,8 @@ marketplace
     await listMarketplace(conductor, opts);
   });
 
-marketplace.command('info')
+marketplace
+  .command('info')
   .argument('<plugin>', 'Plugin ID')
   .description('Show details about a plugin')
   .action(async (pluginId: string) => {
@@ -310,7 +347,8 @@ marketplace.command('info')
   });
 
 // ── Dashboard ─────────────────────────────────────────────────────────
-program.command('dashboard')
+program
+  .command('dashboard')
   .description('Open the Conductor web dashboard')
   .option('-p, --port <port>', 'Port to run on', '4242')
   .option('--no-open', 'Do not auto-open browser')
@@ -320,7 +358,8 @@ program.command('dashboard')
   });
 
 // ── Doctor ────────────────────────────────────────────────────────────
-program.command('doctor')
+program
+  .command('doctor')
   .description('Diagnose issues and check system health')
   .action(async () => {
     const { doctor } = await import('./commands/doctor.js');
@@ -328,7 +367,8 @@ program.command('doctor')
   });
 
 // ── Plugin Create ─────────────────────────────────────────────────────
-program.command('plugin create')
+program
+  .command('plugin create')
   .argument('<name>', 'Plugin name')
   .description('Scaffold a new plugin with tests')
   .action(async (name: string) => {
@@ -337,7 +377,8 @@ program.command('plugin create')
   });
 
 // ── Health ────────────────────────────────────────────────────────────
-program.command('health')
+program
+  .command('health')
   .description('Show system health status')
   .option('--json', 'Output as JSON')
   .action(async (opts: { json?: boolean }) => {
