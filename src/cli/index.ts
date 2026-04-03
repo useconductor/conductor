@@ -14,7 +14,7 @@ const conductor = new Conductor();
 
 program
   .name('conductor')
-  .description('Universal integration hub — Connect AI and services through conversation')
+  .description('The AI Tool Hub — One MCP server. 100+ tools. Every AI agent.')
   .version(pkgVersion);
 
 registerLifecycleCommands(program, conductor);
@@ -317,6 +317,56 @@ program.command('dashboard')
   .action(async (opts: { port?: string; open?: boolean }) => {
     const { dashboardCommand } = await import('../dashboard/cli.js');
     await dashboardCommand(conductor, opts);
+  });
+
+// ── Doctor ────────────────────────────────────────────────────────────
+program.command('doctor')
+  .description('Diagnose issues and check system health')
+  .action(async () => {
+    const { doctor } = await import('./commands/doctor.js');
+    await doctor(conductor);
+  });
+
+// ── Plugin Create ─────────────────────────────────────────────────────
+program.command('plugin create')
+  .argument('<name>', 'Plugin name')
+  .description('Scaffold a new plugin with tests')
+  .action(async (name: string) => {
+    const { pluginCreate } = await import('./commands/plugin-create.js');
+    await pluginCreate(name);
+  });
+
+// ── Health ────────────────────────────────────────────────────────────
+program.command('health')
+  .description('Show system health status')
+  .option('--json', 'Output as JSON')
+  .action(async (opts: { json?: boolean }) => {
+    await conductor.initialize();
+    const { HealthChecker } = await import('../core/health.js');
+    const checker = new HealthChecker();
+    const report = await checker.detailed(pkgVersion);
+
+    if (opts.json) {
+      console.log(JSON.stringify(report, null, 2));
+    } else {
+      console.log('');
+      console.log(`  🏥 Conductor Health — ${report.status.toUpperCase()}`);
+      console.log(`  Version: ${report.version} | Uptime: ${report.uptime}s`);
+      console.log('');
+      for (const c of report.components) {
+        const icon = c.status === 'ok' ? '✅' : c.status === 'degraded' ? '⚠️' : '❌';
+        console.log(`  ${icon} ${c.name}: ${c.status}${c.message ? ` — ${c.message}` : ''}`);
+      }
+      if (report.metrics) {
+        console.log('');
+        console.log(`  📊 Metrics:`);
+        console.log(`     Tool calls: ${report.metrics.totalToolCalls} (${report.metrics.failedToolCalls} failed)`);
+        console.log(`     Avg latency: ${report.metrics.avgLatencyMs}ms`);
+        console.log(`     Active webhooks: ${report.metrics.activeWebhooks}`);
+        console.log(`     Open circuits: ${report.metrics.openCircuits}`);
+      }
+      console.log('');
+    }
   });
 
 // ── Run ──────────────────────────────────────────────────────────────

@@ -222,6 +222,61 @@ Control HomeKit accessories via the homebridge REST API.
 
 ---
 
+## Infrastructure Plugins
+
+### docker
+Docker container, image, volume, and network management.
+
+**No credentials required** — uses the local Docker CLI.
+
+**Tools**:
+- `docker_containers` — List containers (use `--all` for stopped)
+- `docker_container_logs` — Get container logs
+- `docker_container_action` — start/stop/restart/pause/kill/remove
+- `docker_images` — List images
+- `docker_pull` — Pull an image
+- `docker_run` — Run a container (requiresApproval)
+- `docker_volumes` — List volumes
+- `docker_networks` — List networks
+- `docker_stats` — Resource usage stats
+
+### database
+Query PostgreSQL, MySQL, MongoDB, and Redis databases.
+
+**Required credentials** (stored encrypted in keychain):
+- `database / postgres_url` — `postgresql://user:pass@host:5432/db`
+- `database / mysql_url` — `mysql://user:pass@host:3306/db`
+- `database / mongo_url` — `mongodb://user:pass@host:27017/db`
+- `database / redis_url` — `redis://:pass@host:6379/0`
+
+**Tools**:
+- `db_postgres_query` — Read-only SELECT query
+- `db_mysql_query` — Read-only SELECT query
+- `db_mongo_find` — Query a collection
+- `db_redis_command` — Execute a Redis command
+- `db_list_connections` — List configured connections
+
+### shell
+Safe shell command execution with approval workflow and path validation.
+
+**No credentials required.**
+
+**Tools**:
+- `shell_run` — Run a whitelisted command (requiresApproval)
+- `shell_read_file` — Read file contents
+- `shell_write_file` — Write content to file (requiresApproval)
+- `shell_list_dir` — List directory contents
+- `shell_search_files` — Search files by glob pattern
+- `shell_search_content` — Search file contents with grep
+
+**Safety features:**
+- Whitelist-based command filtering (no arbitrary commands)
+- Path traversal protection
+- Dangerous pattern detection (fork bombs, rm -rf /, etc.)
+- 10MB output limit, 120s timeout
+
+---
+
 ## AI
 
 ### lumen

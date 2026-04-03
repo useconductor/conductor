@@ -1,0 +1,22 @@
+{
+  "name": "@conductor/plugin-sdk",
+  "version": "1.0.0",
+  "description": "SDK for building Conductor plugins with TypeScript",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
+  },
+  "peerDependencies": {
+    "typescript": ">=5.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.2"
+  }
+}
