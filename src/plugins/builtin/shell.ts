@@ -9,18 +9,82 @@ const execFileAsync = promisify(execFile);
 
 // Whitelist of safe commands — no shell interpretation
 const SAFE_COMMANDS = new Set([
-  'ls', 'cat', 'head', 'tail', 'wc', 'grep', 'find', 'stat', 'file',
-  'pwd', 'whoami', 'date', 'uptime', 'df', 'du', 'free', 'top',
-  'git', 'node', 'npm', 'pnpm', 'yarn', 'python', 'python3', 'pip', 'pip3',
-  'make', 'cmake', 'cargo', 'go', 'rustc', 'gcc', 'clang',
-  'curl', 'wget', 'ssh', 'scp', 'rsync',
-  'docker', 'docker-compose', 'kubectl', 'helm',
-  'terraform', 'ansible', 'vault',
-  'psql', 'mysql', 'mongosh', 'redis-cli',
-  'jq', 'yq', 'sed', 'awk', 'cut', 'sort', 'uniq', 'tr', 'xargs',
-  'zip', 'unzip', 'tar', 'gzip',
-  'chmod', 'chown', 'mkdir', 'rmdir', 'cp', 'mv', 'rm', 'touch', 'ln',
-  'diff', 'patch', 'md5sum', 'sha256sum', 'sha1sum',
+  'ls',
+  'cat',
+  'head',
+  'tail',
+  'wc',
+  'grep',
+  'find',
+  'stat',
+  'file',
+  'pwd',
+  'whoami',
+  'date',
+  'uptime',
+  'df',
+  'du',
+  'free',
+  'top',
+  'git',
+  'node',
+  'npm',
+  'pnpm',
+  'yarn',
+  'python',
+  'python3',
+  'pip',
+  'pip3',
+  'make',
+  'cmake',
+  'cargo',
+  'go',
+  'rustc',
+  'gcc',
+  'clang',
+  'curl',
+  'wget',
+  'ssh',
+  'scp',
+  'rsync',
+  'docker',
+  'docker-compose',
+  'kubectl',
+  'helm',
+  'terraform',
+  'ansible',
+  'vault',
+  'psql',
+  'mysql',
+  'mongosh',
+  'redis-cli',
+  'jq',
+  'yq',
+  'sed',
+  'awk',
+  'cut',
+  'sort',
+  'uniq',
+  'tr',
+  'xargs',
+  'zip',
+  'unzip',
+  'tar',
+  'gzip',
+  'chmod',
+  'chown',
+  'mkdir',
+  'rmdir',
+  'cp',
+  'mv',
+  'rm',
+  'touch',
+  'ln',
+  'diff',
+  'patch',
+  'md5sum',
+  'sha256sum',
+  'sha1sum',
 ]);
 
 // Dangerous patterns that are never allowed even with approval
@@ -52,7 +116,9 @@ function isDangerous(cmd: string): { safe: boolean; reason?: string } {
 function validatePathArg(arg: string): string {
   const resolved = path.resolve(arg);
   if (resolved.includes('..') && !resolved.startsWith(process.cwd())) {
-    throw new Error(`Path traversal detected: ${arg}. Paths must be within the current working directory.`);
+    throw new Error(
+      `COND-FS-001: Path traversal detected: ${arg}. Paths must be within the current working directory.`,
+    );
   }
   return resolved;
 }
@@ -63,9 +129,15 @@ export class ShellPlugin implements Plugin {
   version = '1.0.0';
 
   async initialize(_conductor: Conductor): Promise<void> {}
-  isConfigured(): boolean { return true; }
+  isConfigured(): boolean {
+    return true;
+  }
 
-  private async runCommand(cmd: string, args: string[], cwd?: string): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+  private async runCommand(
+    cmd: string,
+    args: string[],
+    cwd?: string,
+  ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
     const workingDir = cwd ? validatePathArg(cwd) : process.cwd();
     try {
       const { stdout, stderr } = await execFileAsync(cmd, args, {
@@ -91,7 +163,8 @@ export class ShellPlugin implements Plugin {
     return [
       {
         name: 'shell_run',
-        description: 'Run a shell command. Commands are validated against a safety whitelist. Dangerous commands are blocked entirely.',
+        description:
+          'Run a shell command. Commands are validated against a safety whitelist. Dangerous commands are blocked entirely.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -104,13 +177,18 @@ export class ShellPlugin implements Plugin {
           const parts = input.command.trim().split(/\s+/);
           const cmd = parts[0];
 
-          if (!cmd) throw new Error('Empty command');
+          if (!cmd) throw new Error('COND-SYS-001: Empty command provided to shell executor.');
           if (!SAFE_COMMANDS.has(cmd)) {
-            throw new Error(`Command "${cmd}" is not in the safe command whitelist. Allowed: ${Array.from(SAFE_COMMANDS).sort().join(', ')}`);
+            throw new Error(
+              `COND-SEC-001: Command "${cmd}" is not in the safe command whitelist. Allowed commands: ${Array.from(SAFE_COMMANDS).sort().join(', ')}. Review the whitelist in shell.ts for approved commands.`,
+            );
           }
 
           const safety = isDangerous(input.command);
-          if (!safety.safe) throw new Error(safety.reason ?? 'Command blocked by safety check');
+          if (!safety.safe)
+            throw new Error(
+              `COND-SEC-002: ${safety.reason ?? 'Command blocked by safety check'}. Review DANGEROUS_PATTERNS in shell.ts for blocked patterns.`,
+            );
 
           const result = await this.runCommand(cmd, parts.slice(1), input.cwd);
           return {
@@ -137,9 +215,13 @@ export class ShellPlugin implements Plugin {
         handler: async (input: { path: string; limit?: number }) => {
           const filePath = validatePathArg(input.path);
           const stat = await fs.stat(filePath);
-          if (!stat.isFile()) throw new Error(`Not a file: ${input.path}`);
+          if (!stat.isFile())
+            throw new Error(`COND-FS-002: Not a file: ${input.path}. Verify the path exists and is a regular file.`);
           const limit = input.limit ?? 100000;
-          if (stat.size > limit) throw new Error(`File too large (${stat.size} bytes). Limit: ${limit} bytes. Use shell_run with head command for large files.`);
+          if (stat.size > limit)
+            throw new Error(
+              `COND-FS-003: File too large (${stat.size} bytes). Limit: ${limit} bytes. Use shell_run with head command for large files, or increase the limit parameter.`,
+            );
           const content = await fs.readFile(filePath, 'utf-8');
           return { path: input.path, size: stat.size, content };
         },
@@ -176,11 +258,17 @@ export class ShellPlugin implements Plugin {
         handler: async (input: { path?: string; recursive?: boolean; pattern?: string }) => {
           const dirPath = validatePathArg(input.path ?? '.');
           const stat = await fs.stat(dirPath);
-          if (!stat.isDirectory()) throw new Error(`Not a directory: ${input.path}`);
+          if (!stat.isDirectory())
+            throw new Error(`COND-FS-004: Not a directory: ${input.path}. Verify the path exists and is a directory.`);
           if (input.recursive) {
             const { glob } = await import('glob');
             const matches = await glob(input.pattern ?? '**/*', { cwd: dirPath, nodir: false });
-            return { path: input.path ?? '.', pattern: input.pattern ?? '**/*', entries: matches.slice(0, 500), truncated: matches.length > 500 };
+            return {
+              path: input.path ?? '.',
+              pattern: input.pattern ?? '**/*',
+              entries: matches.slice(0, 500),
+              truncated: matches.length > 500,
+            };
           }
           const entries = await fs.readdir(dirPath, { withFileTypes: true });
           return {
@@ -207,7 +295,12 @@ export class ShellPlugin implements Plugin {
           const dirPath = validatePathArg(input.path ?? '.');
           const { glob } = await import('glob');
           const matches = await glob(input.pattern, { cwd: dirPath, nodir: false });
-          return { path: input.path ?? '.', pattern: input.pattern, matches: matches.slice(0, 200), truncated: matches.length > 200 };
+          return {
+            path: input.path ?? '.',
+            pattern: input.pattern,
+            matches: matches.slice(0, 200),
+            truncated: matches.length > 200,
+          };
         },
       },
       {
@@ -228,7 +321,10 @@ export class ShellPlugin implements Plugin {
           if (input.include) args.push('--include', input.include);
           const result = await this.runCommand('grep', args);
           if (result.exitCode === 1) return { pattern: input.pattern, matches: [] };
-          if (result.exitCode > 1) throw new Error(result.stderr);
+          if (result.exitCode > 1)
+            throw new Error(
+              `COND-SYS-002: Grep command failed with exit code ${result.exitCode}. Error: ${result.stderr}`,
+            );
           const lines = result.stdout.split('\n').slice(0, 100);
           return { pattern: input.pattern, matches: lines, truncated: result.stdout.split('\n').length > 100 };
         },

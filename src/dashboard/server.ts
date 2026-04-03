@@ -15,59 +15,86 @@ import type { Conductor } from '../core/conductor.js';
 const execFileAsync = promisify(execFile);
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname  = path.dirname(__filename);
+const __dirname = path.dirname(__filename);
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const ALL_PLUGINS: readonly string[] = [
-  'calculator', 'colors', 'cron', 'crypto', 'fun', 'gcal', 'gdrive',
-  'github', 'github-actions', 'gmail', 'hash', 'homekit', 'memory',
-  'n8n', 'network', 'notes', 'notion', 'slack', 'spotify', 'system', 'text-tools',
-  'timezone', 'todoist', 'translate', 'url-tools', 'vercel', 'weather', 'x',
+  'calculator',
+  'colors',
+  'cron',
+  'crypto',
+  'fun',
+  'gcal',
+  'gdrive',
+  'github',
+  'github-actions',
+  'gmail',
+  'hash',
+  'homekit',
+  'memory',
+  'n8n',
+  'network',
+  'notes',
+  'notion',
+  'slack',
+  'spotify',
+  'system',
+  'text-tools',
+  'timezone',
+  'todoist',
+  'translate',
+  'url-tools',
+  'vercel',
+  'weather',
+  'x',
 ] as const;
 
 const PLUGIN_REQUIRED_CREDS: Record<string, { service: string; key: string }[]> = {
-  'github':         [{ service: 'github',   key: 'token'        }],
-  'github-actions': [{ service: 'github',   key: 'token'        }],
-  'gmail':          [{ service: 'google',   key: 'access_token' }],
-  'gcal':           [{ service: 'google',   key: 'access_token' }],
-  'gdrive':         [{ service: 'google',   key: 'access_token' }],
-  'notion':         [{ service: 'notion',   key: 'api_key'      }],
-  'spotify':        [{ service: 'spotify',  key: 'client_id'    }],
-  'n8n':            [{ service: 'n8n',      key: 'api_key'      }],
-  'vercel':         [{ service: 'vercel',   key: 'token'        }],
-  'weather':        [{ service: 'weather',  key: 'api_key'      }],
-  'x':              [{ service: 'x',        key: 'api_key'      }],
-  'homekit':        [{ service: 'homekit',  key: 'base_url'     }],
-  'slack':          [{ service: 'slack',    key: 'bot_token'    }],
-  'todoist':        [{ service: 'todoist', key: 'api_token'    }],
+  github: [{ service: 'github', key: 'token' }],
+  'github-actions': [{ service: 'github', key: 'token' }],
+  gmail: [{ service: 'google', key: 'access_token' }],
+  gcal: [{ service: 'google', key: 'access_token' }],
+  gdrive: [{ service: 'google', key: 'access_token' }],
+  notion: [{ service: 'notion', key: 'api_key' }],
+  spotify: [{ service: 'spotify', key: 'client_id' }],
+  n8n: [{ service: 'n8n', key: 'api_key' }],
+  vercel: [{ service: 'vercel', key: 'token' }],
+  weather: [{ service: 'weather', key: 'api_key' }],
+  x: [{ service: 'x', key: 'api_key' }],
+  homekit: [{ service: 'homekit', key: 'base_url' }],
+  slack: [{ service: 'slack', key: 'bot_token' }],
+  todoist: [{ service: 'todoist', key: 'api_token' }],
 };
 
-interface CredentialEntry { service: string; key: string }
+interface CredentialEntry {
+  service: string;
+  key: string;
+}
 
 const KNOWN_CREDENTIALS: CredentialEntry[] = [
-  { service: 'conductor', key: 'api_key'      },
-  { service: 'claude',   key: 'api_key'       },
-  { service: 'openai',   key: 'api_key'       },
-  { service: 'gemini',   key: 'api_key'       },
-  { service: 'github',   key: 'token'         },
-  { service: 'telegram', key: 'bot_token'     },
-  { service: 'spotify',  key: 'client_id'     },
-  { service: 'spotify',  key: 'client_secret' },
-  { service: 'notion',   key: 'api_key'       },
-  { service: 'n8n',      key: 'api_key'       },
-  { service: 'vercel',   key: 'token'         },
-  { service: 'weather',  key: 'api_key'       },
-  { service: 'x',        key: 'api_key'       },
-  { service: 'google',   key: 'access_token'  },
-  { service: 'slack',    key: 'bot_token'     },
-  { service: 'todoist', key: 'api_token'     },
+  { service: 'conductor', key: 'api_key' },
+  { service: 'claude', key: 'api_key' },
+  { service: 'openai', key: 'api_key' },
+  { service: 'gemini', key: 'api_key' },
+  { service: 'github', key: 'token' },
+  { service: 'telegram', key: 'bot_token' },
+  { service: 'spotify', key: 'client_id' },
+  { service: 'spotify', key: 'client_secret' },
+  { service: 'notion', key: 'api_key' },
+  { service: 'n8n', key: 'api_key' },
+  { service: 'vercel', key: 'token' },
+  { service: 'weather', key: 'api_key' },
+  { service: 'x', key: 'api_key' },
+  { service: 'google', key: 'access_token' },
+  { service: 'slack', key: 'bot_token' },
+  { service: 'todoist', key: 'api_token' },
 ];
 
 // Bundled Google OAuth app — users never need to create their own
-const GOOGLE_CLIENT_ID     = '529105409300-vmtlgnvcpfohtd7ha9o98fkel6ldjmin.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID = '529105409300-vmtlgnvcpfohtd7ha9o98fkel6ldjmin.apps.googleusercontent.com';
 const GOOGLE_CLIENT_SECRET: string | undefined = process.env.GOOGLE_CLIENT_SECRET;
-const GOOGLE_REDIRECT_URI  = 'http://localhost:4242/api/auth/google/callback';
+const GOOGLE_REDIRECT_URI = 'http://localhost:4242/api/auth/google/callback';
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -84,7 +111,9 @@ async function getDashboardToken(configDir: string): Promise<string> {
   try {
     const existing = (await fs.readFile(tokenPath, 'utf-8')).trim();
     if (existing.length >= 32) return existing;
-  } catch { /* not yet created */ }
+  } catch {
+    /* not yet created */
+  }
 
   const token = crypto.randomBytes(24).toString('hex');
   await fs.mkdir(configDir, { recursive: true });
@@ -98,30 +127,43 @@ const maxLogBuffer = 500;
 const sseClients: Set<Response> = new Set();
 
 function interceptLogs(): void {
-  const origLog   = console.log.bind(console);
+  const origLog = console.log.bind(console);
   const origError = console.error.bind(console);
-  const origWarn  = console.warn.bind(console);
+  const origWarn = console.warn.bind(console);
 
   function pushLog(level: string, args: unknown[]): void {
-    const message = args.map(a => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ');
+    const message = args.map((a) => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ');
     const entry = { level, message, timestamp: new Date().toISOString() };
     logBuffer.push(entry);
     if (logBuffer.length > maxLogBuffer) logBuffer.shift();
     const data = `data: ${JSON.stringify(entry)}\n\n`;
     for (const client of sseClients) {
-      try { client.write(data); } catch { sseClients.delete(client); }
+      try {
+        client.write(data);
+      } catch {
+        sseClients.delete(client);
+      }
     }
   }
 
-  console.log   = (...args: unknown[]) => { origLog(...args);   pushLog('info',  args); };
-  console.error = (...args: unknown[]) => { origError(...args); pushLog('error', args); };
-  console.warn  = (...args: unknown[]) => { origWarn(...args);  pushLog('warn',  args); };
+  console.log = (...args: unknown[]) => {
+    origLog(...args);
+    pushLog('info', args);
+  };
+  console.error = (...args: unknown[]) => {
+    origError(...args);
+    pushLog('error', args);
+  };
+  console.warn = (...args: unknown[]) => {
+    origWarn(...args);
+    pushLog('warn', args);
+  };
 }
 
 export async function startDashboard(port = 4242, conductorInstance?: Conductor): Promise<DashboardServer> {
   interceptLogs();
 
-  const config  = new ConfigManager();
+  const config = new ConfigManager();
   await config.initialize();
   const keychain = new Keychain(config.getConfigDir());
 
@@ -140,9 +182,9 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
   const existingOAuth = config.get<{ clientId?: string }>('oauth.google');
   if (!existingOAuth?.clientId && GOOGLE_CLIENT_SECRET) {
     await config.set('oauth.google', {
-      clientId:     GOOGLE_CLIENT_ID,
+      clientId: GOOGLE_CLIENT_ID,
       clientSecret: GOOGLE_CLIENT_SECRET,
-      redirectUri:  GOOGLE_REDIRECT_URI,
+      redirectUri: GOOGLE_REDIRECT_URI,
     });
   }
 
@@ -162,7 +204,9 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
     next();
   });
-  app.options('/{*path}', (_req: Request, res: Response): void => { res.sendStatus(204); });
+  app.options('/{*path}', (_req: Request, res: Response): void => {
+    res.sendStatus(204);
+  });
 
   // ── Authentication middleware for /api/* routes ───────────────────────────
   // The Google OAuth callback must remain open (browser redirect from google.com)
@@ -176,20 +220,27 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
     const queryToken = (req.query as Record<string, string>).token;
     const rawToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : (queryToken ?? '');
     if (!rawToken) {
-      res.status(401).json({ error: 'Unauthorized — include Authorization: Bearer <token>' });
+      res.status(401).json({
+        error:
+          'COND-AUTH-001: Unauthorized — include Authorization: Bearer <token>. Generate a token with: conductor dashboard token',
+      });
       return;
     }
     const provided = rawToken;
     // Constant-time comparison to prevent timing attacks
     try {
-      const tokenBuf    = Buffer.from(dashboardToken, 'utf-8');
+      const tokenBuf = Buffer.from(dashboardToken, 'utf-8');
       const providedBuf = Buffer.from(provided, 'utf-8');
       if (tokenBuf.length !== providedBuf.length || !crypto.timingSafeEqual(tokenBuf, providedBuf)) {
-        res.status(401).json({ error: 'Invalid token' });
+        res
+          .status(401)
+          .json({ error: 'COND-AUTH-002: Invalid token. Generate a new token with: conductor dashboard token' });
         return;
       }
     } catch {
-      res.status(401).json({ error: 'Invalid token' });
+      res
+        .status(401)
+        .json({ error: 'COND-AUTH-003: Invalid token format. Generate a new token with: conductor dashboard token' });
       return;
     }
     next();
@@ -205,7 +256,7 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
       // Replace the placeholder meta tag that's already in the HTML template
       html = html.replace(
         '<meta name="dashboard-token" content="">',
-        `<meta name="dashboard-token" content="${dashboardToken}">`
+        `<meta name="dashboard-token" content="${dashboardToken}">`,
       );
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.send(html);
@@ -220,7 +271,9 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
     try {
       const pkgPath = path.resolve(__dirname, '..', '..', 'package.json');
       version = (JSON.parse(await fs.readFile(pkgPath, 'utf-8')) as { version?: string }).version ?? 'unknown';
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     res.json({ version, configDir: config.getConfigDir(), nodeVersion: process.version, platform: process.platform });
   });
 
@@ -232,7 +285,8 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
   app.post('/api/config', async (req: Request, res: Response): Promise<void> => {
     const body = req.body as { key?: string; value?: unknown };
     if (typeof body.key !== 'string' || body.key.trim() === '') {
-      res.status(400).json({ error: '`key` must be a non-empty string' }); return;
+      res.status(400).json({ error: '`key` must be a non-empty string' });
+      return;
     }
     await config.set(body.key, body.value);
     res.json({ ok: true });
@@ -241,17 +295,19 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
   // ── Plugins ───────────────────────────────────────────────────────────────
   app.get('/api/plugins', (_req: Request, res: Response): void => {
     const installed = config.get<string[]>('plugins.installed') ?? [];
-    const enabled   = config.get<string[]>('plugins.enabled')   ?? [];
+    const enabled = config.get<string[]>('plugins.enabled') ?? [];
     res.json({ installed, enabled, all: ALL_PLUGINS, requiredCreds: PLUGIN_REQUIRED_CREDS });
   });
 
   app.post('/api/plugins/toggle', async (req: Request, res: Response): Promise<void> => {
     const body = req.body as { plugin?: string; enabled?: boolean };
     if (typeof body.plugin !== 'string' || body.plugin.trim() === '') {
-      res.status(400).json({ error: '`plugin` must be a non-empty string' }); return;
+      res.status(400).json({ error: '`plugin` must be a non-empty string' });
+      return;
     }
     if (typeof body.enabled !== 'boolean') {
-      res.status(400).json({ error: '`enabled` must be a boolean' }); return;
+      res.status(400).json({ error: '`enabled` must be a boolean' });
+      return;
     }
 
     if (body.enabled && PLUGIN_REQUIRED_CREDS[body.plugin]) {
@@ -266,8 +322,10 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
     }
 
     const current = config.get<string[]>('plugins.enabled') ?? [];
-    const updated  = body.enabled
-      ? current.includes(body.plugin) ? current : [...current, body.plugin]
+    const updated = body.enabled
+      ? current.includes(body.plugin)
+        ? current
+        : [...current, body.plugin]
       : current.filter((p: string) => p !== body.plugin);
 
     await config.set('plugins.enabled', updated);
@@ -278,9 +336,10 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
   app.get('/api/credentials', async (_req: Request, res: Response): Promise<void> => {
     const result = await Promise.all(
       KNOWN_CREDENTIALS.map(async ({ service, key }) => ({
-        service, key,
+        service,
+        key,
         hasValue: await keychain.has(service, key),
-      }))
+      })),
     );
     res.json(result);
   });
@@ -288,7 +347,8 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
   app.post('/api/credentials', async (req: Request, res: Response): Promise<void> => {
     const body = req.body as { service?: string; key?: string; value?: string };
     if (!body.service || !body.key || !body.value) {
-      res.status(400).json({ error: '`service`, `key`, and `value` are all required' }); return;
+      res.status(400).json({ error: '`service`, `key`, and `value` are all required' });
+      return;
     }
     await keychain.set(body.service, body.key, body.value);
     res.json({ ok: true });
@@ -337,12 +397,15 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
       return;
     }
     const code = (req.query as Record<string, string>).code;
-    if (!code) { res.status(400).send('<h2>Missing code</h2>'); return; }
+    if (!code) {
+      res.status(400).send('<h2>Missing code</h2>');
+      return;
+    }
     try {
       const { google } = await import('googleapis');
       const oauth2Client = new google.auth.OAuth2(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI);
       const { tokens } = await oauth2Client.getToken(code);
-      if (tokens.access_token)  await keychain.set('google', 'access_token',  tokens.access_token);
+      if (tokens.access_token) await keychain.set('google', 'access_token', tokens.access_token);
       if (tokens.refresh_token) await keychain.set('google', 'refresh_token', tokens.refresh_token);
       res.send(`<!DOCTYPE html><html><head><title>Connected</title></head>
         <body style="font-family:system-ui;text-align:center;padding:60px;background:#0d0d0d;color:#e8e8e8">
@@ -375,9 +438,13 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
             const parsed = JSON.parse(raw);
             if (Array.isArray(parsed)) entries.push(...parsed);
             else entries.push(parsed);
-          } catch { /* skip bad file */ }
+          } catch {
+            /* skip bad file */
+          }
         }
-      } catch { /* no logs dir */ }
+      } catch {
+        /* no logs dir */
+      }
       res.json({ entries: entries.slice(-20) });
     } catch {
       res.json({ entries: [] });
@@ -389,7 +456,25 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
   // Safe command runner using execFile (no shell interpretation)
   async function runCmd(cmd: string, timeoutMs = 30000): Promise<{ stdout: string; stderr: string; exitCode: number }> {
     // Whitelist of allowed dashboard commands
-    const allowedPrefixes = ['ps ', 'tasklist', 'open ', 'xdg-open', 'screencapture', 'scrot', 'pbpaste', 'xclip', 'xsel', 'ifconfig', 'ip ', 'netstat', 'ss ', 'lsof', 'docker ', 'crontab', 'git '];
+    const allowedPrefixes = [
+      'ps ',
+      'tasklist',
+      'open ',
+      'xdg-open',
+      'screencapture',
+      'scrot',
+      'pbpaste',
+      'xclip',
+      'xsel',
+      'ifconfig',
+      'ip ',
+      'netstat',
+      'ss ',
+      'lsof',
+      'docker ',
+      'crontab',
+      'git ',
+    ];
     const trimmed = cmd.trim();
     const isAllowed = allowedPrefixes.some((p) => trimmed.startsWith(p));
     if (!isAllowed) {
@@ -397,12 +482,15 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
     }
     const [executable, ...args] = trimmed.split(/\s+/);
     try {
-      const { stdout, stderr } = await execFileAsync(executable, args, { timeout: timeoutMs, maxBuffer: 10 * 1024 * 1024 });
+      const { stdout, stderr } = await execFileAsync(executable, args, {
+        timeout: timeoutMs,
+        maxBuffer: 10 * 1024 * 1024,
+      });
       return { stdout: (stdout ?? '').trim(), stderr: (stderr ?? '').trim(), exitCode: 0 };
     } catch (err: unknown) {
       if (err && typeof err === 'object' && 'code' in err) {
         const e = err as { code?: number; stdout?: string; stderr?: string };
-        return { stdout: (e.stdout ?? '').trim(), stderr: (e.stderr ?? '').trim(), exitCode: (e.code ?? 1) };
+        return { stdout: (e.stdout ?? '').trim(), stderr: (e.stderr ?? '').trim(), exitCode: e.code ?? 1 };
       }
       return { stdout: '', stderr: String(err), exitCode: 1 };
     }
@@ -515,7 +603,9 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
     try {
       const imgBuf = await fs.readFile(tmpFile);
       const image = imgBuf.toString('base64');
-      await fs.unlink(tmpFile).catch(() => { /* best-effort cleanup */ });
+      await fs.unlink(tmpFile).catch(() => {
+        /* best-effort cleanup */
+      });
       res.json({ image, mimeType: 'image/png' });
     } catch (e: unknown) {
       res.status(500).json({ error: (e as Error).message });
@@ -563,9 +653,31 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
   // ── File System Routes ────────────────────────────────────────────────────
 
   const ALLOWED_TEXT_EXTENSIONS = new Set([
-    '.txt', '.md', '.json', '.ts', '.js', '.py', '.sh', '.yaml', '.yml',
-    '.toml', '.env', '.log', '.csv', '.html', '.css', '.xml', '.sql',
-    '.go', '.rs', '.rb', '.php', '.java', '.c', '.cpp', '.h',
+    '.txt',
+    '.md',
+    '.json',
+    '.ts',
+    '.js',
+    '.py',
+    '.sh',
+    '.yaml',
+    '.yml',
+    '.toml',
+    '.env',
+    '.log',
+    '.csv',
+    '.html',
+    '.css',
+    '.xml',
+    '.sql',
+    '.go',
+    '.rs',
+    '.rb',
+    '.php',
+    '.java',
+    '.c',
+    '.cpp',
+    '.h',
   ]);
 
   function isSafePath(rawPath: string, mustBeUnder?: string): { safe: boolean; resolved: string } {
@@ -613,7 +725,7 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
           } catch {
             return { name, type: 'unknown', size: 0, modified: null, permissions: '000' };
           }
-        })
+        }),
       );
       res.json({ entries, path: resolved });
     } catch (e: unknown) {
@@ -710,9 +822,7 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
   // GET /api/system/processes/detail
   app.get('/api/system/processes/detail', async (_req: Request, res: Response): Promise<void> => {
     const platform = os.platform();
-    const cmd = platform === 'win32'
-      ? 'tasklist /FO CSV /NH'
-      : 'ps aux';
+    const cmd = platform === 'win32' ? 'tasklist /FO CSV /NH' : 'ps aux';
     const result = await runCmd(cmd);
     const lines = result.stdout.split('\n').filter((l: string) => l.trim().length > 0);
     const dataLines = platform === 'win32' ? lines : lines.slice(1); // skip header on unix
@@ -758,8 +868,8 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
   // GET /api/system/metrics
   app.get('/api/system/metrics', (_req: Request, res: Response): void => {
     const total = os.totalmem();
-    const free  = os.freemem();
-    const used  = total - free;
+    const free = os.freemem();
+    const used = total - free;
     res.json({
       loadAvg: os.loadavg(),
       memory: {
@@ -781,16 +891,13 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
     let connCmd: string;
     let ifaceCmd: string;
     if (platform === 'darwin') {
-      connCmd  = "netstat -an | grep ESTABLISHED | head -20";
-      ifaceCmd = "ifconfig";
+      connCmd = 'netstat -an | grep ESTABLISHED | head -20';
+      ifaceCmd = 'ifconfig';
     } else {
-      connCmd  = "ss -tuln | head -20";
-      ifaceCmd = "ip addr";
+      connCmd = 'ss -tuln | head -20';
+      ifaceCmd = 'ip addr';
     }
-    const [connResult, ifaceResult] = await Promise.all([
-      runCmd(connCmd),
-      runCmd(ifaceCmd),
-    ]);
+    const [connResult, ifaceResult] = await Promise.all([runCmd(connCmd), runCmd(ifaceCmd)]);
     const connections = connResult.stdout
       .split('\n')
       .map((l: string) => l.trim())
@@ -844,9 +951,7 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
       statusText = lines.slice(1).join('\n');
     }
 
-    const recentCommits = isRepo
-      ? logResult.stdout.split('\n').filter((l: string) => l.trim().length > 0)
-      : [];
+    const recentCommits = isRepo ? logResult.stdout.split('\n').filter((l: string) => l.trim().length > 0) : [];
 
     res.json({ branch, status: statusText, recentCommits, isRepo });
   });
@@ -856,7 +961,11 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
   // GET /api/docker/containers
   app.get('/api/docker/containers', async (_req: Request, res: Response): Promise<void> => {
     const result = await runCmd('docker ps --format "{{json .}}" 2>&1');
-    if (result.exitCode !== 0 || result.stdout.includes('command not found') || result.stdout.includes('Cannot connect')) {
+    if (
+      result.exitCode !== 0 ||
+      result.stdout.includes('command not found') ||
+      result.stdout.includes('Cannot connect')
+    ) {
       res.json({ available: false, containers: [] });
       return;
     }
@@ -864,8 +973,11 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
       .split('\n')
       .filter((l: string) => l.trim().startsWith('{'))
       .map((l: string) => {
-        try { return JSON.parse(l) as unknown; }
-        catch { return null; }
+        try {
+          return JSON.parse(l) as unknown;
+        } catch {
+          return null;
+        }
       })
       .filter((c): c is NonNullable<typeof c> => c !== null);
     res.json({ available: true, containers });
@@ -903,7 +1015,7 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
     updated: string;
   }
 
-  const notesDir  = path.join(os.homedir(), '.conductor');
+  const notesDir = path.join(os.homedir(), '.conductor');
   const notesFile = path.join(notesDir, 'notes.json');
 
   async function readNotes(): Promise<Note[]> {
@@ -957,7 +1069,10 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
     const body = req.body as { title?: string; content?: string };
     const notes = await readNotes();
     const idx = notes.findIndex((n) => n.id === id);
-    if (idx === -1) { res.status(404).json({ error: 'Note not found' }); return; }
+    if (idx === -1) {
+      res.status(404).json({ error: 'Note not found' });
+      return;
+    }
     if (typeof body.title === 'string') notes[idx].title = body.title.trim() || notes[idx].title;
     if (typeof body.content === 'string') notes[idx].content = body.content;
     notes[idx].updated = new Date().toISOString();
@@ -1008,9 +1123,9 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
       todoistRes = await fetch(url, {
         ...restOptions,
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
-          ...(extraHeaders as Record<string, string> | undefined ?? {}),
+          ...((extraHeaders as Record<string, string> | undefined) ?? {}),
         },
       });
     } catch (fetchErr: unknown) {
@@ -1027,7 +1142,10 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
 
     if (!todoistRes.ok) {
       console.error(`[todoist-proxy] Todoist ${todoistRes.status} for ${path}:`, rawText.slice(0, 200));
-      return { status: todoistRes.status, body: { error: `Todoist error ${todoistRes.status}: ${rawText.slice(0, 120)}` } };
+      return {
+        status: todoistRes.status,
+        body: { error: `Todoist error ${todoistRes.status}: ${rawText.slice(0, 120)}` },
+      };
     }
 
     if (!rawText) return { status: 200, body: [] };
@@ -1054,7 +1172,10 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
   // GET /api/todoist/projects
   app.get('/api/todoist/projects', async (_req: Request, res: Response): Promise<void> => {
     const token = await keychain.get('todoist', 'api_token');
-    if (!token) { res.status(400).json({ error: 'Todoist not configured' }); return; }
+    if (!token) {
+      res.status(400).json({ error: 'Todoist not configured' });
+      return;
+    }
 
     const { status, body } = await todoistProxy(token, '/projects');
     res.status(status).json(body);
@@ -1063,7 +1184,10 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
   // GET /api/todoist/tasks — supports ?project_id, ?label, ?filter
   app.get('/api/todoist/tasks', async (req: Request, res: Response): Promise<void> => {
     const token = await keychain.get('todoist', 'api_token');
-    if (!token) { res.status(400).json({ error: 'Todoist not configured' }); return; }
+    if (!token) {
+      res.status(400).json({ error: 'Todoist not configured' });
+      return;
+    }
 
     const query = req.query as Record<string, string>;
     const params = new URLSearchParams();
@@ -1079,7 +1203,10 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
   // POST /api/todoist/tasks — create a task
   app.post('/api/todoist/tasks', async (req: Request, res: Response): Promise<void> => {
     const token = await keychain.get('todoist', 'api_token');
-    if (!token) { res.status(400).json({ error: 'Todoist not configured' }); return; }
+    if (!token) {
+      res.status(400).json({ error: 'Todoist not configured' });
+      return;
+    }
 
     const { status, body } = await todoistProxy(token, '/tasks', {
       method: 'POST',
@@ -1091,7 +1218,10 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
   // POST /api/todoist/tasks/:id — update a task
   app.post('/api/todoist/tasks/:id', async (req: Request, res: Response): Promise<void> => {
     const token = await keychain.get('todoist', 'api_token');
-    if (!token) { res.status(400).json({ error: 'Todoist not configured' }); return; }
+    if (!token) {
+      res.status(400).json({ error: 'Todoist not configured' });
+      return;
+    }
 
     const { id } = req.params as { id: string };
     const { status, body } = await todoistProxy(token, `/tasks/${id}`, {
@@ -1104,7 +1234,10 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
   // POST /api/todoist/tasks/:id/close — complete a task
   app.post('/api/todoist/tasks/:id/close', async (req: Request, res: Response): Promise<void> => {
     const token = await keychain.get('todoist', 'api_token');
-    if (!token) { res.status(400).json({ error: 'Todoist not configured' }); return; }
+    if (!token) {
+      res.status(400).json({ error: 'Todoist not configured' });
+      return;
+    }
 
     const { id } = req.params as { id: string };
     const { status, body } = await todoistProxy(token, `/tasks/${id}/close`, {
@@ -1112,20 +1245,29 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
     });
     // Todoist returns 204 on success — normalise to a JSON ok response for the
     // frontend so it doesn't have to special-case empty bodies.
-    if (status === 204) { res.json({ ok: true }); return; }
+    if (status === 204) {
+      res.json({ ok: true });
+      return;
+    }
     res.status(status).json(body);
   });
 
   // DELETE /api/todoist/tasks/:id — delete a task
   app.delete('/api/todoist/tasks/:id', async (req: Request, res: Response): Promise<void> => {
     const token = await keychain.get('todoist', 'api_token');
-    if (!token) { res.status(400).json({ error: 'Todoist not configured' }); return; }
+    if (!token) {
+      res.status(400).json({ error: 'Todoist not configured' });
+      return;
+    }
 
     const { id } = req.params as { id: string };
     const { status, body } = await todoistProxy(token, `/tasks/${id}`, {
       method: 'DELETE',
     });
-    if (status === 204) { res.json({ ok: true }); return; }
+    if (status === 204) {
+      res.json({ ok: true });
+      return;
+    }
     res.status(status).json(body);
   });
 
@@ -1160,36 +1302,127 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
 
   // ── Chat (AI) ─────────────────────────────────────────────────────────────
 
-  const PLUGIN_CATALOG: Record<string, { desc: string; category: string; requiresAuth: boolean; authLabel?: string }> = {
-    calculator:      { desc: 'Evaluate mathematical expressions and unit conversions', category: 'Utilities', requiresAuth: false },
-    colors:          { desc: 'Convert and manipulate colors (hex, rgb, hsl, name)', category: 'Utilities', requiresAuth: false },
-    cron:            { desc: 'Manage and inspect system cron jobs', category: 'System', requiresAuth: false },
-    crypto:          { desc: 'Encrypt, decrypt, and generate cryptographic keys', category: 'Security', requiresAuth: false },
-    fun:             { desc: 'Jokes, trivia, dice rolls, and random fun', category: 'Utilities', requiresAuth: false },
-    gcal:            { desc: 'Read, create, and manage Google Calendar events', category: 'Google', requiresAuth: true, authLabel: 'Google OAuth' },
-    gdrive:          { desc: 'List, read, and upload files to Google Drive', category: 'Google', requiresAuth: true, authLabel: 'Google OAuth' },
-    github:          { desc: 'Manage repos, issues, PRs, and gists on GitHub', category: 'Developer', requiresAuth: true, authLabel: 'GitHub Token' },
-    'github-actions': { desc: 'Trigger and monitor GitHub Actions CI/CD workflows', category: 'Developer', requiresAuth: true, authLabel: 'GitHub Token' },
-    gmail:           { desc: 'Read, search, send, and label Gmail messages', category: 'Google', requiresAuth: true, authLabel: 'Google OAuth' },
-    hash:            { desc: 'Compute MD5, SHA-1, SHA-256, and bcrypt hashes', category: 'Security', requiresAuth: false },
-    homekit:         { desc: 'Control HomeKit smart home devices and accessories', category: 'Smart Home', requiresAuth: true, authLabel: 'HomeKit Bridge URL' },
-    memory:          { desc: 'Store and recall information across conversations', category: 'AI', requiresAuth: false },
-    n8n:             { desc: 'Trigger n8n automation workflows via webhook', category: 'Automation', requiresAuth: true, authLabel: 'n8n API Key' },
-    network:         { desc: 'DNS lookup, ping, port scan, and IP geolocation', category: 'System', requiresAuth: false },
-    notes:           { desc: 'Create, read, update, and delete personal notes', category: 'Productivity', requiresAuth: false },
-    notion:          { desc: 'Query, create, and update Notion databases and pages', category: 'Productivity', requiresAuth: true, authLabel: 'Notion API Key' },
-    slack:           { desc: 'Send messages and read channels in Slack workspaces', category: 'Communication', requiresAuth: true, authLabel: 'Slack Bot Token' },
-    spotify:         { desc: 'Control Spotify playback and browse music catalog', category: 'Entertainment', requiresAuth: true, authLabel: 'Spotify OAuth' },
-    system:          { desc: 'CPU, memory, disk stats, processes, and shell commands', category: 'System', requiresAuth: false },
-    'text-tools':    { desc: 'Transform text: case, trim, word count, slugify, base64', category: 'Utilities', requiresAuth: false },
-    timezone:        { desc: 'Convert times between timezones worldwide', category: 'Utilities', requiresAuth: false },
-    todoist:         { desc: 'Manage Todoist tasks, projects, and priorities', category: 'Productivity', requiresAuth: true, authLabel: 'Todoist API Token' },
-    translate:       { desc: 'Translate text between 100+ languages', category: 'Utilities', requiresAuth: false },
-    'url-tools':     { desc: 'Parse, encode, decode, and expand shortened URLs', category: 'Utilities', requiresAuth: false },
-    vercel:          { desc: 'Manage Vercel deployments, projects, and domains', category: 'Developer', requiresAuth: true, authLabel: 'Vercel Token' },
-    weather:         { desc: 'Current conditions and forecasts for any location', category: 'Utilities', requiresAuth: true, authLabel: 'Weather API Key' },
-    x:               { desc: 'Post tweets and read your X/Twitter timeline', category: 'Social', requiresAuth: true, authLabel: 'X API Key' },
-  };
+  const PLUGIN_CATALOG: Record<string, { desc: string; category: string; requiresAuth: boolean; authLabel?: string }> =
+    {
+      calculator: {
+        desc: 'Evaluate mathematical expressions and unit conversions',
+        category: 'Utilities',
+        requiresAuth: false,
+      },
+      colors: {
+        desc: 'Convert and manipulate colors (hex, rgb, hsl, name)',
+        category: 'Utilities',
+        requiresAuth: false,
+      },
+      cron: { desc: 'Manage and inspect system cron jobs', category: 'System', requiresAuth: false },
+      crypto: { desc: 'Encrypt, decrypt, and generate cryptographic keys', category: 'Security', requiresAuth: false },
+      fun: { desc: 'Jokes, trivia, dice rolls, and random fun', category: 'Utilities', requiresAuth: false },
+      gcal: {
+        desc: 'Read, create, and manage Google Calendar events',
+        category: 'Google',
+        requiresAuth: true,
+        authLabel: 'Google OAuth',
+      },
+      gdrive: {
+        desc: 'List, read, and upload files to Google Drive',
+        category: 'Google',
+        requiresAuth: true,
+        authLabel: 'Google OAuth',
+      },
+      github: {
+        desc: 'Manage repos, issues, PRs, and gists on GitHub',
+        category: 'Developer',
+        requiresAuth: true,
+        authLabel: 'GitHub Token',
+      },
+      'github-actions': {
+        desc: 'Trigger and monitor GitHub Actions CI/CD workflows',
+        category: 'Developer',
+        requiresAuth: true,
+        authLabel: 'GitHub Token',
+      },
+      gmail: {
+        desc: 'Read, search, send, and label Gmail messages',
+        category: 'Google',
+        requiresAuth: true,
+        authLabel: 'Google OAuth',
+      },
+      hash: { desc: 'Compute MD5, SHA-1, SHA-256, and bcrypt hashes', category: 'Security', requiresAuth: false },
+      homekit: {
+        desc: 'Control HomeKit smart home devices and accessories',
+        category: 'Smart Home',
+        requiresAuth: true,
+        authLabel: 'HomeKit Bridge URL',
+      },
+      memory: { desc: 'Store and recall information across conversations', category: 'AI', requiresAuth: false },
+      n8n: {
+        desc: 'Trigger n8n automation workflows via webhook',
+        category: 'Automation',
+        requiresAuth: true,
+        authLabel: 'n8n API Key',
+      },
+      network: { desc: 'DNS lookup, ping, port scan, and IP geolocation', category: 'System', requiresAuth: false },
+      notes: { desc: 'Create, read, update, and delete personal notes', category: 'Productivity', requiresAuth: false },
+      notion: {
+        desc: 'Query, create, and update Notion databases and pages',
+        category: 'Productivity',
+        requiresAuth: true,
+        authLabel: 'Notion API Key',
+      },
+      slack: {
+        desc: 'Send messages and read channels in Slack workspaces',
+        category: 'Communication',
+        requiresAuth: true,
+        authLabel: 'Slack Bot Token',
+      },
+      spotify: {
+        desc: 'Control Spotify playback and browse music catalog',
+        category: 'Entertainment',
+        requiresAuth: true,
+        authLabel: 'Spotify OAuth',
+      },
+      system: {
+        desc: 'CPU, memory, disk stats, processes, and shell commands',
+        category: 'System',
+        requiresAuth: false,
+      },
+      'text-tools': {
+        desc: 'Transform text: case, trim, word count, slugify, base64',
+        category: 'Utilities',
+        requiresAuth: false,
+      },
+      timezone: { desc: 'Convert times between timezones worldwide', category: 'Utilities', requiresAuth: false },
+      todoist: {
+        desc: 'Manage Todoist tasks, projects, and priorities',
+        category: 'Productivity',
+        requiresAuth: true,
+        authLabel: 'Todoist API Token',
+      },
+      translate: { desc: 'Translate text between 100+ languages', category: 'Utilities', requiresAuth: false },
+      'url-tools': {
+        desc: 'Parse, encode, decode, and expand shortened URLs',
+        category: 'Utilities',
+        requiresAuth: false,
+      },
+      vercel: {
+        desc: 'Manage Vercel deployments, projects, and domains',
+        category: 'Developer',
+        requiresAuth: true,
+        authLabel: 'Vercel Token',
+      },
+      weather: {
+        desc: 'Current conditions and forecasts for any location',
+        category: 'Utilities',
+        requiresAuth: true,
+        authLabel: 'Weather API Key',
+      },
+      x: {
+        desc: 'Post tweets and read your X/Twitter timeline',
+        category: 'Social',
+        requiresAuth: true,
+        authLabel: 'X API Key',
+      },
+    };
 
   let _chatConductorInstance: Conductor | null = conductorInstance ?? null;
 
@@ -1209,7 +1442,7 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
       return;
     }
 
-    const userId = (body.userId && typeof body.userId === 'string') ? body.userId.trim() : 'dashboard-user';
+    const userId = body.userId && typeof body.userId === 'string' ? body.userId.trim() : 'dashboard-user';
 
     try {
       const c = await getChatConductor();
@@ -1291,8 +1524,7 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
       process.stderr.write(`Dashboard token stored at ${path.join(config.getConfigDir(), 'dashboard.token')}\n`);
       resolve({
         port,
-        close: (): Promise<void> =>
-          new Promise<void>((res, rej) => server.close(err => (err ? rej(err) : res()))),
+        close: (): Promise<void> => new Promise<void>((res, rej) => server.close((err) => (err ? rej(err) : res()))),
       });
     });
     server.on('error', reject);

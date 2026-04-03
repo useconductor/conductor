@@ -37,6 +37,7 @@ import { AuditLogger } from '../core/audit.js';
 import { HealthChecker } from '../core/health.js';
 import { WebhookManager } from '../core/webhooks.js';
 import { logger } from '../core/logger.js';
+import { enableZeroConfigMode } from '../core/zero-config.js';
 
 const _require = createRequire(import.meta.url);
 const { version } = _require('../../package.json') as { version: string };
@@ -74,10 +75,7 @@ interface RegisteredTool {
   requiresApproval: boolean;
 }
 
-async function buildToolRegistry(
-  conductor: Conductor,
-  pluginManager: PluginManager,
-): Promise<RegisteredTool[]> {
+async function buildToolRegistry(conductor: Conductor, pluginManager: PluginManager): Promise<RegisteredTool[]> {
   const tools: RegisteredTool[] = [];
 
   // Built-in conductor tools
@@ -172,7 +170,15 @@ async function buildToolRegistry(
     inputSchema: { type: 'object', properties: {} },
     handler: async () => {
       const subs = globalWebhookManager.list();
-      return { subscriptions: subs.map((s) => ({ id: s.id, url: s.url, events: s.events, active: s.active, failures: s.consecutiveFailures })) };
+      return {
+        subscriptions: subs.map((s) => ({
+          id: s.id,
+          url: s.url,
+          events: s.events,
+          active: s.active,
+          failures: s.consecutiveFailures,
+        })),
+      };
     },
   });
 
@@ -249,10 +255,10 @@ export interface MCPServerOptions {
   port?: number;
 }
 
-export async function startMCPServer(
-  conductor: Conductor,
-  options: MCPServerOptions = {},
-): Promise<void> {
+export async function startMCPServer(conductor: Conductor, options: MCPServerOptions = {}): Promise<void> {
+  // Enable zero-config mode (20+ tools work without API keys)
+  await enableZeroConfigMode(conductor);
+
   // Initialize infrastructure
   await initInfrastructure(conductor);
 
@@ -297,7 +303,9 @@ export async function startMCPServer(
 
     if (!tool) {
       return {
-        content: [{ type: 'text' as const, text: `Unknown tool: ${name}. Run conductor_tools_list to see available tools.` }],
+        content: [
+          { type: 'text' as const, text: `Unknown tool: ${name}. Run conductor_tools_list to see available tools.` },
+        ],
         isError: true,
       };
     }
@@ -317,10 +325,7 @@ export async function startMCPServer(
 
       // Execute through circuit breaker + retry
       const result = await breaker.execute(async () =>
-        withRetry(
-          async () => tool.handler(args),
-          { maxAttempts: 3, baseDelay: 500, maxDelay: 10000 },
-        ),
+        withRetry(async () => tool.handler(args), { maxAttempts: 3, baseDelay: 500, maxDelay: 10000 }),
       );
 
       const latency = Date.now() - start;
@@ -371,7 +376,14 @@ export async function startMCPServer(
       process.stderr.write(`[MCP] ✗ ${name}: ${message} (${latency}ms)\n`);
 
       return {
-        content: [{ type: 'text' as const, text: isCircuitOpen ? `Service unavailable: ${name} is temporarily disabled due to repeated failures. Try again later.` : `Error: ${message}` }],
+        content: [
+          {
+            type: 'text' as const,
+            text: isCircuitOpen
+              ? `Service unavailable: ${name} is temporarily disabled due to repeated failures. Try again later.`
+              : `Error: ${message}`,
+          },
+        ],
         isError: true,
       };
     }
