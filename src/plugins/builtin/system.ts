@@ -53,7 +53,6 @@ export class SystemInfoPlugin implements Plugin {
               : 'ps aux --sort=-%mem | head -11';
             const out = execSync(psCmd, { encoding: 'utf8' });
             const lines = out.trim().split('\n');
-            const header = lines[0];
             return {
               processes: lines.slice(1).map(line => {
                 const parts = line.trim().split(/\s+/);

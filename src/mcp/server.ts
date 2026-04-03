@@ -28,7 +28,6 @@ import {
 import { createRequire } from 'module';
 
 import type { Conductor } from '../core/conductor.js';
-import type { PluginTool } from '../plugins/manager.js';
 import { PluginManager } from '../plugins/manager.js';
 import { validateTools } from '../plugins/validation.js';
 import { CircuitBreaker, CircuitOpenError } from '../core/circuit-breaker.js';

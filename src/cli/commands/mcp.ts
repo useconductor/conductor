@@ -45,7 +45,7 @@ export async function mcpSetup(conductor: Conductor): Promise<void> {
   }
 }
 
-export async function mcpStatus(conductor: Conductor): Promise<void> {
+export async function mcpStatus(_conductor: Conductor): Promise<void> {
   try {
     const data = await fs.readFile(CLAUDE_DESKTOP_CONFIG, 'utf-8');
     const config = JSON.parse(data);
@@ -64,7 +64,7 @@ export async function mcpStatus(conductor: Conductor): Promise<void> {
   }
 }
 
-export async function mcpStart(conductor: Conductor): Promise<void> {
+export async function mcpStart(_conductor: Conductor): Promise<void> {
   // Start in MCP stdio mode — quiet to avoid polluting stdout
   const quietConductor = new (await import('../../core/conductor.js')).Conductor(
     undefined,

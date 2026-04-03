@@ -11,7 +11,7 @@ import { Conductor } from '../../core/conductor.js';
 
 export type MemoryCategory = 'preference' | 'fact' | 'decision' | 'entity' | 'other';
 
-const DEFAULT_CAPTURE_MAX_CHARS = 500;
+const _DEFAULT_CAPTURE_MAX_CHARS = 500;
 
 function detectCategory(text: string): MemoryCategory {
   const t = text.toLowerCase();

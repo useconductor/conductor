@@ -30,7 +30,7 @@ export class MaestroProvider extends AIProvider {
     }
   }
 
-  async complete(messages: AIMessage[], tools?: PluginTool[]): Promise<AIResponse> {
+  async complete(messages: AIMessage[], _tools?: PluginTool[]): Promise<AIResponse> {
     const formattedMessages = this.formatMessages(messages);
 
     const response = await fetch(`${this.endpoint}/api/chat`, {
@@ -62,7 +62,7 @@ export class MaestroProvider extends AIProvider {
     };
   }
 
-  async *stream(messages: AIMessage[], tools?: PluginTool[]): AsyncGenerator<string> {
+  async *stream(messages: AIMessage[], _tools?: PluginTool[]): AsyncGenerator<string> {
     const formattedMessages = this.formatMessages(messages);
 
     const response = await fetch(`${this.endpoint}/api/chat`, {

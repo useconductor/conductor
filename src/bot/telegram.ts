@@ -1,4 +1,4 @@
-import { Telegraf, Context } from 'telegraf';
+import { Telegraf } from 'telegraf';
 import { Conductor } from '../core/conductor.js';
 import { Keychain } from '../security/keychain.js';
 import { AIManager } from '../ai/manager.js';

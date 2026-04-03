@@ -182,9 +182,6 @@ export class AuditLogger {
 
       for (const line of lines) {
         const entry = JSON.parse(line) as AuditEntry;
-        const contentHash = crypto.createHash('sha256')
-          .update(prevHash + JSON.stringify({ ...entry, previousHash: '', hash: '' }))
-          .digest('hex');
 
         // Reconstruct what the hash should be
         const expectedHash = crypto.createHash('sha256')

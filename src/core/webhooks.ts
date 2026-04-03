@@ -212,7 +212,7 @@ export class WebhookManager {
   /**
    * Record a delivery failure. Deactivate after MAX_CONSECUTIVE_FAILURES.
    */
-  private async recordFailure(subscription: WebhookSubscription, status: number, error: string): Promise<void> {
+  private async recordFailure(subscription: WebhookSubscription, _status: number, _error: string): Promise<void> {
     subscription.consecutiveFailures++;
 
     if (subscription.consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {

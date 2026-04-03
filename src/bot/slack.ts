@@ -96,7 +96,7 @@ export class SlackBot {
         });
 
         // Handle commands (Slash commands can be added here)
-        this.app.command('/conductor-status', async ({ command, ack, say }) => {
+        this.app.command('/conductor-status', async ({ command: _command, ack, say }) => {
             await ack();
             const config = this.conductor.getConfig();
             const provider = config.get<string>('ai.provider') || 'none';

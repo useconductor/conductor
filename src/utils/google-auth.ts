@@ -29,7 +29,7 @@ export class GoogleAuthManager {
         let creds;
         try {
             creds = getOAuthCredentials(this.conductor, 'google');
-        } catch (error) {
+        } catch {
             console.log('\n  🔑 Google OAuth configuration missing.');
             console.log('  To get these, go to: https://console.cloud.google.com/apis/credentials');
             console.log('  1. Create a "OAuth client ID" for "Web application"');

@@ -22,7 +22,7 @@ import { Keychain } from '../../security/keychain.js';
 
 const SPOTIFY_BASE = 'https://api.spotify.com/v1';
 const SPOTIFY_AUTH = 'https://accounts.spotify.com';
-const SCOPES = [
+const _SCOPES = [
   'user-read-playback-state',
   'user-modify-playback-state',
   'user-read-currently-playing',

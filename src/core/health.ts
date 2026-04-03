@@ -10,7 +10,7 @@
  *   GET /health/ready — readiness probe (can accept traffic?)
  */
 
-import type { CircuitBreaker, CircuitState } from './circuit-breaker.js';
+import type { CircuitBreaker } from './circuit-breaker.js';
 
 export interface HealthComponent {
   name: string;

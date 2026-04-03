@@ -208,6 +208,18 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
     res.sendStatus(204);
   });
 
+  // ── Rate limiting ─────────────────────────────────────────────────────────
+  app.use(
+    '/api',
+    rateLimit({
+      windowMs: 60 * 1000, // 1 minute
+      max: 120,            // 120 requests per minute per IP
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { error: 'COND-RATE-001: Too many requests. Slow down.' },
+    }),
+  );
+
   // ── Authentication middleware for /api/* routes ───────────────────────────
   // The Google OAuth callback must remain open (browser redirect from google.com)
   app.use('/api', (req: Request, res: Response, next: NextFunction): void => {
