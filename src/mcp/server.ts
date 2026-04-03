@@ -270,10 +270,35 @@ export async function startMCPServer(conductor: Conductor, options: MCPServerOpt
     globalHealthChecker.registerCircuitBreaker(tool.name, circuitBreakers.get(tool.name)!);
   }
 
-  process.stderr.write(`[MCP] Starting Conductor MCP server v${version}\n`);
-  process.stderr.write(`[MCP] ${tools.length} tools available\n`);
-  process.stderr.write(`[MCP] Audit logging enabled\n`);
-  process.stderr.write(`[MCP] Circuit breakers active for all tools\n`);
+  // ── Startup summary ──────────────────────────────────────────────────────
+  const statuses = await pluginManager.getStatusSummary();
+  const ready = statuses.filter((s) => s.status === 'ready');
+  const notConfigured = statuses.filter((s) => s.status === 'not_configured');
+  const failed = statuses.filter((s) => s.status === 'init_failed');
+
+  process.stderr.write(`\n[conductor] v${version} — MCP server starting\n`);
+  process.stderr.write(`[conductor] ─────────────────────────────────────\n`);
+
+  for (const s of ready) {
+    process.stderr.write(`[conductor] ✓ ${s.name.padEnd(20)} ${s.toolCount} tool${s.toolCount !== 1 ? 's' : ''}\n`);
+  }
+
+  for (const s of notConfigured) {
+    process.stderr.write(`[conductor] ⚠ ${s.name.padEnd(20)} not configured\n`);
+    process.stderr.write(`[conductor]   → ${s.setupCommand}\n`);
+  }
+
+  for (const s of failed) {
+    process.stderr.write(`[conductor] ✗ ${s.name.padEnd(20)} init failed — ${s.error}\n`);
+    process.stderr.write(`[conductor]   → conductor doctor ${s.name}\n`);
+  }
+
+  process.stderr.write(`[conductor] ─────────────────────────────────────\n`);
+  process.stderr.write(`[conductor] ${tools.length} tools ready`);
+  if (notConfigured.length > 0)
+    process.stderr.write(` · ${notConfigured.length} need setup (run conductor plugins setup <name>)`);
+  if (failed.length > 0) process.stderr.write(` · ${failed.length} failed (run conductor doctor)`);
+  process.stderr.write(`\n\n`);
 
   const server = new Server(
     { name: 'conductor', version },

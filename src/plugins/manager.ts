@@ -40,10 +40,19 @@ export interface PluginTool {
   requiresApproval?: boolean;
 }
 
+export interface PluginStatus {
+  name: string;
+  status: 'ready' | 'not_configured' | 'init_failed' | 'disabled';
+  toolCount: number;
+  error?: string;
+  setupCommand?: string;
+}
+
 export class PluginManager {
   private conductor: Conductor;
   private plugins: Map<string, Plugin> = new Map();
   private initializedPlugins: Set<string> = new Set();
+  private initErrors: Map<string, string> = new Map();
 
   constructor(conductor: Conductor) {
     this.conductor = conductor;
@@ -71,13 +80,64 @@ export class PluginManager {
       try {
         await plugin.initialize(this.conductor);
         this.initializedPlugins.add(name);
+        this.initErrors.delete(name);
       } catch (error: any) {
-        process.stderr.write(`Error: Failed to initialize plugin "${name}": ${error.message}\n`);
-        return undefined; // Don't return a broken plugin
+        const msg: string = error.message ?? String(error);
+        this.initErrors.set(name, msg);
+        process.stderr.write(`[conductor] ✗ ${name}: init failed — ${msg}\n`);
+        process.stderr.write(`[conductor]   → Run: conductor doctor ${name}\n`);
+        return undefined;
       }
     }
 
     return plugin;
+  }
+
+  /** Get the recorded init error for a plugin, if any. */
+  getInitError(name: string): string | undefined {
+    return this.initErrors.get(name);
+  }
+
+  /**
+   * Probe all enabled plugins and return a status summary.
+   * Used by the MCP startup summary and conductor doctor.
+   */
+  async getStatusSummary(): Promise<PluginStatus[]> {
+    const enabledNames = this.conductor.getConfig().get<string[]>('plugins.enabled') ?? [];
+    const statuses: PluginStatus[] = [];
+
+    for (const name of enabledNames) {
+      const plugin = this.plugins.get(name);
+      if (!plugin) {
+        statuses.push({ name, status: 'disabled', toolCount: 0 });
+        continue;
+      }
+
+      if (!plugin.isConfigured()) {
+        statuses.push({
+          name,
+          status: 'not_configured',
+          toolCount: 0,
+          setupCommand: `conductor plugins setup ${name}`,
+        });
+        continue;
+      }
+
+      // Attempt init if not done yet
+      if (!this.initializedPlugins.has(name)) {
+        await this.getPlugin(name);
+      }
+
+      const err = this.initErrors.get(name);
+      if (err) {
+        statuses.push({ name, status: 'init_failed', toolCount: 0, error: err });
+      } else {
+        const toolCount = plugin.getTools().length;
+        statuses.push({ name, status: 'ready', toolCount });
+      }
+    }
+
+    return statuses;
   }
 
   /** List all registered plugins. Does NOT initialize them. */
