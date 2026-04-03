@@ -347,6 +347,22 @@ input[type="checkbox"]{accent-color:var(--accent);}
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
       Settings
     </div>
+    <div class="nav-item" data-page="health">
+      <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+      Health
+    </div>
+    <div class="nav-item" data-page="audit">
+      <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      Audit Log
+    </div>
+    <div class="nav-item" data-page="webhooks">
+      <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+      Webhooks
+    </div>
+    <div class="nav-item" data-page="metrics">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      Metrics
+    </div>
   </div>
   <div class="sb-footer">
     <span class="conn-dot" id="sb-dot"></span>
@@ -604,6 +620,10 @@ function navigate(page) {
     case 'credentials': renderCredentials(); break;
     case 'logs':        renderLogs(); break;
     case 'settings':    renderSettings(); break;
+    case 'health':      renderHealth(); break;
+    case 'audit':       renderAudit(); break;
+    case 'webhooks':    renderWebhooks(); break;
+    case 'metrics':     renderMetrics(); break;
   }
 }
 
@@ -3164,6 +3184,233 @@ async function mktToggle(pluginName, enable) {
   } catch(e) {
     toast(e.message, 'err');
   }
+}
+
+/* ══════════════════════════════════════════
+   HEALTH PAGE
+══════════════════════════════════════════ */
+
+async function renderHealth() {
+  const content = document.getElementById('content');
+  content.innerHTML = `<div class="empty">Loading health status…</div>`;
+  try {
+    const report = await api('GET', '/api/health');
+    const statusIcon = report.status === 'ok' ? '✅' : report.status === 'degraded' ? '⚠️' : '❌';
+    const statusColor = report.status === 'ok' ? 'var(--ok)' : report.status === 'degraded' ? 'var(--warn)' : 'var(--err)';
+    content.innerHTML = `
+      <div class="stat-grid">
+        <div class="stat-block"><div class="stat-num" style="color:${statusColor}">${statusIcon} ${report.status.toUpperCase()}</div><div class="stat-label">Overall Status</div></div>
+        <div class="stat-block"><div class="stat-num">${report.version}</div><div class="stat-label">Version</div></div>
+        <div class="stat-block"><div class="stat-num">${formatUptime(report.uptime)}</div><div class="stat-label">Uptime</div></div>
+        <div class="stat-block"><div class="stat-num">${report.components?.length ?? 0}</div><div class="stat-label">Components</div></div>
+      </div>
+      ${report.metrics ? `
+      <div class="stat-grid">
+        <div class="stat-block"><div class="stat-num">${report.metrics.totalToolCalls}</div><div class="stat-label">Tool Calls</div></div>
+        <div class="stat-block"><div class="stat-num" style="color:${report.metrics.failedToolCalls > 0 ? 'var(--err)' : 'var(--ok)'}">${report.metrics.failedToolCalls}</div><div class="stat-label">Failures</div></div>
+        <div class="stat-block"><div class="stat-num">${report.metrics.avgLatencyMs}ms</div><div class="stat-label">Avg Latency</div></div>
+        <div class="stat-block"><div class="stat-num">${report.metrics.openCircuits}</div><div class="stat-label">Open Circuits</div></div>
+      </div>` : ''}
+      <div class="section">
+        <div class="section-head"><span class="section-title">Components</span></div>
+        <div class="section-body">
+          <table class="data-table">
+            <thead><tr><th>Component</th><th>Status</th><th>Details</th></tr></thead>
+            <tbody>${(report.components ?? []).map(c => {
+              const badge = c.status === 'ok' ? '<span class="badge badge-ok">OK</span>' : c.status === 'degraded' ? '<span class="badge badge-warn">DEGRADED</span>' : '<span class="badge badge-err">DOWN</span>';
+              return `<tr><td class="mono">${esc(c.name)}</td><td>${badge}</td><td>${c.message ? esc(c.message) : '—'}</td></tr>`;
+            }).join('')}</tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  } catch(e) {
+    content.innerHTML = `<div class="empty" style="color:var(--err);">Failed to load health: ${esc(e.message)}</div>`;
+  }
+}
+
+/* ══════════════════════════════════════════
+   AUDIT LOG PAGE
+══════════════════════════════════════════ */
+
+async function renderAudit() {
+  const content = document.getElementById('content');
+  content.innerHTML = `
+    <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center;">
+      <input type="text" id="audit-filter-action" placeholder="Filter by action…" style="flex:1;">
+      <input type="text" id="audit-filter-resource" placeholder="Filter by resource…" style="flex:1;">
+      <select id="audit-filter-result"><option value="">All Results</option><option value="success">Success</option><option value="failure">Failure</option><option value="denied">Denied</option></select>
+      <button class="btn btn-primary" onclick="loadAuditLogs()">Search</button>
+    </div>
+    <div id="audit-log-body"><div class="empty">Loading audit log…</div></div>
+  `;
+  loadAuditLogs();
+}
+
+async function loadAuditLogs() {
+  const wrap = document.getElementById('audit-log-body');
+  if (!wrap) return;
+  wrap.innerHTML = `<div class="empty">Loading…</div>`;
+  try {
+    const action = document.getElementById('audit-filter-action')?.value || '';
+    const resource = document.getElementById('audit-filter-resource')?.value || '';
+    const result = document.getElementById('audit-filter-result')?.value || '';
+    const params = new URLSearchParams();
+    if (action) params.set('action', action);
+    if (resource) params.set('resource', resource);
+    if (result) params.set('result', result);
+    params.set('limit', '100');
+    const entries = await api('GET', `/api/audit?${params}`);
+    if (!entries || entries.length === 0) {
+      wrap.innerHTML = `<div class="empty">No audit entries found.</div>`;
+      return;
+    }
+    wrap.innerHTML = `
+      <div class="section">
+        <div class="section-head"><span class="section-title">${entries.length} entries</span></div>
+        <div class="section-body" style="padding:0;">
+          <table class="data-table">
+            <thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Resource</th><th>Result</th></tr></thead>
+            <tbody>${entries.map(e => {
+              const badge = e.result === 'success' ? '<span class="badge badge-ok">OK</span>' : e.result === 'failure' ? '<span class="badge badge-err">FAIL</span>' : e.result === 'denied' ? '<span class="badge badge-warn">DENIED</span>' : '<span class="badge badge-muted">—</span>';
+              return `<tr><td class="mono" style="font-size:11px;">${new Date(e.timestamp).toLocaleTimeString()}</td><td class="mono">${esc(e.actor)}</td><td class="mono">${esc(e.action)}</td><td class="mono">${esc(e.resource)}</td><td>${badge}</td></tr>`;
+            }).join('')}</tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  } catch(e) {
+    wrap.innerHTML = `<div class="empty" style="color:var(--err);">Failed to load audit log: ${esc(e.message)}</div>`;
+  }
+}
+
+/* ══════════════════════════════════════════
+   WEBHOOKS PAGE
+══════════════════════════════════════════ */
+
+async function renderWebhooks() {
+  const content = document.getElementById('content');
+  content.innerHTML = `
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
+      <input type="text" id="webhook-url" placeholder="https://your-server.com/webhook" style="flex:1;">
+      <input type="text" id="webhook-events" placeholder="Events (comma-separated, * for all)" style="flex:1;">
+      <button class="btn btn-primary" onclick="createWebhook()">Create</button>
+    </div>
+    <div id="webhooks-body"><div class="empty">Loading webhooks…</div></div>
+  `;
+  loadWebhooks();
+}
+
+async function loadWebhooks() {
+  const wrap = document.getElementById('webhooks-body');
+  if (!wrap) return;
+  try {
+    const subs = await api('GET', '/api/webhooks');
+    if (!subs || subs.length === 0) {
+      wrap.innerHTML = `<div class="empty">No webhooks configured.</div>`;
+      return;
+    }
+    wrap.innerHTML = `
+      <div class="section">
+        <div class="section-head"><span class="section-title">${subs.length} subscriptions</span></div>
+        <div class="section-body" style="padding:0;">
+          <table class="data-table">
+            <thead><tr><th>URL</th><th>Events</th><th>Status</th><th>Failures</th><th>Last Success</th><th></th></tr></thead>
+            <tbody>${subs.map(s => {
+              const statusBadge = s.active ? '<span class="badge badge-ok">Active</span>' : '<span class="badge badge-err">Disabled</span>';
+              return `<tr>
+                <td class="mono" style="font-size:11px;max-width:300px;overflow:hidden;text-overflow:ellipsis;">${esc(s.url)}</td>
+                <td class="mono" style="font-size:11px;">${(s.events ?? []).join(', ')}</td>
+                <td>${statusBadge}</td>
+                <td>${s.consecutiveFailures ?? 0}</td>
+                <td class="mono" style="font-size:11px;">${s.lastSuccessAt ? new Date(s.lastSuccessAt).toLocaleString() : '—'}</td>
+                <td><button class="btn btn-sm btn-danger" onclick="deleteWebhook('${s.id}')">Delete</button></td>
+              </tr>`;
+            }).join('')}</tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  } catch(e) {
+    wrap.innerHTML = `<div class="empty" style="color:var(--err);">Failed to load webhooks: ${esc(e.message)}</div>`;
+  }
+}
+
+async function createWebhook() {
+  const url = document.getElementById('webhook-url')?.value?.trim();
+  const eventsStr = document.getElementById('webhook-events')?.value?.trim() || '*';
+  if (!url) { toast('URL is required', 'err'); return; }
+  const events = eventsStr.split(',').map(e => e.trim()).filter(Boolean);
+  try {
+    await api('POST', '/api/webhooks', { url, events });
+    toast('Webhook created');
+    loadWebhooks();
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+async function deleteWebhook(id) {
+  if (!confirm('Delete this webhook?')) return;
+  try {
+    await api('DELETE', `/api/webhooks/${id}`);
+    toast('Webhook deleted');
+    loadWebhooks();
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+/* ══════════════════════════════════════════
+   METRICS PAGE
+══════════════════════════════════════════ */
+
+async function renderMetrics() {
+  const content = document.getElementById('content');
+  content.innerHTML = `<div class="empty">Loading metrics…</div>`;
+  try {
+    const metrics = await api('GET', '/api/metrics');
+    const entries = Object.entries(metrics).sort((a, b) => (b[1].calls ?? 0) - (a[1].calls ?? 0));
+    if (entries.length === 0) {
+      content.innerHTML = `<div class="empty">No metrics yet. Call some tools first!</div>`;
+      return;
+    }
+    const totalCalls = entries.reduce((sum, [, m]) => sum + (m.calls ?? 0), 0);
+    const totalErrors = entries.reduce((sum, [, m]) => sum + (m.errors ?? 0), 0);
+    content.innerHTML = `
+      <div class="stat-grid">
+        <div class="stat-block"><div class="stat-num">${totalCalls}</div><div class="stat-label">Total Calls</div></div>
+        <div class="stat-block"><div class="stat-num" style="color:${totalErrors > 0 ? 'var(--err)' : 'var(--ok)'}">${totalErrors}</div><div class="stat-label">Errors</div></div>
+        <div class="stat-block"><div class="stat-num">${entries.length}</div><div class="stat-label">Tools Used</div></div>
+        <div class="stat-block"><div class="stat-num">${totalCalls > 0 ? ((1 - totalErrors / totalCalls) * 100).toFixed(1) : 100}%</div><div class="stat-label">Success Rate</div></div>
+      </div>
+      <div class="section">
+        <div class="section-head"><span class="section-title">Tool Metrics</span></div>
+        <div class="section-body" style="padding:0;">
+          <table class="data-table">
+            <thead><tr><th>Tool</th><th>Calls</th><th>Errors</th><th>Avg Latency</th><th>Last Call</th><th>Success Rate</th></tr></thead>
+            <tbody>${entries.map(([name, m]) => {
+              const rate = m.calls > 0 ? ((1 - m.errors / m.calls) * 100).toFixed(1) : '100.0';
+              const rateColor = parseFloat(rate) >= 95 ? 'var(--ok)' : parseFloat(rate) >= 80 ? 'var(--warn)' : 'var(--err)';
+              return `<tr>
+                <td class="mono">${esc(name)}</td>
+                <td>${m.calls ?? 0}</td>
+                <td style="color:${m.errors > 0 ? 'var(--err)' : 'inherit'}">${m.errors ?? 0}</td>
+                <td class="mono">${Math.round(m.avgLatencyMs ?? 0)}ms</td>
+                <td class="mono" style="font-size:11px;">${m.lastCallAt ? new Date(m.lastCallAt).toLocaleString() : '—'}</td>
+                <td><span style="color:${rateColor};font-weight:600;">${rate}%</span></td>
+              </tr>`;
+            }).join('')}</tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  } catch(e) {
+    content.innerHTML = `<div class="empty" style="color:var(--err);">Failed to load metrics: ${esc(e.message)}</div>`;
+  }
+}
+
+function formatUptime(seconds) {
+  if (seconds < 60) return seconds + 's';
+  if (seconds < 3600) return Math.floor(seconds / 60) + 'm';
+  if (seconds < 86400) return Math.floor(seconds / 3600) + 'h ' + Math.floor((seconds % 3600) / 60) + 'm';
+  return Math.floor(seconds / 86400) + 'd ' + Math.floor((seconds % 86400) / 3600) + 'h';
 }
 
 /* ══════════════════════════════════════════
