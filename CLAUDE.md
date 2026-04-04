@@ -64,7 +64,7 @@ interface Plugin {
 }
 ```
 
-Plugins are **lazily initialized** — `PluginManager.getPlugin(name)` initializes on first call. All builtins are in `src/plugins/builtin/` and registered via `src/plugins/builtin/index.ts`. External plugins drop `.js` files into `~/.conductor/plugins/`.
+Plugins are **lazily initialized** — `PluginManager.getPlugin(name)` initializes on first call. All builtins are in `src/plugins/builtin/` and registered via `src/plugins/builtin/index.ts`. External plugins drop `.js` files into `~/.conductor/plugins/`. Current builtin count: ~35 plugins including github (20 tools), slack, gmail, notion, gcal, gdrive, docker, shell, vercel, n8n, github-actions, linear, jira, stripe, spotify, x, homekit, todoist, lumen, and 15+ zero-config utilities.
 
 Secret credentials use `configSchema.fields[].secret = true` and are stored in the OS keychain, not `config.json`.
 
@@ -86,12 +86,16 @@ Express server (`server.ts`) serving a single-page app (`index.html`). The CLI (
 ### CLI (`src/cli/`)
 
 Built with `commander`. Entry point: `src/cli/index.ts`. Commands live in `src/cli/commands/`:
+- `init.ts` — first-run wizard (AI provider + plugin picker + client config)
 - `plugins.ts` — enable/disable/list/install
+- `onboard.ts` — interactive TUI plugin picker (also accessible as `plugins onboard`)
 - `mcp.ts` — start/setup MCP server
 - `lifecycle.ts` — start/stop/status
 - `doctor.ts` — system health diagnostics
-- `marketplace.ts` — plugin marketplace
+- `marketplace.ts` — plugin marketplace (`conductor plugins install <id>` downloads from GitHub raw)
 - `plugin-create.ts` — scaffold new plugins
+
+`install.sh` in root: one-line bash installer (`curl -fsSL .../install.sh | bash`). Checks Node ≥ 18, installs `@conductor/cli` globally, prompts to run `conductor init`.
 
 ### Config Storage
 
