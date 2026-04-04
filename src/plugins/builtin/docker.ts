@@ -316,7 +316,11 @@ export class DockerPlugin implements Plugin {
             networks: stdout
               .split('\n')
               .map((line) => {
-                try { return JSON.parse(line); } catch { return null; }
+                try {
+                  return JSON.parse(line);
+                } catch {
+                  return null;
+                }
               })
               .filter((c): c is Record<string, unknown> => c !== null),
           };
@@ -334,7 +338,11 @@ export class DockerPlugin implements Plugin {
             volumes: stdout
               .split('\n')
               .map((line) => {
-                try { return JSON.parse(line); } catch { return null; }
+                try {
+                  return JSON.parse(line);
+                } catch {
+                  return null;
+                }
               })
               .filter((c): c is Record<string, unknown> => c !== null),
           };
@@ -359,12 +367,7 @@ export class DockerPlugin implements Plugin {
           required: ['project_dir'],
         },
         requiresApproval: true,
-        handler: async (input: {
-          project_dir: string;
-          services?: string[];
-          detach?: boolean;
-          build?: boolean;
-        }) => {
+        handler: async (input: { project_dir: string; services?: string[]; detach?: boolean; build?: boolean }) => {
           const args = ['compose', '-f', `${input.project_dir}/docker-compose.yml`, 'up'];
           if (input.detach ?? true) args.push('-d');
           if (input.build) args.push('--build');

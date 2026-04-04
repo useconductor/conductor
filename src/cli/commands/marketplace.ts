@@ -45,9 +45,7 @@ async function fetchRegistry(): Promise<Registry> {
       lastError = e as Error;
     }
   }
-  throw new Error(
-    `Cannot reach plugin registry. Check your internet connection.\n${lastError?.message ?? ''}`,
-  );
+  throw new Error(`Cannot reach plugin registry. Check your internet connection.\n${lastError?.message ?? ''}`);
 }
 
 function pluginsDir(conductor: Conductor): string {

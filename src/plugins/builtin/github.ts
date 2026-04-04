@@ -4,7 +4,8 @@ import { Keychain } from '../../security/keychain.js';
 
 export class GitHubPlugin implements Plugin {
   name = 'github';
-  description = 'GitHub repositories, issues, PRs, releases, code search, and more (public data free, private needs token)';
+  description =
+    'GitHub repositories, issues, PRs, releases, code search, and more (public data free, private needs token)';
   version = '2.0.0';
 
   configSchema = {
@@ -16,7 +17,8 @@ export class GitHubPlugin implements Plugin {
         required: false,
         secret: true,
         service: 'github',
-        description: 'Create a PAT with "repo" and "workflow" scopes at GitHub Settings > Developer Settings > Personal Access Tokens.',
+        description:
+          'Create a PAT with "repo" and "workflow" scopes at GitHub Settings > Developer Settings > Personal Access Tokens.',
       },
     ],
     setupInstructions:
@@ -106,10 +108,9 @@ export class GitHubPlugin implements Plugin {
         },
         handler: async (input: { owner: string; repo: string }) => {
           const token = await this.getToken();
-          const r = await this.ghFetch(
-            `/repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}`,
-            { token },
-          );
+          const r = await this.ghFetch(`/repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}`, {
+            token,
+          });
           return {
             name: r.full_name,
             description: r.description,
@@ -178,10 +179,7 @@ export class GitHubPlugin implements Plugin {
           let q = encodeURIComponent(input.query);
           if (input.language) q += `+language:${encodeURIComponent(input.language)}`;
           const perPage = Math.min(input.per_page ?? 10, 30);
-          const data = await this.ghFetch(
-            `/search/repositories?q=${q}&sort=stars&per_page=${perPage}`,
-            { token },
-          );
+          const data = await this.ghFetch(`/search/repositories?q=${q}&sort=stars&per_page=${perPage}`, { token });
           return (data.items as any[]).map((r) => ({
             name: r.full_name,
             description: r.description,
@@ -334,12 +332,7 @@ export class GitHubPlugin implements Plugin {
           required: ['owner', 'repo', 'issue_number'],
         },
         requiresApproval: true,
-        handler: async (input: {
-          owner: string;
-          repo: string;
-          issue_number: number;
-          reason?: string;
-        }) => {
+        handler: async (input: { owner: string; repo: string; issue_number: number; reason?: string }) => {
           const token = await this.getToken();
           if (!token) throw new Error('GitHub token required to close issues');
           await this.ghFetch(
@@ -395,13 +388,7 @@ export class GitHubPlugin implements Plugin {
           },
           required: ['owner', 'repo'],
         },
-        handler: async (input: {
-          owner: string;
-          repo: string;
-          state?: string;
-          base?: string;
-          per_page?: number;
-        }) => {
+        handler: async (input: { owner: string; repo: string; state?: string; base?: string; per_page?: number }) => {
           const token = await this.getToken();
           const params = new URLSearchParams({
             state: input.state ?? 'open',
@@ -506,7 +493,13 @@ export class GitHubPlugin implements Plugin {
             {
               method: 'POST',
               token,
-              body: { title: input.title, body: input.body, head: input.head, base: input.base, draft: input.draft ?? false },
+              body: {
+                title: input.title,
+                body: input.body,
+                head: input.head,
+                base: input.base,
+                draft: input.draft ?? false,
+              },
             },
           );
           return { number: pr.number, url: pr.html_url, title: pr.title };
@@ -572,10 +565,9 @@ export class GitHubPlugin implements Plugin {
         handler: async (input: { query: string; per_page?: number }) => {
           const token = await this.getToken();
           const perPage = Math.min(input.per_page ?? 10, 30);
-          const data = await this.ghFetch(
-            `/search/code?q=${encodeURIComponent(input.query)}&per_page=${perPage}`,
-            { token },
-          );
+          const data = await this.ghFetch(`/search/code?q=${encodeURIComponent(input.query)}&per_page=${perPage}`, {
+            token,
+          });
           return {
             total_count: data.total_count,
             results: (data.items as any[]).map((i) => ({
@@ -617,7 +609,8 @@ export class GitHubPlugin implements Plugin {
               entries: data.map((e: any) => ({ name: e.name, type: e.type, size: e.size, path: e.path })),
             };
           }
-          const content = data.encoding === 'base64' ? Buffer.from(data.content, 'base64').toString('utf-8') : data.content;
+          const content =
+            data.encoding === 'base64' ? Buffer.from(data.content, 'base64').toString('utf-8') : data.content;
           return {
             type: 'file',
             name: data.name,
@@ -776,10 +769,10 @@ export class GitHubPlugin implements Plugin {
         handler: async (input: { owner: string; repo: string }) => {
           const token = await this.getToken();
           if (!token) throw new Error('GitHub token required to star repositories');
-          await this.ghFetch(
-            `/user/starred/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}`,
-            { method: 'PUT', token },
-          );
+          await this.ghFetch(`/user/starred/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}`, {
+            method: 'PUT',
+            token,
+          });
           return { starred: true, repo: `${input.owner}/${input.repo}` };
         },
       },
@@ -792,7 +785,10 @@ export class GitHubPlugin implements Plugin {
           properties: {
             owner: { type: 'string', description: 'Repository owner' },
             repo: { type: 'string', description: 'Repository name' },
-            organization: { type: 'string', description: 'Fork into this organization (optional, defaults to your account)' },
+            organization: {
+              type: 'string',
+              description: 'Fork into this organization (optional, defaults to your account)',
+            },
           },
           required: ['owner', 'repo'],
         },
@@ -846,7 +842,7 @@ export class GitHubPlugin implements Plugin {
 
       {
         name: 'github_my_repos',
-        description: 'List the authenticated user\'s repositories (requires authentication)',
+        description: "List the authenticated user's repositories (requires authentication)",
         inputSchema: {
           type: 'object',
           properties: {

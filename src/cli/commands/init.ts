@@ -24,8 +24,14 @@ import { homedir } from 'os';
 function printBanner(): void {
   console.log('');
   console.log(chalk.bold.white('  ╔══════════════════════════════════════════════╗'));
-  console.log(chalk.bold.white('  ║') + chalk.bold.hex('#FF8C00')('  ♦  Conductor — The AI Tool Hub             ') + chalk.bold.white('║'));
-  console.log(chalk.bold.white('  ║') + chalk.dim('     One MCP server. 100+ tools. Any AI.    ') + chalk.bold.white('║'));
+  console.log(
+    chalk.bold.white('  ║') +
+      chalk.bold.hex('#FF8C00')('  ♦  Conductor — The AI Tool Hub             ') +
+      chalk.bold.white('║'),
+  );
+  console.log(
+    chalk.bold.white('  ║') + chalk.dim('     One MCP server. 100+ tools. Any AI.    ') + chalk.bold.white('║'),
+  );
   console.log(chalk.bold.white('  ╚══════════════════════════════════════════════╝'));
   console.log('');
   console.log(chalk.dim('  This wizard will get you up and running in under 2 minutes.'));
@@ -38,8 +44,7 @@ function printBanner(): void {
 function stepHeader(n: number, total: number, label: string): void {
   console.log('');
   console.log(
-    chalk.bold.white(`  ── Step ${n}/${total}: ${label} `) +
-      chalk.dim('─'.repeat(Math.max(0, 38 - label.length))),
+    chalk.bold.white(`  ── Step ${n}/${total}: ${label} `) + chalk.dim('─'.repeat(Math.max(0, 38 - label.length))),
   );
   console.log('');
 }
@@ -257,7 +262,7 @@ async function setupMCPClient(conductor: Conductor): Promise<void> {
         { name: 'Claude Desktop', value: 'claude' },
         { name: 'Cursor', value: 'cursor' },
         { name: 'Cline (VS Code extension)', value: 'cline' },
-        { name: chalk.dim('Skip — I\'ll configure manually'), value: 'skip' },
+        { name: chalk.dim("Skip — I'll configure manually"), value: 'skip' },
       ],
     },
   ]);
@@ -273,7 +278,11 @@ async function setupMCPClient(conductor: Conductor): Promise<void> {
   try {
     await writeClientConfig(configPath);
     console.log('');
-    console.log(chalk.green(`  ✓ ${client === 'claude' ? 'Claude Desktop' : client === 'cursor' ? 'Cursor' : 'Cline'} configured`));
+    console.log(
+      chalk.green(
+        `  ✓ ${client === 'claude' ? 'Claude Desktop' : client === 'cursor' ? 'Cursor' : 'Cline'} configured`,
+      ),
+    );
     console.log(chalk.dim(`    Config: ${configPath}`));
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -293,7 +302,7 @@ function printFinalInstructions(userName: string): void {
   console.log(chalk.bold.white('  ╔══════════════════════════════════════════════╗'));
   console.log(
     chalk.bold.white('  ║') +
-      chalk.bold.green('  ✓ You\'re all set, ' + (userName || 'there') + '!') +
+      chalk.bold.green("  ✓ You're all set, " + (userName || 'there') + '!') +
       ' '.repeat(Math.max(0, 24 - (userName || 'there').length)) +
       chalk.bold.white('║'),
   );
