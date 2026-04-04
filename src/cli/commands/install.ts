@@ -14,7 +14,6 @@
  */
 
 import { createRequire } from 'module';
-import { Command } from 'commander';
 import { Conductor } from '../../core/conductor.js';
 import chalk from 'chalk';
 import ora from 'ora';
@@ -630,7 +629,7 @@ async function configurePlugins(selectedPlugins: string[], conductor: Conductor)
   }
 }
 
-async function setupMCP(conductor: Conductor): Promise<void> {
+async function setupMCP(_conductor: Conductor): Promise<void> {
   console.log('\n' + chalk.bold('🔌 MCP Server Setup'));
   console.log(chalk.gray('Configure Conductor as an MCP server for your AI agents\n'));
 

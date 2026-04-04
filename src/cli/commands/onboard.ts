@@ -11,7 +11,7 @@ import inquirer from 'inquirer';
 import { Conductor } from '../../core/conductor.js';
 import { PluginManager } from '../../plugins/manager.js';
 
-interface PluginEntry {
+interface _PluginEntry {
   name: string;
   description: string;
   enabled: boolean;
@@ -22,29 +22,44 @@ interface PluginEntry {
 
 // Category groupings for the TUI picker
 const CATEGORIES: Record<string, string[]> = {
-  'Developer Tools': [
-    'shell', 'docker', 'github', 'git',
-  ],
-  'Communication': [
-    'slack', 'telegram',
-  ],
-  'Google Workspace': [
-    'gmail', 'google-calendar', 'google-drive',
-  ],
-  'Productivity': [
-    'notes', 'memory',
-  ],
-  'Utilities': [
-    'calculator', 'colors', 'crypto', 'hash', 'text-tools',
-    'timezone', 'network', 'url-tools', 'fun', 'system',
-    'cron', 'weather',
+  'Developer Tools': ['shell', 'docker', 'github', 'git'],
+  Communication: ['slack', 'telegram'],
+  'Google Workspace': ['gmail', 'google-calendar', 'google-drive'],
+  Productivity: ['notes', 'memory'],
+  Utilities: [
+    'calculator',
+    'colors',
+    'crypto',
+    'hash',
+    'text-tools',
+    'timezone',
+    'network',
+    'url-tools',
+    'fun',
+    'system',
+    'cron',
+    'weather',
   ],
 };
 
 const ZERO_CONFIG_SET = new Set([
-  'calculator', 'colors', 'hash', 'text-tools', 'timezone',
-  'network', 'url-tools', 'fun', 'system', 'notes', 'memory',
-  'cron', 'shell', 'docker', 'github', 'weather', 'crypto',
+  'calculator',
+  'colors',
+  'hash',
+  'text-tools',
+  'timezone',
+  'network',
+  'url-tools',
+  'fun',
+  'system',
+  'notes',
+  'memory',
+  'cron',
+  'shell',
+  'docker',
+  'github',
+  'weather',
+  'crypto',
 ]);
 
 function header(): void {
@@ -54,7 +69,9 @@ function header(): void {
   console.log(chalk.bold.white('  ╚══════════════════════════════════════╝'));
   console.log('');
   console.log(chalk.dim('  Select the plugins you want to enable.'));
-  console.log(chalk.dim('  Zero-config plugins ') + chalk.green('[free]') + chalk.dim(' work instantly — no credentials needed.'));
+  console.log(
+    chalk.dim('  Zero-config plugins ') + chalk.green('[free]') + chalk.dim(' work instantly — no credentials needed.'),
+  );
   console.log('');
 }
 
@@ -70,8 +87,8 @@ export async function onboard(conductor: Conductor): Promise<void> {
   header();
 
   const available = pm.listPlugins();
-  const availableByName = new Map(available.map(p => [p.name, p]));
-  const currentlyEnabled = new Set(available.filter(p => p.enabled).map(p => p.name));
+  const availableByName = new Map(available.map((p) => [p.name, p]));
+  const currentlyEnabled = new Set(available.filter((p) => p.enabled).map((p) => p.name));
 
   // Build choices grouped by category
   const choices: Array<{ type?: string; name?: string; value?: string; checked?: boolean; short?: string }> = [];
@@ -80,13 +97,11 @@ export async function onboard(conductor: Conductor): Promise<void> {
     categoryHeader(catName);
 
     const catChoices = pluginNames
-      .filter(name => availableByName.has(name))
-      .map(name => {
+      .filter((name) => availableByName.has(name))
+      .map((name) => {
         const p = availableByName.get(name)!;
         const zc = ZERO_CONFIG_SET.has(name);
-        const badge = zc
-          ? ' ' + chalk.green('[zero-config]')
-          : ' ' + chalk.yellow('[needs setup]');
+        const badge = zc ? ' ' + chalk.green('[zero-config]') : ' ' + chalk.yellow('[needs setup]');
 
         return {
           name: `${chalk.white(p.name.padEnd(22))} ${chalk.dim(p.description)}${badge}`,
@@ -104,7 +119,7 @@ export async function onboard(conductor: Conductor): Promise<void> {
 
   // Also include plugins not in any category
   const categorized = new Set(Object.values(CATEGORIES).flat());
-  const uncategorized = available.filter(p => !categorized.has(p.name));
+  const uncategorized = available.filter((p) => !categorized.has(p.name));
   if (uncategorized.length > 0) {
     categoryHeader('Other Plugins');
     choices.push({ type: 'separator', name: '' });
@@ -139,7 +154,7 @@ export async function onboard(conductor: Conductor): Promise<void> {
 
   // Determine which newly selected plugins need configuration
   const toEnable = selected;
-  const needsSetup = toEnable.filter(name => !ZERO_CONFIG_SET.has(name) && !currentlyEnabled.has(name));
+  const needsSetup = toEnable.filter((name) => !ZERO_CONFIG_SET.has(name) && !currentlyEnabled.has(name));
 
   // Update enabled list
   const newEnabled = [...new Set([...Array.from(currentlyEnabled), ...toEnable])];
@@ -199,7 +214,7 @@ async function setupPlugin(conductor: Conductor, _pm: PluginManager, name: strin
   const pm2 = new PluginManager(conductor);
   await pm2.loadBuiltins();
   const plugins = pm2.listPlugins();
-  const p = plugins.find(x => x.name === name);
+  const p = plugins.find((x) => x.name === name);
 
   if (!p) {
     console.log(chalk.yellow(`  Plugin "${name}" not found — skipping`));
@@ -218,7 +233,7 @@ async function setupPlugin(conductor: Conductor, _pm: PluginManager, name: strin
   }
 
   // Build inquirer prompts from the plugin's configSchema
-  const prompts = p.configSchema.fields.map(field => ({
+  const prompts = p.configSchema.fields.map((field) => ({
     type: field.type === 'password' ? 'password' : field.type === 'boolean' ? 'confirm' : 'input',
     name: field.key,
     message: `${field.label}${field.required ? '' : ' (optional)'}:`,
