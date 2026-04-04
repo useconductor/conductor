@@ -251,6 +251,173 @@ export class DockerPlugin implements Plugin {
           };
         },
       },
+
+      {
+        name: 'docker_build',
+        description: 'Build a Docker image from a Dockerfile',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            context: { type: 'string', description: 'Build context path (directory containing Dockerfile)' },
+            tag: { type: 'string', description: 'Image tag (e.g. "myapp:latest")' },
+            dockerfile: { type: 'string', description: 'Path to Dockerfile if not in context root' },
+            build_args: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Build arguments (e.g. ["VERSION=1.0"])',
+            },
+            no_cache: { type: 'boolean', description: 'Disable build cache', default: false },
+          },
+          required: ['context', 'tag'],
+        },
+        requiresApproval: true,
+        handler: async (input: {
+          context: string;
+          tag: string;
+          dockerfile?: string;
+          build_args?: string[];
+          no_cache?: boolean;
+        }) => {
+          const args = ['build', '-t', input.tag];
+          if (input.dockerfile) args.push('-f', input.dockerfile);
+          if (input.no_cache) args.push('--no-cache');
+          if (input.build_args) for (const a of input.build_args) args.push('--build-arg', a);
+          args.push(input.context);
+          const { stdout, stderr } = await this.docker(args);
+          return { tag: input.tag, output: stdout || stderr };
+        },
+      },
+
+      {
+        name: 'docker_push',
+        description: 'Push a Docker image to a registry',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            image: { type: 'string', description: 'Image name and tag to push (e.g. "registry.io/myapp:latest")' },
+          },
+          required: ['image'],
+        },
+        requiresApproval: true,
+        handler: async (input: { image: string }) => {
+          const { stdout, stderr } = await this.docker(['push', input.image]);
+          return { image: input.image, result: stdout || stderr };
+        },
+      },
+
+      {
+        name: 'docker_network_ls',
+        description: 'List Docker networks',
+        inputSchema: { type: 'object', properties: {} },
+        handler: async () => {
+          const { stdout } = await this.docker(['network', 'ls', '--format', '{{json .}}']);
+          if (!stdout) return { networks: [] };
+          return {
+            networks: stdout
+              .split('\n')
+              .map((line) => {
+                try { return JSON.parse(line); } catch { return null; }
+              })
+              .filter((c): c is Record<string, unknown> => c !== null),
+          };
+        },
+      },
+
+      {
+        name: 'docker_volume_ls',
+        description: 'List Docker volumes',
+        inputSchema: { type: 'object', properties: {} },
+        handler: async () => {
+          const { stdout } = await this.docker(['volume', 'ls', '--format', '{{json .}}']);
+          if (!stdout) return { volumes: [] };
+          return {
+            volumes: stdout
+              .split('\n')
+              .map((line) => {
+                try { return JSON.parse(line); } catch { return null; }
+              })
+              .filter((c): c is Record<string, unknown> => c !== null),
+          };
+        },
+      },
+
+      {
+        name: 'docker_compose_up',
+        description: 'Start services defined in a docker-compose file',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            project_dir: { type: 'string', description: 'Directory containing docker-compose.yml' },
+            services: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Specific services to start (omit for all)',
+            },
+            detach: { type: 'boolean', description: 'Run in background', default: true },
+            build: { type: 'boolean', description: 'Build images before starting', default: false },
+          },
+          required: ['project_dir'],
+        },
+        requiresApproval: true,
+        handler: async (input: {
+          project_dir: string;
+          services?: string[];
+          detach?: boolean;
+          build?: boolean;
+        }) => {
+          const args = ['compose', '-f', `${input.project_dir}/docker-compose.yml`, 'up'];
+          if (input.detach ?? true) args.push('-d');
+          if (input.build) args.push('--build');
+          if (input.services?.length) args.push(...input.services);
+          const { stdout, stderr } = await this.docker(args);
+          return { project_dir: input.project_dir, result: stdout || stderr };
+        },
+      },
+
+      {
+        name: 'docker_compose_down',
+        description: 'Stop and remove services defined in a docker-compose file',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            project_dir: { type: 'string', description: 'Directory containing docker-compose.yml' },
+            volumes: { type: 'boolean', description: 'Also remove named volumes', default: false },
+          },
+          required: ['project_dir'],
+        },
+        requiresApproval: true,
+        handler: async (input: { project_dir: string; volumes?: boolean }) => {
+          const args = ['compose', '-f', `${input.project_dir}/docker-compose.yml`, 'down'];
+          if (input.volumes) args.push('-v');
+          const { stdout, stderr } = await this.docker(args);
+          return { project_dir: input.project_dir, result: stdout || stderr };
+        },
+      },
+
+      {
+        name: 'docker_exec',
+        description: 'Execute a command inside a running container',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            container: { type: 'string', description: 'Container name or ID' },
+            command: { type: 'string', description: 'Command to run (e.g. "ls /app")' },
+            user: { type: 'string', description: 'Run as this user (optional)' },
+          },
+          required: ['container', 'command'],
+        },
+        requiresApproval: true,
+        handler: async (input: { container: string; command: string; user?: string }) => {
+          const args = ['exec'];
+          if (input.user) args.push('-u', input.user);
+          args.push(input.container);
+          // Split command string safely
+          const parts = input.command.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) ?? [input.command];
+          args.push(...parts);
+          const { stdout, stderr } = await this.docker(args);
+          return { container: input.container, command: input.command, output: stdout || stderr };
+        },
+      },
     ];
   }
 }

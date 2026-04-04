@@ -1,11 +1,197 @@
 #!/usr/bin/env bash
-# ============================================================
-# Conductor Install Script — by TheAlxLabs
-# ============================================================
-#   curl -fsSL https://conductor.thealxlabs.ca/install.sh | bash
-#   bash install.sh
-# ============================================================
+# Conductor — The AI Tool Hub
+# install.sh: one-line installer
+# Usage: curl -fsSL https://conductor.thealxlabs.ca/install.sh | bash
+#    or: curl -fsSL https://raw.githubusercontent.com/thegreatalxx/conductor/main/install.sh | bash
+
 set -euo pipefail
+
+BOLD='\033[1m'
+DIM='\033[2m'
+ORANGE='\033[38;5;208m'
+GREEN='\033[32m'
+YELLOW='\033[33m'
+RED='\033[31m'
+RESET='\033[0m'
+
+NPM_PACKAGE="@conductor/cli"
+MIN_NODE_MAJOR=18
+UPGRADE_MODE=false
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+info()    { echo -e "  ${DIM}${*}${RESET}"; }
+success() { echo -e "  ${GREEN}✓${RESET} ${*}"; }
+warn()    { echo -e "  ${YELLOW}⚠${RESET}  ${*}"; }
+die()     { echo -e "  ${RED}✗${RESET}  ${*}" >&2; echo "" ; exit 1; }
+
+print_header() {
+  echo ""
+  echo -e "${BOLD}  ┌─────────────────────────────────────────┐${RESET}"
+  echo -e "${BOLD}  │${RESET}${ORANGE}  ♦ Conductor — The AI Tool Hub            ${RESET}${BOLD}│${RESET}"
+  echo -e "${BOLD}  │${RESET}${DIM}  One MCP server. 100+ tools. Any AI.     ${RESET}${BOLD}│${RESET}"
+  echo -e "${BOLD}  └─────────────────────────────────────────┘${RESET}"
+  echo ""
+}
+
+# ── Platform detection ────────────────────────────────────────────────────────
+
+detect_platform() {
+  OS="unknown"
+  case "$(uname -s)" in
+    Linux*)
+      if grep -qi microsoft /proc/version 2>/dev/null; then
+        OS="wsl"
+      else
+        OS="linux"
+      fi
+      ;;
+    Darwin*)  OS="macos" ;;
+    CYGWIN*|MINGW*|MSYS*) OS="windows" ;;
+  esac
+  [ "$OS" = "unknown" ] && OS="linux"
+}
+
+# ── Dependency checks ─────────────────────────────────────────────────────────
+
+check_node() {
+  if ! command -v node &>/dev/null; then
+    echo ""
+    die "Node.js is not installed. Install Node.js ${MIN_NODE_MAJOR}+ from https://nodejs.org"
+  fi
+
+  NODE_VERSION_RAW="$(node --version)"
+  NODE_VERSION_CLEAN="${NODE_VERSION_RAW#v}"
+  NODE_MAJOR="${NODE_VERSION_CLEAN%%.*}"
+
+  if [ "${NODE_MAJOR}" -lt "${MIN_NODE_MAJOR}" ]; then
+    die "Node.js ${NODE_VERSION_RAW} found, but ${MIN_NODE_MAJOR}+ required. Upgrade at https://nodejs.org"
+  fi
+
+  success "Node.js ${NODE_VERSION_RAW}"
+}
+
+check_npm() {
+  if ! command -v npm &>/dev/null; then
+    die "npm not found. Reinstall Node.js from https://nodejs.org"
+  fi
+  success "npm v$(npm --version)"
+}
+
+# ── Already installed? ────────────────────────────────────────────────────────
+
+check_existing() {
+  if command -v conductor &>/dev/null; then
+    EXISTING_VERSION="$(conductor --version 2>/dev/null || echo 'unknown')"
+    echo ""
+    warn "Conductor ${EXISTING_VERSION} is already installed."
+
+    if [ -t 0 ]; then
+      printf "  Upgrade to latest? [Y/n] "
+      read -r REPLY
+      echo ""
+      case "${REPLY:-Y}" in
+        [Nn]*) info "Skipping upgrade."; echo ""; exit 0 ;;
+      esac
+    else
+      info "Running non-interactively — upgrading automatically."
+      echo ""
+    fi
+
+    UPGRADE_MODE=true
+  fi
+}
+
+# ── Installation ──────────────────────────────────────────────────────────────
+
+install_conductor() {
+  echo ""
+  if [ "${UPGRADE_MODE}" = true ]; then
+    info "Upgrading ${NPM_PACKAGE} to latest..."
+  else
+    info "Installing ${NPM_PACKAGE}..."
+  fi
+  echo ""
+
+  NPM_PREFIX="$(npm config get prefix 2>/dev/null || echo "")"
+
+  if [[ "$NPM_PREFIX" == /usr* ]] && [ "$(id -u)" -ne 0 ]; then
+    if command -v sudo &>/dev/null; then
+      info "Global npm prefix is ${NPM_PREFIX} — using sudo"
+      sudo npm install -g "${NPM_PACKAGE}" 2>&1 | grep -v "^npm warn" | tail -3 || \
+        die "Installation failed. Try: sudo npm install -g ${NPM_PACKAGE}"
+    else
+      die "Cannot write to ${NPM_PREFIX}. Run: sudo npm install -g ${NPM_PACKAGE}"
+    fi
+  else
+    npm install -g "${NPM_PACKAGE}" 2>&1 | grep -v "^npm warn" | tail -3 || \
+      die "Installation failed. Check npm output above for details."
+  fi
+}
+
+verify_installation() {
+  if ! command -v conductor &>/dev/null; then
+    echo ""
+    warn "conductor binary not found in PATH after install."
+    NPM_BIN="$(npm config get prefix 2>/dev/null)/bin"
+    echo ""
+    info "Add npm's global bin directory to your PATH:"
+    echo -e "    ${BOLD}export PATH=\"${NPM_BIN}:\$PATH\"${RESET}"
+    echo ""
+    info "Then reload your shell and run: conductor init"
+    echo ""
+    return 1
+  fi
+
+  INSTALLED_VERSION="$(conductor --version 2>/dev/null || echo 'unknown')"
+  success "conductor v${INSTALLED_VERSION} is ready"
+  return 0
+}
+
+# ── Completion message ────────────────────────────────────────────────────────
+
+print_next_steps() {
+  echo ""
+  echo -e "${GREEN}${BOLD}  ✓ Conductor installed successfully!${RESET}"
+  echo ""
+  echo -e "  ${BOLD}Get started in under 2 minutes:${RESET}"
+  echo ""
+  echo -e "    ${BOLD}conductor init${RESET}"
+  echo -e "    ${DIM}Interactive setup — AI provider, plugins, and MCP client config${RESET}"
+  echo ""
+  echo -e "  ${DIM}Other commands:${RESET}"
+  echo -e "    ${DIM}conductor onboard${RESET}       Pick and configure plugins"
+  echo -e "    ${DIM}conductor mcp setup${RESET}     Auto-configure Claude Desktop / Cursor / Cline"
+  echo -e "    ${DIM}conductor mcp start${RESET}     Start the MCP server (stdio)"
+  echo -e "    ${DIM}conductor doctor${RESET}        Diagnose issues"
+  echo -e "    ${DIM}conductor dashboard${RESET}     Open web dashboard"
+  echo ""
+  echo -e "  ${DIM}Docs: https://conductor.thealxlabs.ca${RESET}"
+  echo ""
+}
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+
+main() {
+  print_header
+  detect_platform
+  check_node
+  check_npm
+  check_existing
+  install_conductor
+  verify_installation
+  print_next_steps
+}
+
+main "$@"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# The section below is LEGACY — kept for reference / local dev installs.
+# The main() above handles all standard installs via npm.
+# To use the legacy source-based install, set CONDUCTOR_LEGACY=1 before running.
+# ─────────────────────────────────────────────────────────────────────────────
+[ "${CONDUCTOR_LEGACY:-0}" = "1" ] || exit 0
+
 IFS=$'\n\t'
 
 # ── Terminal colours ──────────────────────────────────────────────────────────

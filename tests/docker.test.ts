@@ -16,7 +16,7 @@ describe('DockerPlugin', () => {
     expect(toolNames).toContain('docker_volumes');
     expect(toolNames).toContain('docker_networks');
     expect(toolNames).toContain('docker_stats');
-    expect(tools.length).toBe(9);
+    expect(tools.length).toBe(16);
   });
 
   it('marks docker_run as requiring approval', async () => {

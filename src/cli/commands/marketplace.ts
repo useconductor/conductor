@@ -2,7 +2,10 @@ import fs from 'fs/promises';
 import path from 'path';
 import { Conductor } from '../../core/conductor.js';
 
-const REGISTRY_URL = 'https://conductor.thealxlabs.ca/registry.json';
+const REGISTRY_URLS = [
+  'https://raw.githubusercontent.com/thegreatalxx/conductor-plugins/main/registry.json',
+  'https://conductor.thealxlabs.ca/registry.json',
+];
 const GITHUB_RAW = 'https://raw.githubusercontent.com';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -32,14 +35,19 @@ interface Registry {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 async function fetchRegistry(): Promise<Registry> {
-  let res: Response;
-  try {
-    res = await fetch(REGISTRY_URL);
-  } catch {
-    throw new Error(`Cannot reach registry at ${REGISTRY_URL}. Check your internet connection.`);
+  let lastError: Error | undefined;
+  for (const url of REGISTRY_URLS) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+      if (res.ok) return res.json() as Promise<Registry>;
+      lastError = new Error(`Registry at ${url} returned ${res.status}`);
+    } catch (e) {
+      lastError = e as Error;
+    }
   }
-  if (!res.ok) throw new Error(`Registry returned ${res.status}`);
-  return res.json() as Promise<Registry>;
+  throw new Error(
+    `Cannot reach plugin registry. Check your internet connection.\n${lastError?.message ?? ''}`,
+  );
 }
 
 function pluginsDir(conductor: Conductor): string {
@@ -94,7 +102,7 @@ export async function installPlugin(conductor: Conductor, pluginId: string): Pro
   }
 
   // Download from GitHub
-  const url = `${GITHUB_RAW}/${plugin.repo}/main/${plugin.path}/${plugin.asset}`;
+  const url = `${GITHUB_RAW}/${plugin.repo}/main/${plugin.asset}`;
   console.log(`  ${cyan('▶')} Downloading ${bold(plugin.name)} ${dim(`v${plugin.version}`)}…`);
 
   let source: string;

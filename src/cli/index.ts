@@ -153,6 +153,14 @@ function registerPluginCommands(parent: Command, cmdName: string): void {
         process.exit(1);
       }
     });
+
+  cmd
+    .command('onboard')
+    .description('Interactive TUI — pick and configure plugins')
+    .action(async () => {
+      const { onboard } = await import('./commands/onboard.js');
+      await onboard(conductor);
+    });
 }
 
 registerPluginCommands(program, 'plugins');
@@ -408,6 +416,25 @@ program
       }
       console.log('');
     }
+  });
+
+// ── Init (first-run wizard) ──────────────────────────────────────────────────
+program
+  .command('init')
+  .description('First-run setup wizard — AI provider, plugins, and MCP client config')
+  .action(async () => {
+    const { init } = await import('./commands/init.js');
+    await init(conductor);
+  });
+
+// ── Onboard ───────────────────────────────────────────────────────────
+// Available as both `conductor onboard` and `conductor plugins onboard`
+program
+  .command('onboard')
+  .description('Interactive TUI — pick and configure plugins')
+  .action(async () => {
+    const { onboard } = await import('./commands/onboard.js');
+    await onboard(conductor);
   });
 
 // ── Run ──────────────────────────────────────────────────────────────

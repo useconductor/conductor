@@ -362,6 +362,131 @@ export class GmailPlugin implements Plugin {
           return { trashed: true, messageId };
         },
       },
+
+      // ── gmail_draft ─────────────────────────────────────────────────────────
+      {
+        name: 'gmail_draft',
+        description: 'Create a Gmail draft (does not send)',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            to: { type: 'string', description: 'Recipient email address' },
+            subject: { type: 'string', description: 'Email subject' },
+            body: { type: 'string', description: 'Plain text email body' },
+            cc: { type: 'string', description: 'CC email addresses (comma-separated)' },
+          },
+          required: ['to', 'subject', 'body'],
+        },
+        handler: async ({ to, subject, body, cc }: any) => {
+          const raw = this.encodeEmail({ to, subject, body, cc });
+          const result = await this.gmailFetch('/drafts', {
+            method: 'POST',
+            body: { message: { raw } },
+          });
+          return { created: true, draftId: result.id, messageId: result.message?.id };
+        },
+      },
+
+      // ── gmail_delete ─────────────────────────────────────────────────────────
+      {
+        name: 'gmail_delete',
+        description: 'Permanently delete a Gmail message (cannot be undone — use gmail_trash for reversible deletion)',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            messageId: { type: 'string', description: 'Message ID to permanently delete' },
+          },
+          required: ['messageId'],
+        },
+        handler: async ({ messageId }: any) => {
+          await this.gmailFetch(`/messages/${messageId}`, { method: 'DELETE' });
+          return { deleted: true, messageId };
+        },
+      },
+
+      // ── gmail_archive ─────────────────────────────────────────────────────────
+      {
+        name: 'gmail_archive',
+        description: 'Archive a Gmail message (remove from inbox)',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            messageId: { type: 'string', description: 'Message ID to archive' },
+          },
+          required: ['messageId'],
+        },
+        handler: async ({ messageId }: any) => {
+          await this.gmailFetch(`/messages/${messageId}/modify`, {
+            method: 'POST',
+            body: { removeLabelIds: ['INBOX'] },
+          });
+          return { archived: true, messageId };
+        },
+      },
+
+      // ── gmail_labels ─────────────────────────────────────────────────────────
+      {
+        name: 'gmail_labels',
+        description: 'List all Gmail labels in the mailbox',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+        },
+        handler: async () => {
+          const data = await this.gmailFetch('/labels');
+          return {
+            labels: (data.labels ?? []).map((l: any) => ({
+              id: l.id,
+              name: l.name,
+              type: l.type,
+              messagesTotal: l.messagesTotal,
+              messagesUnread: l.messagesUnread,
+            })),
+          };
+        },
+      },
+
+      // ── gmail_add_label ──────────────────────────────────────────────────────
+      {
+        name: 'gmail_add_label',
+        description: 'Add a label to a Gmail message',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            messageId: { type: 'string', description: 'Message ID' },
+            labelId: { type: 'string', description: 'Label ID to add (use gmail_labels to find IDs)' },
+          },
+          required: ['messageId', 'labelId'],
+        },
+        handler: async ({ messageId, labelId }: any) => {
+          await this.gmailFetch(`/messages/${messageId}/modify`, {
+            method: 'POST',
+            body: { addLabelIds: [labelId] },
+          });
+          return { success: true, messageId, labelId };
+        },
+      },
+
+      // ── gmail_remove_label ───────────────────────────────────────────────────
+      {
+        name: 'gmail_remove_label',
+        description: 'Remove a label from a Gmail message',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            messageId: { type: 'string', description: 'Message ID' },
+            labelId: { type: 'string', description: 'Label ID to remove (use gmail_labels to find IDs)' },
+          },
+          required: ['messageId', 'labelId'],
+        },
+        handler: async ({ messageId, labelId }: any) => {
+          await this.gmailFetch(`/messages/${messageId}/modify`, {
+            method: 'POST',
+            body: { removeLabelIds: [labelId] },
+          });
+          return { success: true, messageId, labelId };
+        },
+      },
     ];
   }
 }
