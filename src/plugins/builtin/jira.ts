@@ -76,11 +76,7 @@ export class JiraPlugin implements Plugin {
     return { domain, email, token };
   }
 
-  private async jiraFetch(
-    path: string,
-    body?: Record<string, unknown>,
-    method = 'GET',
-  ): Promise<any> {
+  private async jiraFetch(path: string, body?: Record<string, unknown>, method = 'GET'): Promise<any> {
     const { domain, email, token } = await this.getCredentials();
     const auth = Buffer.from(`${email}:${token}`).toString('base64');
     const base = `https://${domain}.atlassian.net/rest/api/3`;
@@ -188,7 +184,9 @@ export class JiraPlugin implements Plugin {
           required: ['key'],
         },
         handler: async ({ key }: any) => {
-          const i = await this.jiraFetch(`/issue/${key}?fields=summary,status,priority,assignee,reporter,issuetype,project,created,updated,labels,description,comment`);
+          const i = await this.jiraFetch(
+            `/issue/${key}?fields=summary,status,priority,assignee,reporter,issuetype,project,created,updated,labels,description,comment`,
+          );
           const base = this.formatIssue(i);
           const comments = (i.fields?.comment?.comments ?? []).slice(-5).map((c: any) => ({
             author: c.author?.displayName,
@@ -287,13 +285,17 @@ export class JiraPlugin implements Plugin {
         },
         requiresApproval: true,
         handler: async ({ key, body }: any) => {
-          const data = await this.jiraFetch(`/issue/${key}/comment`, {
-            body: {
-              type: 'doc',
-              version: 1,
-              content: [{ type: 'paragraph', content: [{ type: 'text', text: body }] }],
+          const data = await this.jiraFetch(
+            `/issue/${key}/comment`,
+            {
+              body: {
+                type: 'doc',
+                version: 1,
+                content: [{ type: 'paragraph', content: [{ type: 'text', text: body }] }],
+              },
             },
-          }, 'POST');
+            'POST',
+          );
           return { id: data.id, author: data.author?.displayName, created: data.created };
         },
       },
@@ -360,15 +362,17 @@ export class JiraPlugin implements Plugin {
           const body: Record<string, unknown> = { transition: { id: transition_id } };
           if (comment) {
             body.update = {
-              comment: [{
-                add: {
-                  body: {
-                    type: 'doc',
-                    version: 1,
-                    content: [{ type: 'paragraph', content: [{ type: 'text', text: comment }] }],
+              comment: [
+                {
+                  add: {
+                    body: {
+                      type: 'doc',
+                      version: 1,
+                      content: [{ type: 'paragraph', content: [{ type: 'text', text: comment }] }],
+                    },
                   },
                 },
-              }],
+              ],
             };
           }
           await this.jiraFetch(`/issue/${key}/transitions`, body, 'POST');

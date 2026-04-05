@@ -22,25 +22,47 @@ interface _PluginEntry {
 
 // Category groupings for the TUI picker
 const CATEGORIES: Record<string, string[]> = {
-  'Developer Tools': [
-    'shell', 'docker', 'github', 'git', 'github-actions', 'vercel', 'n8n', 'linear', 'jira',
-  ],
-  'Communication': ['slack', 'telegram'],
+  'Developer Tools': ['shell', 'docker', 'github', 'git', 'github-actions', 'vercel', 'n8n', 'linear', 'jira'],
+  Communication: ['slack', 'telegram'],
   'Google Workspace': ['gmail', 'google-calendar', 'google-drive'],
-  'Productivity': ['notes', 'memory', 'notion', 'todoist'],
+  Productivity: ['notes', 'memory', 'notion', 'todoist'],
   'Finance & Commerce': ['stripe'],
-  'Utilities': [
-    'calculator', 'colors', 'crypto', 'hash', 'text-tools',
-    'timezone', 'network', 'url-tools', 'fun', 'system', 'cron', 'weather', 'translate',
+  Utilities: [
+    'calculator',
+    'colors',
+    'crypto',
+    'hash',
+    'text-tools',
+    'timezone',
+    'network',
+    'url-tools',
+    'fun',
+    'system',
+    'cron',
+    'weather',
+    'translate',
   ],
   'Media & Social': ['spotify', 'x'],
   'Smart Home': ['homekit'],
 };
 
 const ZERO_CONFIG_SET = new Set([
-  'calculator', 'colors', 'hash', 'text-tools', 'timezone',
-  'network', 'url-tools', 'fun', 'system', 'notes', 'memory',
-  'cron', 'shell', 'docker', 'github', 'translate',
+  'calculator',
+  'colors',
+  'hash',
+  'text-tools',
+  'timezone',
+  'network',
+  'url-tools',
+  'fun',
+  'system',
+  'notes',
+  'memory',
+  'cron',
+  'shell',
+  'docker',
+  'github',
+  'translate',
   'weather',
   'crypto',
 ]);
