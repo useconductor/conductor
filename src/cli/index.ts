@@ -437,5 +437,14 @@ program
     await onboard(conductor);
   });
 
+// ── Release ───────────────────────────────────────────────────────────
+program
+  .command('release')
+  .description('Bump version, build, and publish to npm')
+  .action(async () => {
+    const { release } = await import('./commands/release.js');
+    await release();
+  });
+
 // ── Run ──────────────────────────────────────────────────────────────
 program.parse();
