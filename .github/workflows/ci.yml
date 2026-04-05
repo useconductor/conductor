@@ -30,9 +30,12 @@ jobs:
         run: npm run typecheck
 
       - name: Lint
+        # ESLint 10 requires Node ≥ 20.12 (util.styleText); skip on Node 18
+        if: matrix.node-version != 18
         run: npm run lint
 
       - name: Format check
+        if: matrix.node-version != 18
         run: npm run format:check
 
       - name: Build
