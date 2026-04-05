@@ -200,10 +200,13 @@ export class AuditLogger {
       for (const line of lines) {
         const entry = JSON.parse(line) as AuditEntry;
 
-        // Reconstruct what the hash should be
+        // Reconstruct what the hash should be — must match log() exactly:
+        // log() hashes: sha256(lastHash + JSON.stringify({...entryFields, timestamp, previousHash: ''}))
+        // where entryFields = {actor, action, resource, result, metadata} (no hash field)
+        const { hash: _hash, previousHash: _prev, ...entryFields } = entry;
         const expectedHash = crypto
           .createHash('sha256')
-          .update(prevHash + JSON.stringify({ ...entry, previousHash: entry.previousHash }))
+          .update(prevHash + JSON.stringify({ ...entryFields, previousHash: '' }))
           .digest('hex');
 
         if (entry.hash !== expectedHash) {

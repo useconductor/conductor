@@ -52,9 +52,16 @@ async function run(cmd: string, args: string[], cwd?: string): Promise<string> {
 
 function bumpVersion(current: string, bump: 'patch' | 'minor' | 'major'): string {
   const parts = current.replace(/^v/, '').split('.').map(Number);
-  if (bump === 'major') { parts[0]++; parts[1] = 0; parts[2] = 0; }
-  else if (bump === 'minor') { parts[1]++; parts[2] = 0; }
-  else { parts[2]++; }
+  if (bump === 'major') {
+    parts[0]++;
+    parts[1] = 0;
+    parts[2] = 0;
+  } else if (bump === 'minor') {
+    parts[1]++;
+    parts[2] = 0;
+  } else {
+    parts[2]++;
+  }
   return parts.join('.');
 }
 
@@ -168,7 +175,7 @@ export async function release(): Promise<void> {
   try {
     await run('npx', ['vitest', 'run', '--reporter=dot']);
     ok();
-  } catch (e: any) {
+  } catch {
     const { skipTests } = await inquirer.prompt<{ skipTests: boolean }>([
       {
         type: 'confirm',
@@ -241,8 +248,8 @@ export async function release(): Promise<void> {
   console.log('');
   console.log(
     chalk.bold.white(`  ✓ Published `) +
-    chalk.hex('#FF8C00')(`${pkg.name}@${newVersion}`) +
-    chalk.bold.white(` to npm`),
+      chalk.hex('#FF8C00')(`${pkg.name}@${newVersion}`) +
+      chalk.bold.white(` to npm`),
   );
   console.log('');
   console.log(chalk.dim(`  npm i -g ${pkg.name}`));
