@@ -446,5 +446,160 @@ program
     await release();
   });
 
+// ── Config ────────────────────────────────────────────────────────────────────
+const config = program.command('config').description('Read and write configuration');
+
+config
+  .command('list')
+  .description('Show all configuration keys and values')
+  .option('--json', 'Output as JSON')
+  .option('--show-secrets', 'Include secret values (use with care)')
+  .action(async (opts: { json?: boolean; showSecrets?: boolean }) => {
+    const { configList } = await import('./commands/config.js');
+    await configList(conductor, { json: opts.json, show_secrets: opts.showSecrets });
+  });
+
+config
+  .command('get')
+  .argument('<key>', 'Dot-separated config key, e.g. ai.provider')
+  .description('Get a configuration value')
+  .option('--json', 'Output as JSON')
+  .action(async (key: string, opts: { json?: boolean }) => {
+    const { configGet } = await import('./commands/config.js');
+    await configGet(conductor, key, opts);
+  });
+
+config
+  .command('set')
+  .argument('<key>', 'Dot-separated config key')
+  .argument('<value>', 'Value to set (JSON or string)')
+  .description('Set a configuration value')
+  .action(async (key: string, value: string) => {
+    const { configSet } = await import('./commands/config.js');
+    await configSet(conductor, key, value);
+  });
+
+config
+  .command('path')
+  .description('Print the config file path')
+  .action(async () => {
+    const { configPath } = await import('./commands/config.js');
+    await configPath(conductor);
+  });
+
+config
+  .command('export')
+  .description('Export configuration as JSON')
+  .option('-o, --output <file>', 'Output file (default: stdout)')
+  .action(async (opts: { output?: string }) => {
+    const { configExport } = await import('./commands/config.js');
+    await configExport(conductor, { output: opts.output });
+  });
+
+config
+  .command('reset')
+  .description('Reset configuration to defaults')
+  .option('-y, --yes', 'Skip confirmation prompt')
+  .action(async (opts: { yes?: boolean }) => {
+    const { configReset } = await import('./commands/config.js');
+    await configReset(conductor, opts);
+  });
+
+config
+  .command('validate')
+  .description('Validate configuration structure')
+  .action(async () => {
+    const { configValidate } = await import('./commands/config.js');
+    await configValidate(conductor);
+  });
+
+// ── Audit ─────────────────────────────────────────────────────────────────────
+const audit = program.command('audit').description('Query and verify the tamper-evident audit log');
+
+audit
+  .command('list')
+  .description('List audit log entries')
+  .option('--actor <actor>', 'Filter by actor')
+  .option('--action <action>', 'Filter by action (tool_call, config_set, auth_login, ...)')
+  .option('--tool <tool>', 'Filter by tool/resource name')
+  .option('--result <result>', 'Filter by result (success, failure, denied, timeout)')
+  .option('--since <iso>', 'Show entries after this ISO timestamp')
+  .option('--until <iso>', 'Show entries before this ISO timestamp')
+  .option('-n, --limit <n>', 'Max entries to show', '100')
+  .option('--json', 'Output as JSON')
+  .action(async (opts) => {
+    const { auditList } = await import('./commands/audit.js');
+    await auditList(conductor, opts);
+  });
+
+audit
+  .command('verify')
+  .description('Verify SHA-256 chain integrity — detect tampering')
+  .option('--json', 'Output as JSON')
+  .action(async (opts: { json?: boolean }) => {
+    const { auditVerify } = await import('./commands/audit.js');
+    await auditVerify(conductor, opts);
+  });
+
+audit
+  .command('tail')
+  .description('Stream the audit log in real time')
+  .option('-n, --lines <n>', 'Initial lines to show', '20')
+  .option('--json', 'Output as NDJSON')
+  .action(async (opts: { lines?: string; json?: boolean }) => {
+    const { auditTail } = await import('./commands/audit.js');
+    await auditTail(conductor, opts);
+  });
+
+audit
+  .command('export')
+  .description('Export audit log entries to a file')
+  .option('-o, --output <file>', 'Output file path')
+  .option('--format <fmt>', 'Output format: json or ndjson', 'json')
+  .option('--since <iso>', 'Export entries after this ISO timestamp')
+  .option('--until <iso>', 'Export entries before this ISO timestamp')
+  .action(async (opts) => {
+    const { auditExport } = await import('./commands/audit.js');
+    await auditExport(conductor, opts);
+  });
+
+audit
+  .command('stats')
+  .description('Show audit log summary statistics')
+  .option('--json', 'Output as JSON')
+  .action(async (opts: { json?: boolean }) => {
+    const { auditStats } = await import('./commands/audit.js');
+    await auditStats(conductor, opts);
+  });
+
+audit
+  .command('rotate')
+  .description('Manually rotate the current audit log file')
+  .action(async () => {
+    const { auditRotate } = await import('./commands/audit.js');
+    await auditRotate(conductor);
+  });
+
+// ── Circuit ───────────────────────────────────────────────────────────────────
+const circuit = program.command('circuit').description('View and manage circuit breaker state');
+
+circuit
+  .command('list')
+  .description('Show state of all circuit breakers')
+  .option('--json', 'Output as JSON')
+  .action(async (opts: { json?: boolean }) => {
+    const { circuitList } = await import('./commands/circuit.js');
+    await circuitList(conductor, opts);
+  });
+
+circuit
+  .command('reset')
+  .argument('<tool>', 'Tool name to reset (e.g. shell.exec)')
+  .description('Reset a circuit breaker to closed state')
+  .action(async (tool: string) => {
+    const { circuitReset } = await import('./commands/circuit.js');
+    await circuitReset(conductor, tool);
+  });
+
 // ── Run ──────────────────────────────────────────────────────────────
 program.parse();
