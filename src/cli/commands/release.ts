@@ -168,7 +168,7 @@ export async function release(): Promise<void> {
   try {
     await run('npx', ['vitest', 'run', '--reporter=dot']);
     ok();
-  } catch (e: any) {
+  } catch {
     const { skipTests } = await inquirer.prompt<{ skipTests: boolean }>([
       {
         type: 'confirm',
