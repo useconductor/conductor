@@ -12,7 +12,9 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [18, 20, 22]
+        # Node 18 reached EOL April 2025. ESLint 10 and Vitest/rolldown require
+        # util.styleText which was added in Node 20.12. Min supported: Node 20.
+        node-version: [20, 22]
 
     steps:
       - uses: actions/checkout@v4
@@ -30,12 +32,9 @@ jobs:
         run: npm run typecheck
 
       - name: Lint
-        # ESLint 10 requires Node ≥ 20.12 (util.styleText); skip on Node 18
-        if: matrix.node-version != 18
         run: npm run lint
 
       - name: Format check
-        if: matrix.node-version != 18
         run: npm run format:check
 
       - name: Build
