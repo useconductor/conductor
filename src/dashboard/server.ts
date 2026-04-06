@@ -465,13 +465,22 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
 
   // ── System Control ────────────────────────────────────────────────────────
 
-  // Safe command runner using execFile (no shell interpretation)
-  async function runCmd(cmd: string, timeoutMs = 30000): Promise<{ stdout: string; stderr: string; exitCode: number }> {
-    // Whitelist of allowed dashboard commands
-    const allowedPrefixes = [
-      'ps ',
+  // Safe command runner — only specific commands with validated arguments
+  // Uses execFile (no shell interpretation) with strict argument validation
+  async function runSafe(
+    executable: string,
+    args: string[],
+    timeoutMs = 30000,
+  ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+    const { execFile } = await import('child_process');
+    const { promisify } = await import('util');
+    const execFileAsync = promisify(execFile);
+
+    // Strict allowlist — only these executables are permitted
+    const allowed = new Set([
+      'ps',
       'tasklist',
-      'open ',
+      'open',
       'xdg-open',
       'screencapture',
       'scrot',
@@ -479,20 +488,38 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
       'xclip',
       'xsel',
       'ifconfig',
-      'ip ',
+      'ip',
       'netstat',
-      'ss ',
+      'ss',
       'lsof',
-      'docker ',
+      'docker',
       'crontab',
-      'git ',
-    ];
-    const trimmed = cmd.trim();
-    const isAllowed = allowedPrefixes.some((p) => trimmed.startsWith(p));
-    if (!isAllowed) {
-      return { stdout: '', stderr: `Command not allowed in dashboard: ${trimmed}`, exitCode: 1 };
+      'git',
+    ]);
+
+    if (!allowed.has(executable)) {
+      return { stdout: '', stderr: `Command not allowed: ${executable}`, exitCode: 1 };
     }
-    const [executable, ...args] = trimmed.split(/\s+/);
+
+    // Block dangerous argument patterns
+    const dangerous = args.some(
+      (a) =>
+        a.includes(';') ||
+        a.includes('|') ||
+        a.includes('&') ||
+        a.includes('$') ||
+        a.includes('`') ||
+        a.includes('..') ||
+        a.includes('>/') ||
+        a.includes('<') ||
+        a.includes('rm ') ||
+        a.includes('eval') ||
+        a.includes('exec'),
+    );
+    if (dangerous) {
+      return { stdout: '', stderr: 'Command contains disallowed characters', exitCode: 1 };
+    }
+
     try {
       const { stdout, stderr } = await execFileAsync(executable, args, {
         timeout: timeoutMs,
@@ -506,6 +533,12 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
       }
       return { stdout: '', stderr: String(err), exitCode: 1 };
     }
+  }
+
+  // DEPRECATED: runCmd — use runSafe instead
+  async function runCmd(cmd: string, timeoutMs = 30000): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+    const [executable, ...args] = cmd.trim().split(/\s+/);
+    return runSafe(executable, args, timeoutMs);
   }
 
   // GET /api/system/info
@@ -1527,6 +1560,72 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
     }));
 
     res.json({ plugins });
+  });
+
+  // ── Health & Audit Endpoints ──────────────────────────────────────────────
+
+  // GET /api/health
+  app.get('/api/health', async (_req: Request, res: Response): Promise<void> => {
+    const { HealthChecker } = await import('../core/health.js');
+    const checker = new HealthChecker();
+    const report = await checker.detailed();
+    res.status(report.status === 'down' ? 503 : 200).json(report);
+  });
+
+  // GET /api/audit
+  app.get('/api/audit', async (req: Request, res: Response): Promise<void> => {
+    const { AuditLogger } = await import('../core/audit.js');
+    const audit = new AuditLogger(config.getConfigDir());
+    const entries = await audit.query({
+      action: typeof req.query.action === 'string' ? req.query.action : undefined,
+      resource: typeof req.query.resource === 'string' ? req.query.resource : undefined,
+      result: typeof req.query.result === 'string' ? req.query.result : undefined,
+      limit: parseInt(typeof req.query.limit === 'string' ? req.query.limit : '100') || 100,
+    });
+    await audit.close();
+    res.json(entries);
+  });
+
+  // GET /api/webhooks
+  app.get('/api/webhooks', async (_req: Request, res: Response): Promise<void> => {
+    const { WebhookManager } = await import('../core/webhooks.js');
+    const wm = new WebhookManager(config.getConfigDir());
+    await wm.load();
+    res.json(wm.list());
+  });
+
+  // POST /api/webhooks
+  app.post('/api/webhooks', async (req: Request, res: Response): Promise<void> => {
+    const body = req.body as { url?: string; events?: string[] };
+    if (!body.url) {
+      res.status(400).json({ error: 'url is required' });
+      return;
+    }
+    const { WebhookManager } = await import('../core/webhooks.js');
+    const wm = new WebhookManager(config.getConfigDir());
+    await wm.load();
+    const events = Array.isArray(body.events) ? body.events : ['*'];
+    const sub = await wm.create(body.url, events);
+    await wm.save();
+    res.json(sub);
+  });
+
+  // DELETE /api/webhooks/:id
+  app.delete('/api/webhooks/:id', async (req: Request, res: Response): Promise<void> => {
+    const { WebhookManager } = await import('../core/webhooks.js');
+    const wm = new WebhookManager(config.getConfigDir());
+    await wm.load();
+    const deleted = await wm.delete(String(req.params.id));
+    await wm.save();
+    res.json({ deleted });
+  });
+
+  // GET /api/metrics
+  app.get('/api/metrics', async (_req: Request, res: Response): Promise<void> => {
+    const { HealthChecker } = await import('../core/health.js');
+    const checker = new HealthChecker();
+    const report = await checker.detailed();
+    res.json(report.metrics || {});
   });
 
   // ── Start — bind to 127.0.0.1 only (not 0.0.0.0) ────────────────────────

@@ -348,9 +348,23 @@ export async function startMCPServer(conductor: Conductor, options: MCPServerOpt
         globalHealthChecker.registerCircuitBreaker(name, breaker);
       }
 
-      // Execute through circuit breaker + retry
+      // Execute through circuit breaker + retry with timeout
+      const TOOL_TIMEOUT_MS = 120_000; // 2 min default
       const result = await breaker.execute(async () =>
-        withRetry(async () => tool.handler(args), { maxAttempts: 3, baseDelay: 500, maxDelay: 10000 }),
+        withRetry(
+          async () => {
+            return Promise.race([
+              tool.handler(args),
+              new Promise((_, reject) =>
+                setTimeout(
+                  () => reject(new Error(`Tool "${name}" timed out after ${TOOL_TIMEOUT_MS}ms`)),
+                  TOOL_TIMEOUT_MS,
+                ),
+              ),
+            ]);
+          },
+          { maxAttempts: 3, baseDelay: 500, maxDelay: 10000 },
+        ),
       );
 
       const latency = Date.now() - start;
