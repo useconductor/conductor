@@ -10,7 +10,7 @@ const _require = createRequire(import.meta.url);
 const { version: pkgVersion } = _require('../../package.json') as { version: string };
 
 const program = new Command();
-const conductor = new Conductor();
+const conductor = new Conductor(undefined, { quiet: true });
 
 program
   .name('conductor')
@@ -160,6 +160,15 @@ function registerPluginCommands(parent: Command, cmdName: string): void {
     .action(async () => {
       const { onboard } = await import('./commands/onboard.js');
       await onboard(conductor);
+    });
+
+  cmd
+    .command('create')
+    .argument('<name>', 'Plugin name')
+    .description('Scaffold a new plugin with tests')
+    .action(async (name: string) => {
+      const { pluginCreate } = await import('./commands/plugin-create.js');
+      await pluginCreate(name);
     });
 }
 
@@ -372,16 +381,6 @@ program
   .action(async () => {
     const { doctor } = await import('./commands/doctor.js');
     await doctor(conductor);
-  });
-
-// ── Plugin Create ─────────────────────────────────────────────────────
-program
-  .command('plugin create')
-  .argument('<name>', 'Plugin name')
-  .description('Scaffold a new plugin with tests')
-  .action(async (name: string) => {
-    const { pluginCreate } = await import('./commands/plugin-create.js');
-    await pluginCreate(name);
   });
 
 // ── Health ────────────────────────────────────────────────────────────

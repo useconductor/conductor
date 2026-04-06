@@ -32,12 +32,8 @@ export const ZERO_CONFIG_PLUGINS = [
 
   // Infrastructure - local tools
   'shell', // Safe shell commands (whitelist)
-  'docker', // Local Docker (if installed)
 
-  // GitHub - public data works without auth
-  'github', // Public repos, user info
-
-  // Weather - uses free Open-Meteo API
+  // Weather - uses free Open-Meteo API (no key required)
   'weather', // Weather/current forecasts
 
   // File system tools are built into Shell plugin

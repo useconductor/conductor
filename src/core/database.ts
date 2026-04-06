@@ -92,6 +92,38 @@ export class DatabaseManager {
       this.db = new SQL.Database();
       await this.createTables();
     }
+
+    // Always run migrations — safe to run on both new and existing databases
+    this.runMigrations();
+  }
+
+  /** Current schema version — bump this whenever tables change. */
+  private static readonly SCHEMA_VERSION = 1;
+
+  private runMigrations(): void {
+    if (!this.db) throw new Error('Database not initialized');
+
+    // Ensure schema_version table exists
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS schema_version (
+        version INTEGER NOT NULL,
+        applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    const stmt = this.db.prepare('SELECT MAX(version) AS v FROM schema_version');
+    stmt.step();
+    const row = stmt.getAsObject() as { v: number | null };
+    stmt.free();
+    const current = row.v ?? 0;
+
+    if (current < 1) {
+      // Migration 1: initial schema (all existing tables)
+      this.db.run(`INSERT INTO schema_version (version) VALUES (1)`);
+    }
+
+    // Future migrations go here:
+    // if (current < 2) { this.db.run(`ALTER TABLE ...`); this.db.run(`INSERT INTO schema_version (version) VALUES (2)`); }
   }
 
   private async createTables(): Promise<void> {

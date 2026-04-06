@@ -2,6 +2,7 @@ import { Plugin, PluginTool } from '../manager.js';
 import { Conductor } from '../../core/conductor.js';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
+import { existsSync } from 'fs';
 
 const execFileAsync = promisify(execFile);
 
@@ -10,9 +11,24 @@ export class DockerPlugin implements Plugin {
   description = 'Docker container, image, volume, and network management';
   version = '1.0.0';
 
+  configSchema = {
+    fields: [],
+    setupInstructions: 'Install Docker Desktop (https://docker.com) and make sure the daemon is running.',
+  };
+
   async initialize(_conductor: Conductor): Promise<void> {}
+
   isConfigured(): boolean {
-    return true;
+    // Check for Docker socket (Unix) or named pipe (Windows)
+    const sockets = [
+      '/var/run/docker.sock',
+      '/run/docker.sock',
+      `${process.env['HOME'] ?? ''}/.docker/run/docker.sock`,
+      '\\\\.\\pipe\\docker_engine', // Windows
+    ];
+    return sockets.some((s) => {
+      try { return existsSync(s); } catch { return false; }
+    });
   }
 
   private async docker(args: string[]): Promise<{ stdout: string; stderr: string }> {

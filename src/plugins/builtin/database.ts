@@ -49,13 +49,31 @@ export class DatabasePlugin implements Plugin {
   };
 
   private conductor?: Conductor;
+  private configuredUrls: Set<string> = new Set();
 
   async initialize(conductor: Conductor): Promise<void> {
     this.conductor = conductor;
+    // Pre-check which databases are actually configured
+    try {
+      const { Keychain } = await import('../../security/keychain.js');
+      const kc = new Keychain(conductor.getConfig().getConfigDir());
+      const keys = ['postgres_url', 'mysql_url', 'mongo_url', 'redis_url'];
+      for (const k of keys) {
+        try {
+          const val = await kc.get('database', k);
+          if (val) this.configuredUrls.add(k);
+        } catch { /* not stored */ }
+      }
+      // Also check environment variables as fallback
+      if (process.env['DATABASE_URL'] || process.env['POSTGRES_URL']) this.configuredUrls.add('postgres_url');
+      if (process.env['MYSQL_URL']) this.configuredUrls.add('mysql_url');
+      if (process.env['MONGO_URL'] || process.env['MONGODB_URL']) this.configuredUrls.add('mongo_url');
+      if (process.env['REDIS_URL']) this.configuredUrls.add('redis_url');
+    } catch { /* keychain not available */ }
   }
 
   isConfigured(): boolean {
-    return true;
+    return this.configuredUrls.size > 0;
   }
 
   private async getKeychain(): Promise<import('../../security/keychain.js').Keychain> {

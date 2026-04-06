@@ -89,7 +89,7 @@ const SAFE_COMMANDS = new Set([
 
 // Dangerous patterns that are never allowed even with approval
 const DANGEROUS_PATTERNS = [
-  /\brm\s+-rf\s+\/\b/,
+  /\brm\s+-r[f]?\s+\/(\s|$)/,
   /\bmkfs\b/,
   /\bdd\s+if\b/,
   /\bchmod\s+[0-7]*777\s+\/\b/,

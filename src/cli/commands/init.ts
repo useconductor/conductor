@@ -1,17 +1,13 @@
 /**
  * conductor init — First-run setup wizard
  *
- * Takes a brand-new user from zero to a fully working MCP server
- * in under 2 minutes. Orchestrates all other setup flows in sequence:
- *
- *   1. Welcome banner + ask user name
- *   2. AI provider setup (Claude / OpenAI / Gemini / Ollama / skip)
- *   3. Plugin onboard TUI (calls the existing onboard() function)
- *   4. MCP client config (Claude Desktop / Cursor / Cline / skip)
- *   5. Final instructions
+ * Gets a new user to a working MCP server in under 2 minutes:
+ *   1. AI provider setup (Claude / OpenAI / Gemini / Ollama / skip)
+ *   2. Plugin onboard TUI
+ *   3. MCP client config (Claude Desktop / Cursor / Cline / skip)
+ *   4. Final instructions
  */
 
-import chalk from 'chalk';
 import inquirer from 'inquirer';
 import { Conductor } from '../../core/conductor.js';
 import { AIManager } from '../../ai/manager.js';
@@ -19,65 +15,57 @@ import fs from 'fs/promises';
 import path from 'path';
 import { homedir } from 'os';
 
-// ── Banner ─────────────────────────────────────────────────────────────────
+// ── Terminal helpers (b/w only) ────────────────────────────────────────────
 
-function printBanner(): void {
-  console.log('');
-  console.log(chalk.bold.white('  ╔══════════════════════════════════════════════╗'));
-  console.log(
-    chalk.bold.white('  ║') +
-      chalk.bold.hex('#FF8C00')('  ♦  Conductor — The AI Tool Hub             ') +
-      chalk.bold.white('║'),
-  );
-  console.log(
-    chalk.bold.white('  ║') + chalk.dim('     One MCP server. 100+ tools. Any AI.    ') + chalk.bold.white('║'),
-  );
-  console.log(chalk.bold.white('  ╚══════════════════════════════════════════════╝'));
-  console.log('');
-  console.log(chalk.dim('  This wizard will get you up and running in under 2 minutes.'));
-  console.log(chalk.dim('  Press Ctrl+C at any time to exit.'));
-  console.log('');
+const B = '\x1b[1m';
+const D = '\x1b[2m';
+const R = '\x1b[0m';
+
+function hr(width = 50) {
+  process.stdout.write('  ' + '─'.repeat(width) + '\n');
 }
-
-// ── Step header ────────────────────────────────────────────────────────────
 
 function stepHeader(n: number, total: number, label: string): void {
   console.log('');
-  console.log(
-    chalk.bold.white(`  ── Step ${n}/${total}: ${label} `) + chalk.dim('─'.repeat(Math.max(0, 38 - label.length))),
-  );
+  console.log(`  ${B}── Step ${n}/${total}: ${label}${R}`);
   console.log('');
 }
 
-// ── Step 1: User name ──────────────────────────────────────────────────────
+// ── Banner ─────────────────────────────────────────────────────────────────
 
-async function setupUserName(conductor: Conductor): Promise<void> {
-  stepHeader(1, 4, 'Your name');
+function printBanner(): void {
+  const W = 50;
+  const top =    '  ┌' + '─'.repeat(W) + '┐';
+  const bot =    '  └' + '─'.repeat(W) + '┘';
+  const blank =  '  │' + ' '.repeat(W) + '│';
+  const line = (text: string) => {
+    const pad = W - text.length - 1;
+    return `  │ ${B}${text}${R}` + ' '.repeat(Math.max(0, pad)) + '│';
+  };
+  const dim = (text: string) => {
+    const pad = W - text.length - 1;
+    return `  │ ${D}${text}${R}` + ' '.repeat(Math.max(0, pad)) + '│';
+  };
 
-  const existing = conductor.getConfig().get<string>('user.name') || '';
-
-  const { name } = await inquirer.prompt<{ name: string }>([
-    {
-      type: 'input',
-      name: 'name',
-      message: 'What should I call you?',
-      default: existing || undefined,
-      validate: (v: string) => (v.trim().length > 0 ? true : 'Name cannot be empty'),
-    },
-  ]);
-
-  await conductor.getConfig().set('user.name', name.trim());
   console.log('');
-  console.log(chalk.green(`  ✓ Hi, ${name.trim()}!`));
+  console.log(top);
+  console.log(blank);
+  console.log(line('Conductor — The AI Tool Hub'));
+  console.log(blank);
+  console.log(dim('One MCP server. 100+ tools. Any AI agent.'));
+  console.log(dim('Setup takes under 2 minutes.'));
+  console.log(blank);
+  console.log(bot);
+  console.log('');
 }
 
-// ── Step 2: AI Provider ────────────────────────────────────────────────────
+// ── Step 1: AI Provider ────────────────────────────────────────────────────
 
 async function setupAIProvider(conductor: Conductor): Promise<void> {
-  stepHeader(2, 4, 'AI Provider');
+  stepHeader(1, 3, 'AI Provider');
 
-  console.log(chalk.dim('  Pick the AI provider Conductor will use for its own reasoning.'));
-  console.log(chalk.dim('  (This is separate from the AI agent that calls Conductor via MCP.)'));
+  console.log(`  ${D}Pick the AI provider Conductor uses for its own reasoning.${R}`);
+  console.log(`  ${D}(Separate from the AI agent that calls Conductor via MCP.)${R}`);
   console.log('');
 
   const { provider } = await inquirer.prompt<{ provider: string }>([
@@ -90,14 +78,14 @@ async function setupAIProvider(conductor: Conductor): Promise<void> {
         { name: 'OpenAI (GPT-4o)           — popular & capable', value: 'openai' },
         { name: 'Gemini (Google)           — fast & free tier', value: 'gemini' },
         { name: 'Ollama (local, private)   — no API key needed', value: 'ollama' },
-        { name: chalk.dim('Skip — configure later with: conductor ai setup'), value: 'skip' },
+        { name: `${D}Skip — configure later with: conductor ai setup${R}`, value: 'skip' },
       ],
     },
   ]);
 
   if (provider === 'skip') {
     console.log('');
-    console.log(chalk.dim('  Skipped. Run: conductor ai setup'));
+    console.log(`  ${D}Skipped. Run: conductor ai setup${R}`);
     return;
   }
 
@@ -106,77 +94,54 @@ async function setupAIProvider(conductor: Conductor): Promise<void> {
   switch (provider) {
     case 'claude': {
       console.log('');
-      console.log(chalk.dim('  Get your key at: https://console.anthropic.com'));
+      console.log(`  ${D}Get your key at: https://console.anthropic.com${R}`);
       const { apiKey } = await inquirer.prompt<{ apiKey: string }>([
-        {
-          type: 'password',
-          name: 'apiKey',
-          message: 'Anthropic API key:',
-          mask: '*',
-          validate: (v: string) => v.trim().length > 0 || 'API key is required',
-        },
+        { type: 'password', name: 'apiKey', message: 'Anthropic API key:', mask: '*',
+          validate: (v: string) => v.trim().length > 0 || 'API key is required' },
       ]);
       await aiManager.setupClaude(apiKey.trim());
-      console.log(chalk.green('  ✓ Claude configured'));
+      console.log(`  ✓ Claude configured`);
       break;
     }
-
     case 'openai': {
       console.log('');
-      console.log(chalk.dim('  Get your key at: https://platform.openai.com/api-keys'));
+      console.log(`  ${D}Get your key at: https://platform.openai.com/api-keys${R}`);
       const { apiKey } = await inquirer.prompt<{ apiKey: string }>([
-        {
-          type: 'password',
-          name: 'apiKey',
-          message: 'OpenAI API key:',
-          mask: '*',
-          validate: (v: string) => v.trim().length > 0 || 'API key is required',
-        },
+        { type: 'password', name: 'apiKey', message: 'OpenAI API key:', mask: '*',
+          validate: (v: string) => v.trim().length > 0 || 'API key is required' },
       ]);
       await aiManager.setupOpenAI(apiKey.trim());
-      console.log(chalk.green('  ✓ OpenAI configured'));
+      console.log(`  ✓ OpenAI configured`);
       break;
     }
-
     case 'gemini': {
       console.log('');
-      console.log(chalk.dim('  Get your key at: https://aistudio.google.com/app/apikey'));
+      console.log(`  ${D}Get your key at: https://aistudio.google.com/app/apikey${R}`);
       const { apiKey } = await inquirer.prompt<{ apiKey: string }>([
-        {
-          type: 'password',
-          name: 'apiKey',
-          message: 'Gemini API key:',
-          mask: '*',
-          validate: (v: string) => v.trim().length > 0 || 'API key is required',
-        },
+        { type: 'password', name: 'apiKey', message: 'Gemini API key:', mask: '*',
+          validate: (v: string) => v.trim().length > 0 || 'API key is required' },
       ]);
       await aiManager.setupGemini(apiKey.trim());
-      console.log(chalk.green('  ✓ Gemini configured'));
+      console.log(`  ✓ Gemini configured`);
       break;
     }
-
     case 'ollama': {
       console.log('');
-      console.log(chalk.dim('  Make sure Ollama is running: https://ollama.ai'));
+      console.log(`  ${D}Make sure Ollama is running: https://ollama.ai${R}`);
       const { model } = await inquirer.prompt<{ model: string }>([
-        {
-          type: 'input',
-          name: 'model',
-          message: 'Which Ollama model?',
-          default: 'llama3.2',
-        },
+        { type: 'input', name: 'model', message: 'Which Ollama model?', default: 'llama3.2' },
       ]);
       await aiManager.setupOllama(model.trim());
-      console.log(chalk.green(`  ✓ Ollama configured (${model.trim()})`));
+      console.log(`  ✓ Ollama configured (${model.trim()})`);
       break;
     }
   }
 }
 
-// ── Step 3: Plugins ────────────────────────────────────────────────────────
+// ── Step 2: Plugins ────────────────────────────────────────────────────────
 
 async function setupPlugins(conductor: Conductor): Promise<void> {
-  stepHeader(3, 4, 'Plugins');
+  stepHeader(2, 3, 'Plugins');
 
   const { doOnboard } = await inquirer.prompt<{ doOnboard: boolean }>([
     {
@@ -189,18 +154,16 @@ async function setupPlugins(conductor: Conductor): Promise<void> {
 
   if (!doOnboard) {
     console.log('');
-    console.log(chalk.dim('  Skipped. Run: conductor onboard'));
+    console.log(`  ${D}Skipped. Run: conductor onboard${R}`);
     return;
   }
 
-  // Dynamically import onboard to avoid circular deps
   const { onboard } = await import('./onboard.js');
   await onboard(conductor);
 }
 
-// ── Step 4: MCP client config ──────────────────────────────────────────────
+// ── Step 3: MCP client config ──────────────────────────────────────────────
 
-// Config file paths per client
 const MCP_CONFIG_PATHS: Record<string, string> = {
   claude: path.join(
     homedir(),
@@ -227,8 +190,8 @@ const MCP_CONFIG_PATHS: Record<string, string> = {
 };
 
 async function writeClientConfig(configPath: string): Promise<void> {
-  const conductorBin = process.argv[1];
-  const entry = { command: 'node', args: [conductorBin, 'mcp', 'start'] };
+  // Use the conductor binary by name — robust across npm reinstalls and upgrades.
+  const entry = { command: 'conductor', args: ['mcp', 'start'] };
 
   let config: Record<string, unknown> = {};
   try {
@@ -238,7 +201,6 @@ async function writeClientConfig(configPath: string): Promise<void> {
     // File doesn't exist — start fresh
   }
 
-  // Both Claude Desktop and Cursor use mcpServers; Cline too
   const servers = (config['mcpServers'] ?? {}) as Record<string, unknown>;
   servers['conductor'] = entry;
   config['mcpServers'] = servers;
@@ -248,9 +210,9 @@ async function writeClientConfig(configPath: string): Promise<void> {
 }
 
 async function setupMCPClient(conductor: Conductor): Promise<void> {
-  stepHeader(4, 4, 'Connect your AI client');
+  stepHeader(3, 3, 'Connect your AI client');
 
-  console.log(chalk.dim('  Conductor will auto-write the MCP server config for your chosen client.'));
+  console.log(`  ${D}Conductor will write the MCP server entry into your client's config.${R}`);
   console.log('');
 
   const { client } = await inquirer.prompt<{ client: string }>([
@@ -262,14 +224,15 @@ async function setupMCPClient(conductor: Conductor): Promise<void> {
         { name: 'Claude Desktop', value: 'claude' },
         { name: 'Cursor', value: 'cursor' },
         { name: 'Cline (VS Code extension)', value: 'cline' },
-        { name: chalk.dim("Skip — I'll configure manually"), value: 'skip' },
+        { name: `${D}Skip — I'll configure manually${R}`, value: 'skip' },
       ],
     },
   ]);
 
   if (client === 'skip') {
     console.log('');
-    console.log(chalk.dim('  Skipped. Run: conductor mcp setup'));
+    console.log(`  ${D}Skipped. Run: conductor mcp setup${R}`);
+    void conductor;
     return;
   }
 
@@ -277,49 +240,38 @@ async function setupMCPClient(conductor: Conductor): Promise<void> {
 
   try {
     await writeClientConfig(configPath);
+    const clientName = client === 'claude' ? 'Claude Desktop' : client === 'cursor' ? 'Cursor' : 'Cline';
     console.log('');
-    console.log(
-      chalk.green(
-        `  ✓ ${client === 'claude' ? 'Claude Desktop' : client === 'cursor' ? 'Cursor' : 'Cline'} configured`,
-      ),
-    );
-    console.log(chalk.dim(`    Config: ${configPath}`));
+    console.log(`  ✓ ${clientName} configured`);
+    console.log(`  ${D}  Config: ${configPath}${R}`);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.log('');
-    console.log(chalk.yellow(`  ⚠ Could not write config: ${msg}`));
-    console.log(chalk.dim('  Run: conductor mcp setup'));
+    console.log(`  ! Could not write config: ${msg}`);
+    console.log(`  ${D}  Run: conductor mcp setup${R}`);
   }
-
-  // Silence the conductor parameter — used for future expansion
-  void conductor;
 }
 
 // ── Final instructions ─────────────────────────────────────────────────────
 
-function printFinalInstructions(userName: string): void {
+function printFinalInstructions(): void {
+  const W = 50;
   console.log('');
-  console.log(chalk.bold.white('  ╔══════════════════════════════════════════════╗'));
-  console.log(
-    chalk.bold.white('  ║') +
-      chalk.bold.green("  ✓ You're all set, " + (userName || 'there') + '!') +
-      ' '.repeat(Math.max(0, 24 - (userName || 'there').length)) +
-      chalk.bold.white('║'),
-  );
-  console.log(chalk.bold.white('  ╚══════════════════════════════════════════════╝'));
+  hr(W);
   console.log('');
-  console.log(chalk.dim('  Start the MCP server:'));
-  console.log(`    ${chalk.cyan('conductor mcp start')}`);
+  console.log(`  ${B}You're all set.${R}`);
   console.log('');
-  console.log(chalk.dim('  Then restart your AI client (Claude Desktop / Cursor / Cline)'));
-  console.log(chalk.dim('  and Conductor will appear as a connected MCP server.'));
+  console.log(`  Start the MCP server:`);
+  console.log(`    ${B}conductor mcp start${R}`);
   console.log('');
-  console.log(chalk.dim('  Explore:'));
-  console.log(`    ${chalk.cyan('conductor dashboard')}   ${chalk.dim('— web UI with metrics and audit log')}`);
-  console.log(`    ${chalk.cyan('conductor doctor')}      ${chalk.dim('— diagnose issues')}`);
-  console.log(`    ${chalk.cyan('conductor health')}      ${chalk.dim('— system health status')}`);
+  console.log(`  ${D}Then restart your AI client — Conductor will appear`);
+  console.log(`  as a connected MCP server with 100+ tools available.${R}`);
   console.log('');
-  console.log(chalk.dim('  Docs & support: https://conductor.thealxlabs.ca'));
+  console.log(`  ${D}conductor dashboard   — web UI with metrics and audit log${R}`);
+  console.log(`  ${D}conductor doctor      — diagnose issues${R}`);
+  console.log(`  ${D}conductor health      — system health status${R}`);
+  console.log('');
+  hr(W);
   console.log('');
 }
 
@@ -330,19 +282,9 @@ export async function init(conductor: Conductor): Promise<void> {
 
   printBanner();
 
-  // Step 1 — user name
-  await setupUserName(conductor);
-
-  // Step 2 — AI provider
   await setupAIProvider(conductor);
-
-  // Step 3 — plugins
   await setupPlugins(conductor);
-
-  // Step 4 — MCP client
   await setupMCPClient(conductor);
 
-  // Done!
-  const userName = conductor.getConfig().get<string>('user.name') || '';
-  printFinalInstructions(userName);
+  printFinalInstructions();
 }

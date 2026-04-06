@@ -1,12 +1,13 @@
 # Conductor
 
-**One MCP server. 100+ tools. Every AI agent.**
+**One MCP server. Tools for every AI agent.**
 
 [![CI](https://github.com/useconductor/conductor/actions/workflows/ci.yml/badge.svg)](https://github.com/useconductor/conductor/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/@useconductor/conductor)](https://www.npmjs.com/package/@useconductor/conductor)
+[![Node](https://img.shields.io/badge/node-%3E%3D20.12-brightgreen)](https://nodejs.org)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](./LICENSE)
 
-Conductor is a single [Model Context Protocol](https://modelcontextprotocol.io) server that gives any AI agent — Claude, Cursor, Cline, Copilot, Gemini, and more — access to your entire toolkit through one connection.
+Conductor is a single [Model Context Protocol](https://modelcontextprotocol.io) server that gives any AI agent — Claude, Cursor, Cline, Copilot, and more — access to your tools through one connection. Install once, configure once, use everywhere.
 
 ```bash
 npm install -g @useconductor/conductor
@@ -15,34 +16,28 @@ conductor init
 
 ---
 
-## What it does
+## Why Conductor
 
-Connect once, get everything:
+Running one MCP server per tool means one process, one config, and one potential failure per integration. Conductor collapses all of that into a single server with a consistent security layer and one config block in your AI client.
 
-| Category | Tools |
-|---|---|
-| Developer | GitHub (20 tools), Docker, Shell, Vercel, n8n, GitHub Actions |
-| Productivity | Gmail, Google Calendar, Google Drive, Notion, Todoist |
-| Project management | Linear, Jira |
-| Communication | Slack, Telegram |
-| Finance | Stripe |
-| Media | Spotify, X (Twitter) |
-| Smart home | HomeKit, Lumen |
-| Utilities | Calculator, timezone, weather, crypto, colors, URL tools, system info, and 15+ more |
+- **Single process** — GitHub, Docker, shell, databases, and more through one connection
+- **Encrypted credential storage** — secrets encrypted with a machine-derived AES-256-GCM key, never in plain config files
+- **Circuit breakers + retry** on every tool call — failures don't cascade
+- **SHA-256 chained audit log** — every action recorded, tamper-evident
+- **One config block** in your AI client
 
 ---
 
 ## Quick start
 
 ```bash
-# Install globally
 npm install -g @useconductor/conductor
-
-# First-run wizard — picks AI provider, enables plugins, wires up your MCP client
 conductor init
 ```
 
-### Add to Claude Desktop
+### Claude Desktop
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
 
 ```json
 {
@@ -55,28 +50,13 @@ conductor init
 }
 ```
 
-Config file:
-- **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
+Or skip the manual editing: `conductor mcp setup`
 
-Or auto-configure: `conductor mcp setup`
+### Cursor / Windsurf / Cline / Continue
 
-### Add to Cursor
+Same config block — drop it into `.cursor/mcp.json`, `.codeium/windsurf/mcp_config.json`, or your client's MCP config file.
 
-```json
-{
-  "mcpServers": {
-    "conductor": {
-      "command": "conductor",
-      "args": ["mcp", "start"]
-    }
-  }
-}
-```
-
-Config file: `.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (global)
-
-### No global install? Use npx
+### No global install
 
 ```json
 {
@@ -91,187 +71,149 @@ Config file: `.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (global)
 
 ---
 
-## CLI reference
+## Plugins
 
-```
-conductor init                     First-run wizard
-conductor mcp setup                Auto-configure Claude Desktop, Cursor, etc.
-conductor mcp start                Start the MCP server (stdio)
-conductor mcp status               Show MCP server status
-conductor plugins list             List all available plugins
-conductor plugins enable <name>    Enable a plugin
-conductor plugins disable <name>   Disable a plugin
-conductor onboard                  Interactive plugin picker TUI
-conductor install <plugin>         Install a marketplace plugin
-conductor marketplace              Browse the plugin marketplace
-conductor google                   Set up Google (Gmail, Calendar, Drive)
-conductor auth google              Same as above
-conductor slack setup              Configure Slack tokens
-conductor slack start              Start the Slack bot
-conductor telegram setup           Configure Telegram bot token
-conductor telegram start           Start the Telegram bot
-conductor ai setup                 Configure AI provider (Claude, OpenAI, Gemini, Ollama)
-conductor ai test                  Test current AI provider
-conductor proactive start          Start autonomous agent loop
-conductor doctor                   Diagnose issues
-conductor health                   System health report (--json for machine output)
-conductor dashboard                Open the web dashboard (--port <n>)
-conductor plugin create <name>     Scaffold a new plugin with tests
-conductor release                  Bump version and publish to npm
-```
+### Core (fully tested, production-ready)
 
----
+| Plugin | What it does | Setup |
+|---|---|---|
+| `shell` | Safe shell execution, file read/write/search | Enabled by default |
+| `github` | Repos, issues, PRs, code search (23 tools) | Optional `GITHUB_TOKEN` for private repos |
+| `docker` | Containers, images, volumes, networks (16 tools) | Docker daemon running |
+| `database` | PostgreSQL, MySQL, MongoDB, Redis queries | Connection URL |
+| `slack` | Messages, channels, search, DMs | `conductor slack setup` |
 
-## Plugin setup
-
-### GitHub
-
-```bash
-conductor plugins enable github
-# Set GITHUB_TOKEN in your environment or ~/.conductor/config.json
-```
-
-### Google (Gmail, Calendar, Drive)
-
-```bash
-conductor google
-# Opens browser for OAuth — no manual token copying
-```
-
-### Slack
-
-```bash
-conductor slack setup
-# Prompts for xoxb- bot token and xapp- app-level token
-conductor slack start
-```
-
-### Linear
-
-```bash
-conductor plugins enable linear
-# Prompts for API key on first use
-```
-
-### Jira
-
-```bash
-conductor plugins enable jira
-# Prompts for domain, email, and API token
-```
-
-### Stripe
-
-```bash
-conductor plugins enable stripe
-# Prompts for secret key
-```
-
----
-
-## Zero-config plugins
-
-These work immediately with no setup:
+### Zero-config utilities (no setup required)
 
 | Plugin | What it does |
 |---|---|
-| `calculator` | Evaluate math expressions |
-| `timezone` | Convert between timezones |
-| `weather` | Current conditions by city |
-| `crypto` | Encrypt, decrypt, hash |
-| `colors` | Convert between color formats |
-| `text-tools` | Transform, count, encode/decode text |
-| `url-tools` | Parse and inspect URLs |
-| `network` | Ping, DNS lookup, port check |
-| `system` | CPU, memory, disk info |
-| `hash` | SHA-256, MD5, bcrypt |
-| `translate` | Translate text |
-| `fun` | Jokes, facts, quotes |
+| `calculator` | Math expressions, unit conversions, date arithmetic |
+| `colors` | Convert hex/RGB/HSL, generate palettes, WCAG contrast |
+| `hash` | SHA-256/MD5/SHA-512, base64, UUID, passwords |
+| `text-tools` | JSON format, word count, regex test, case transform |
+| `timezone` | Current time in any city, timezone conversion |
+| `weather` | Current conditions and forecast by city (Open-Meteo, no key required) |
+| `network` | Ping, DNS lookup, port check, IP info |
+| `url-tools` | Expand short links, check status, inspect headers |
+| `system` | CPU, memory, disk usage |
 | `notes` | Local markdown notes |
-| `memory` | Persistent key-value memory |
-| `cron` | Schedule tasks |
+| `memory` | Persistent key-value memory across sessions |
+| `cron` | Schedule recurring tasks |
+| `fun` | Jokes, trivia, quotes |
+
+### Additional (needs setup)
+
+| Plugin | Setup |
+|---|---|
+| `gmail`, `gcal`, `gdrive` | `conductor google` |
+| `notion` | API key |
+| `linear` | API key |
+| `jira` | Domain + API token |
+| `stripe` | Secret key |
+| `vercel` | API token |
+| `n8n` | Base URL + API key |
+| `spotify` | Client ID + secret |
+| `x` | API credentials |
+| `homekit` | Homebridge base URL |
+| `todoist` | API token |
+| `github-actions` | `GITHUB_TOKEN` |
 
 ---
 
-## Writing plugins
+## CLI reference
 
-Drop a compiled `.js` file into `~/.conductor/plugins/`. It must export a default object implementing the `Plugin` interface.
-
-Install the SDK for full TypeScript types:
+### Setup
 
 ```bash
-npm install @useconductor/sdk
+conductor init                        # First-run wizard
+conductor mcp setup                   # Auto-configure Claude Desktop / Cursor
+conductor mcp start                   # Start MCP server (stdio)
+conductor mcp status                  # Show MCP server status
+conductor doctor                      # Diagnose common issues
+conductor health                      # System health report
+conductor health --json               # Machine-readable health output
 ```
 
-```typescript
-import { Plugin, PluginTool, IConfig } from '@useconductor/sdk';
-
-class MyPlugin implements Plugin {
-  name = 'my-plugin';
-  description = 'Does something useful';
-  version = '1.0.0';
-
-  async initialize(_config: IConfig): Promise<void> {}
-  isConfigured(): boolean { return true; }
-
-  getTools(): PluginTool[] {
-    return [{
-      name: 'my_tool',
-      description: 'Does the thing',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          input: { type: 'string', description: 'Input value' },
-        },
-        required: ['input'],
-      },
-      handler: async (args) => `Result: ${args.input}`,
-    }];
-  }
-}
-
-export default new MyPlugin();
-```
-
-Scaffold with tests:
+### Plugins
 
 ```bash
-conductor plugin create my-plugin
+conductor plugins list                # List all plugins (enabled/disabled)
+conductor plugins enable <name>       # Enable a plugin
+conductor plugins disable <name>      # Disable a plugin
+conductor onboard                     # Interactive TUI plugin picker
+conductor install <plugin>            # Install from marketplace
+conductor marketplace                 # Browse marketplace
+conductor marketplace info <plugin>   # Plugin details
+conductor plugins create <name>       # Scaffold a new plugin with tests
+```
+
+### Authentication
+
+```bash
+conductor google                      # Browser-based Google OAuth (Gmail, Calendar, Drive)
+conductor slack setup                 # Configure Slack bot token
+conductor slack start                 # Start the Slack bot
+conductor telegram setup              # Configure Telegram bot token
+conductor telegram start              # Start the Telegram bot
+conductor ai setup                    # Configure AI provider
+conductor ai test                     # Test current AI provider
+```
+
+### Configuration
+
+```bash
+conductor config list                 # Show all config keys and values
+conductor config get <key>            # Get a specific key (e.g. ai.provider)
+conductor config set <key> <value>    # Set a key (JSON or string)
+conductor config path                 # Print config file path
+conductor config export               # Dump config as JSON
+conductor config validate             # Check config structure
+conductor config reset                # Reset to defaults
+```
+
+### Audit log
+
+```bash
+conductor audit list                  # List recent entries
+conductor audit list --actor user1    # Filter by actor
+conductor audit list --result failure # Filter by result
+conductor audit verify                # Verify SHA-256 chain integrity
+conductor audit tail                  # Stream in real time
+conductor audit stats                 # Summary statistics
+conductor audit export -o out.json    # Export to file
+conductor audit rotate                # Manually rotate log file
+```
+
+### Circuit breakers
+
+```bash
+conductor circuit list                # Show state of all circuit breakers
+conductor circuit reset <tool>        # Reset a specific circuit to closed
 ```
 
 ---
 
-## Programmatic use
+## Security model
 
-Use `@useconductor/sdk` to connect and call tools from your own code:
+Every tool call passes through this stack:
 
-```bash
-npm install @useconductor/sdk
+```
+Request
+  → Zod input validation
+  → Circuit breaker              (opens after 5 failures, recovers in 30s)
+  → Retry with exponential backoff
+  → Handler
+  → Audit log entry              (SHA-256 chained, append-only)
+  → Metrics
 ```
 
-```typescript
-import { ConductorClient } from '@useconductor/sdk';
+**Credentials** are encrypted with AES-256-GCM using a key derived from the machine's hardware ID (IOPlatformUUID on macOS, `/etc/machine-id` on Linux). They are stored in `~/.conductor/keychain/` as encrypted files — not in `config.json`, and never in plaintext.
 
-const client = new ConductorClient({ transport: 'stdio' });
-await client.connect();
+**Shell commands** go through a strict allowlist (~50 standard dev tools). No `eval()`, no arbitrary execution.
 
-const tools = await client.listTools();
-console.log(`${tools.length} tools available`);
+**Audit log** at `~/.conductor/audit/audit.log` is JSONL with a SHA-256 chain. Each entry hashes the previous entry's hash + its own content. Verify integrity anytime with `conductor audit verify`.
 
-const result = await client.callText('calculator_evaluate', { expression: '2 + 2' });
-console.log(result); // "4"
-
-await client.disconnect();
-```
-
-Remote (HTTP/SSE):
-
-```typescript
-const client = new ConductorClient({
-  transport: 'http',
-  url: 'http://localhost:3000',
-});
-```
+**Rate limiting** on all HTTP endpoints via `express-rate-limit`.
 
 ---
 
@@ -279,74 +221,128 @@ const client = new ConductorClient({
 
 ```
 src/
-├── cli/           Commander CLI + commands
-├── core/          Conductor orchestrator, config, database, interfaces
-├── mcp/           MCP server — stdio + HTTP/SSE transport
-├── plugins/       Plugin manager + 35 builtin plugins
-├── ai/            Multi-provider AI (Claude, OpenAI, Gemini, Ollama, OpenRouter)
-├── bot/           Telegram + Slack bot runtimes
-├── dashboard/     Express web dashboard
-└── security/      Keychain, RBAC, audit log
+├── cli/            Commander CLI
+│   └── commands/   init, mcp, plugins, audit, config, circuit, auth, ...
+├── core/           Conductor orchestrator, config, database, audit, retry, circuit-breaker
+├── mcp/            MCP server — stdio + HTTP/SSE transports
+├── plugins/        Plugin manager, validation, 35 builtin plugins
+│   └── builtin/    shell, github, docker, database, slack, calculator, ...
+├── ai/             Multi-provider AI (Claude, OpenAI, Gemini, Ollama)
+├── bot/            Telegram + Slack bot runtimes
+├── dashboard/      Express web dashboard + REST API
+└── security/       Credential storage, auth
 ```
 
-Every tool call goes through:
-
-1. Zod input validation
-2. RBAC permission check
-3. Circuit breaker (opens after repeated failures)
-4. Retry with exponential backoff
-5. Tamper-evident audit logging (SHA-256 chained)
-6. In-memory latency metrics
-
----
-
-## Security
-
-- **Secrets** — stored in OS keychain (macOS Keychain, Linux Secret Service, Windows Credential Manager), never in config files
-- **Shell plugin** — allowlist-based, no `eval()` or unrestricted `exec()`
-- **Dangerous tools** — `requiresApproval: true` requires explicit confirmation before execution
-- **Audit log** — SHA-256 chained append-only JSONL at `~/.conductor/audit.log`
-- **Rate limiting** — all HTTP endpoints behind `express-rate-limit`
-- **Encryption** — secrets AES-256-GCM encrypted at rest, key derived from machine ID
-
----
-
-## Supported MCP clients
-
-Works with any client that supports MCP stdio transport:
-
-- [Claude Desktop](https://claude.ai/download)
-- [Cursor](https://cursor.com)
-- [Cline (VS Code)](https://marketplace.visualstudio.com/items?itemName=saoudrizwan.claude-dev)
-- [Continue.dev](https://continue.dev)
-- [Windsurf (Codeium)](https://codeium.com/windsurf)
-- [Zed](https://zed.dev)
-- [Neovim (mcphub.nvim)](https://github.com/ravitemer/mcphub.nvim)
-- [Aider](https://aider.chat)
-- [OpenAI Desktop](https://openai.com/chatgpt/desktop)
-- [Gemini CLI](https://github.com/google-gemini/gemini-cli)
-- VS Code (GitHub Copilot)
-
-Full setup instructions: [useconductor.com/docs/mcp-compatibility](https://useconductor.com/docs/mcp-compatibility)
-
----
-
-## Config storage
-
-Everything lives under `~/.conductor/`:
+Config storage at `~/.conductor/`:
 
 | Path | Contents |
 |---|---|
 | `config.json` | Non-secret settings |
-| `conductor.db` | SQLite conversation history + activity log |
-| `audit.log` | Tamper-evident audit chain (JSONL) |
+| `conductor.db` | SQLite activity log and history |
+| `audit/audit.log` | Tamper-evident audit chain (JSONL) |
+| `keychain/` | AES-256-GCM encrypted credentials |
 | `plugins/` | External plugin `.js` files |
-| `.key` | Machine-bound encryption key |
+
+---
+
+## Writing plugins
+
+```typescript
+import type { Plugin, PluginTool } from '@useconductor/sdk';
+
+class MyPlugin implements Plugin {
+  name = 'my-plugin';
+  description = 'Does something useful';
+  version = '1.0.0';
+
+  async initialize(): Promise<void> {}
+  isConfigured(): boolean { return true; }
+
+  getTools(): PluginTool[] {
+    return [
+      {
+        name: 'my_tool',
+        description: 'Explain what this does in one sentence',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            query: { type: 'string', description: 'The query to process' },
+          },
+          required: ['query'],
+        },
+        handler: async ({ query }) => {
+          return { result: `Processed: ${query}` };
+        },
+      },
+    ];
+  }
+}
+
+export default new MyPlugin();
+```
+
+Place compiled output at `~/.conductor/plugins/my-plugin.js`. Scaffold with tests:
+
+```bash
+conductor plugins create my-plugin
+```
+
+For plugins needing credentials, add a `configSchema` with `secret: true` fields — they get encrypted and stored automatically.
+
+---
+
+## Programmatic use
+
+```typescript
+import { ConductorClient } from '@useconductor/sdk';
+
+// stdio (local)
+const client = new ConductorClient({ transport: 'stdio' });
+await client.connect();
+const result = await client.callText('calc_math', { expression: 'sqrt(144) + 8' });
+console.log(result); // "20"
+await client.disconnect();
+
+// HTTP/SSE (remote)
+const remote = new ConductorClient({
+  transport: 'http',
+  url: 'http://your-conductor-host:3000',
+});
+```
+
+---
+
+## Supported clients
+
+- [Claude Desktop](https://claude.ai/download)
+- [Cursor](https://cursor.com)
+- [Cline (VS Code)](https://marketplace.visualstudio.com/items?itemName=saoudrizwan.claude-dev)
+- [Windsurf](https://codeium.com/windsurf)
+- [Continue.dev](https://continue.dev)
+- [Zed](https://zed.dev)
+- [Aider](https://aider.chat)
+- [Roo Code](https://roocode.com)
+- VS Code (GitHub Copilot)
+- Any client supporting MCP stdio transport
+
+---
+
+## Contributing
+
+```bash
+git clone https://github.com/useconductor/conductor
+cd conductor
+npm install
+npm run dev        # Watch mode
+npm test           # Run tests (Vitest)
+npm run typecheck  # Type check
+npm run lint       # ESLint
+```
+
+Requirements: Node >= 20.12, npm >= 9.
 
 ---
 
 ## License
 
 Apache 2.0 — see [LICENSE](./LICENSE)
-
-Built by [Alexander Wondwossen](https://github.com/thealxlabs) and contributors.

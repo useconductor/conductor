@@ -3,7 +3,7 @@ import path from 'path';
 import { Conductor } from '../../core/conductor.js';
 
 const REGISTRY_URLS = [
-  'https://raw.githubusercontent.com/thegreatalxx/conductor-plugins/main/registry.json',
+  'https://raw.githubusercontent.com/useconductor/conductor-plugins/main/registry.json',
   'https://conductor.thealxlabs.ca/registry.json',
 ];
 const GITHUB_RAW = 'https://raw.githubusercontent.com';

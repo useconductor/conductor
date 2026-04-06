@@ -26,13 +26,18 @@ export class SlackPlugin implements Plugin {
   version = '1.0.0';
 
   private keychain!: Keychain;
+  private hasToken = false;
 
   async initialize(conductor: Conductor): Promise<void> {
     this.keychain = new Keychain(conductor.getConfig().getConfigDir());
+    try {
+      const t = await this.keychain.get('slack', 'bot_token');
+      this.hasToken = !!t;
+    } catch { this.hasToken = false; }
   }
 
   isConfigured(): boolean {
-    return true;
+    return this.hasToken || !!process.env['SLACK_BOT_TOKEN'];
   }
 
   private async getToken(): Promise<string> {
