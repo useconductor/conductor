@@ -29,20 +29,26 @@ interface CheckResult {
 export async function doctor(conductor: Conductor): Promise<void> {
   const checks: CheckResult[] = [];
 
-  // Node.js version
+  // Node.js version (requires 20.12+ for ESLint 10 / util.styleText)
   const nodeVersion = process.version;
-  const major = parseInt(nodeVersion.slice(1).split('.')[0]);
-  if (major >= 18) {
+  const [major, minor] = nodeVersion.slice(1).split('.').map(Number);
+  const meetsMinimum = major > 20 || (major === 20 && minor >= 12);
+  if (meetsMinimum) {
     checks.push({ name: 'Node.js', status: 'ok', message: `${nodeVersion}` });
-  } else if (major >= 16) {
+  } else if (major >= 20) {
     checks.push({
       name: 'Node.js',
       status: 'warning',
-      message: `${nodeVersion} (upgrade to 18+ recommended)`,
-      fix: 'nvm install 18',
+      message: `${nodeVersion} — recommend 20.12+ for full compatibility`,
+      fix: 'nvm install 20',
     });
   } else {
-    checks.push({ name: 'Node.js', status: 'error', message: `${nodeVersion} (requires 18+)`, fix: 'nvm install 18' });
+    checks.push({
+      name: 'Node.js',
+      status: 'error',
+      message: `${nodeVersion} — requires Node 20.12+`,
+      fix: 'nvm install 20 && nvm use 20',
+    });
   }
 
   // Config directory
@@ -166,6 +172,40 @@ export async function doctor(conductor: Conductor): Promise<void> {
       message: 'No API keys in environment',
       fix: 'Add keys to .env or run conductor ai setup',
     });
+  }
+
+  // Claude Desktop MCP config
+  {
+    const claudeConfig = path.join(
+      os.homedir(),
+      process.platform === 'darwin'
+        ? 'Library/Application Support/Claude/claude_desktop_config.json'
+        : process.platform === 'win32'
+          ? 'AppData/Roaming/Claude/claude_desktop_config.json'
+          : '.config/Claude/claude_desktop_config.json',
+    );
+    try {
+      const raw = await fs.readFile(claudeConfig, 'utf-8');
+      const cfg = JSON.parse(raw) as Record<string, unknown>;
+      const servers = cfg['mcpServers'] as Record<string, unknown> | undefined;
+      if (servers?.['conductor']) {
+        checks.push({ name: 'Claude Desktop', status: 'ok', message: 'Conductor is configured in claude_desktop_config.json' });
+      } else {
+        checks.push({
+          name: 'Claude Desktop',
+          status: 'warning',
+          message: 'Config found but conductor MCP entry is missing',
+          fix: 'Run: conductor mcp setup',
+        });
+      }
+    } catch {
+      checks.push({
+        name: 'Claude Desktop',
+        status: 'warning',
+        message: 'Config not found — Claude Desktop may not be installed',
+        fix: 'Run: conductor mcp setup (after installing Claude Desktop)',
+      });
+    }
   }
 
   // Audit log integrity
