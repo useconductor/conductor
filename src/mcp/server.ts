@@ -262,6 +262,7 @@ export async function startMCPServer(conductor: Conductor, options: MCPServerOpt
   await initInfrastructure(conductor);
 
   const pluginManager = new PluginManager(conductor);
+  await pluginManager.loadBuiltins();
   const tools = await buildToolRegistry(conductor, pluginManager);
 
   // Create circuit breakers for each tool

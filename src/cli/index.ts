@@ -161,6 +161,15 @@ function registerPluginCommands(parent: Command, cmdName: string): void {
       const { onboard } = await import('./commands/onboard.js');
       await onboard(conductor);
     });
+
+  cmd
+    .command('create')
+    .argument('<name>', 'Plugin name')
+    .description('Scaffold a new plugin with tests')
+    .action(async (name: string) => {
+      const { pluginCreate } = await import('./commands/plugin-create.js');
+      await pluginCreate(name);
+    });
 }
 
 registerPluginCommands(program, 'plugins');
@@ -372,16 +381,6 @@ program
   .action(async () => {
     const { doctor } = await import('./commands/doctor.js');
     await doctor(conductor);
-  });
-
-// ── Plugin Create ─────────────────────────────────────────────────────
-program
-  .command('plugin create')
-  .argument('<name>', 'Plugin name')
-  .description('Scaffold a new plugin with tests')
-  .action(async (name: string) => {
-    const { pluginCreate } = await import('./commands/plugin-create.js');
-    await pluginCreate(name);
   });
 
 // ── Health ────────────────────────────────────────────────────────────
