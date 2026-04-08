@@ -31,24 +31,20 @@ export class AWSPlugin implements Plugin {
     return !!this.keychain; // Check keys at runtime
   }
 
-  async getAWSCredentials(): Promise<{ accessKeyId: string; secretAccessKey: string; region?: string }> {
-    const accessKeyId = await this.keychain!.get('aws', 'access_key_id');
-    const secretAccessKey = await this.keychain!.get('aws', 'secret_access_key');
+  async getAWSCredentials(): Promise<{ _accessKeyId: string; _secretAccessKey: string; region?: string }> {
+    const _accessKeyId = await this.keychain!.get('aws', 'access_key_id');
+    const _secretAccessKey = await this.keychain!.get('aws', 'secret_access_key');
     const region = await this.keychain!.get('aws', 'region') || 'us-east-1';
     
-    if (!accessKeyId || !secretAccessKey) {
+    if (!_accessKeyId || !_secretAccessKey) {
       throw new Error('AWS credentials not configured. Run: conductor plugins setup aws');
     }
     
-    return { accessKeyId, secretAccessKey, region };
+    return { _accessKeyId, _secretAccessKey, region };
   }
 
-  private async awsRequest(action: string, params: Record<string, string> = {}): Promise<any> {
-    const { accessKeyId, secretAccessKey, region } = await this.getAWSCredentials();
-    
-    // Simplified AWS request (real implementation would use @aws-sdk)
-    const endpoint = `https://ec2.${region}.amazonaws.com`;
-    
+  private async awsRequest(action: string, _params: Record<string, string> = {}): Promise<any> {
+    // AWS implementation placeholder
     return { result: `AWS ${action} would execute here` };
   }
 

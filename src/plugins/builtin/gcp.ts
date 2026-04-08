@@ -52,7 +52,7 @@ export class GCPPlugin implements Plugin {
             zone: { type: 'string', description: 'Zone (e.g., us-central1-a)' },
           },
         },
-        handler: async (args) => {
+        handler: async (_args) => {
           return { result: 'GCP compute instances would list here' };
         },
       },

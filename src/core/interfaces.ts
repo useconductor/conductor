@@ -30,7 +30,7 @@ export interface IDatabase {
   /** Full-text search across a user's messages */
   searchMessages(userId: string, query: string, limit?: number): Promise<AIMessage[]>;
   /** Record an activity log entry */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   logActivity(userId: string, action: string, plugin?: string, details?: string, success?: boolean): Promise<void>;
   /** Recent activity entries for the dashboard / proactive context */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
