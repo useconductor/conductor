@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { homedir } from 'os';
+import { EncryptionManager } from './encryption.js';
 
 export interface ConductorConfig {
   user?: {
@@ -59,11 +60,13 @@ export class ConfigManager {
   private configDir: string;
   private configPath: string;
   private config: ConductorConfig;
+  private encryption: EncryptionManager;
 
   constructor(customPath?: string) {
     this.configDir = customPath || path.join(homedir(), '.conductor');
     this.configPath = path.join(this.configDir, 'config.json');
     this.config = {};
+    this.encryption = new EncryptionManager(this.configDir);
   }
 
   async initialize(): Promise<void> {
@@ -80,10 +83,51 @@ export class ConfigManager {
     await this.load();
   }
 
+  // Encrypt sensitive values before saving
+  private async encryptSensitive(obj: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const SENSITIVE_KEYS = ['key', 'secret', 'token', 'password', 'api_key', 'access_token'];
+    const result: Record<string, unknown> = {};
+
+    for (const [key, value] of Object.entries(obj)) {
+      if (typeof value === 'string' && SENSITIVE_KEYS.some((k) => key.toLowerCase().includes(k))) {
+        result[key] = await this.encryption.encrypt(value);
+      } else if (typeof value === 'object') {
+        result[key] = await this.encryptSensitive(value as Record<string, unknown>);
+      } else {
+        result[key] = value;
+      }
+    }
+
+    return result;
+  }
+
+  // Decrypt sensitive values after loading
+  private async decryptSensitive(obj: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const SENSITIVE_KEYS = ['key', 'secret', 'token', 'password', 'api_key', 'access_token'];
+    const result: Record<string, unknown> = {};
+
+    for (const [key, value] of Object.entries(obj)) {
+      if (typeof value === 'string' && SENSITIVE_KEYS.some((k) => key.toLowerCase().includes(k))) {
+        try {
+          result[key] = await this.encryption.decrypt(value);
+        } catch {
+          result[key] = value; // Not encrypted, use as-is
+        }
+      } else if (typeof value === 'object') {
+        result[key] = await this.decryptSensitive(value as Record<string, unknown>);
+      } else {
+        result[key] = value;
+      }
+    }
+
+    return result;
+  }
+
   async load(): Promise<void> {
     try {
       const data = await fs.readFile(this.configPath, 'utf-8');
-      this.config = JSON.parse(data);
+      const parsed = JSON.parse(data);
+      this.config = await this.decryptSensitive(parsed) as ConductorConfig;
     } catch {
       // Config doesn't exist yet — use defaults
       this.config = {
@@ -106,8 +150,9 @@ export class ConfigManager {
   }
 
   async save(): Promise<void> {
+    const encrypted = await this.encryptSensitive(this.config as unknown as Record<string, unknown>);
     const tmp = this.configPath + '.tmp';
-    await fs.writeFile(tmp, JSON.stringify(this.config, null, 2), 'utf-8');
+    await fs.writeFile(tmp, JSON.stringify(encrypted, null, 2), 'utf-8');
     await fs.rename(tmp, this.configPath);
   }
 

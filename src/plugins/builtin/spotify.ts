@@ -73,7 +73,7 @@ export class SpotifyPlugin implements Plugin {
   }
 
   isConfigured(): boolean {
-    return true;
+    return true; // check at tool call time
   }
 
   // ── Auth helpers ────────────────────────────────────────────────────────────

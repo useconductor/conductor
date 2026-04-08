@@ -42,7 +42,7 @@ export class LinearPlugin implements Plugin {
   }
 
   isConfigured(): boolean {
-    return true; // checked at tool call time
+    return true; // check at tool call time
   }
 
   private async getApiKey(): Promise<string> {

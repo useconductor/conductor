@@ -1,0 +1,392 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { GitHubPlugin } from '../src/plugins/builtin/github.js';
+import { Keychain } from '../src/security/keychain.js';
+
+// Helper: get a tool's handler by name
+function tool(plugin: GitHubPlugin, name: string) {
+  const t = plugin.getTools().find((t) => t.name === name);
+  if (!t) throw new Error(`Tool not found: ${name}`);
+  return t.handler as (args: Record<string, unknown>) => Promise<unknown>;
+}
+
+// Minimal conductor mock
+function makeConductor(configDir = '/tmp/conductor-test-github') {
+  return {
+    getConfig: () => ({
+      getConfigDir: () => configDir,
+    }),
+  } as any;
+}
+
+let plugin: GitHubPlugin;
+
+beforeEach(async () => {
+  plugin = new GitHubPlugin();
+  await plugin.initialize(makeConductor());
+  vi.clearAllMocks();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+// ── Structure ────────────────────────────────────────────────────────────────
+
+describe('GitHubPlugin structure', () => {
+  it('has correct name and version', () => {
+    expect(plugin.name).toBe('github');
+    expect(plugin.version).toBeTruthy();
+  });
+
+  it('isConfigured() always returns true (public APIs work without token)', () => {
+    expect(plugin.isConfigured()).toBe(true);
+  });
+
+  it('registers expected tools', () => {
+    const names = plugin.getTools().map((t) => t.name);
+    expect(names).toContain('github_user');
+    expect(names).toContain('github_repo');
+    expect(names).toContain('github_repos');
+    expect(names).toContain('github_trending');
+    expect(names).toContain('github_issues');
+    expect(names).toContain('github_issue');
+    expect(names).toContain('github_create_issue');
+    expect(names).toContain('github_prs');
+    expect(names).toContain('github_pr');
+    expect(names).toContain('github_create_pr');
+    expect(names).toContain('github_commits');
+    expect(names).toContain('github_releases');
+    expect(names).toContain('github_search_code');
+    expect(names).toContain('github_file');
+  });
+
+  it('marks write operations as requiresApproval', () => {
+    const approvalTools = ['github_create_issue', 'github_close_issue', 'github_comment_issue',
+      'github_create_pr', 'github_merge_pr', 'github_create_release', 'github_star', 'github_fork'];
+    for (const name of approvalTools) {
+      const t = plugin.getTools().find((t) => t.name === name);
+      if (t) expect(t.requiresApproval).toBe(true);
+    }
+  });
+});
+
+// ── Public tools (no token needed) ───────────────────────────────────────────
+
+describe('GitHub tools — public (no token)', () => {
+  beforeEach(() => {
+    vi.spyOn(Keychain.prototype, 'get').mockResolvedValue(null);
+  });
+
+  it('github_user returns user profile data', async () => {
+    const mockUser = {
+      login: 'octocat',
+      name: 'The Octocat',
+      bio: 'A cat from GitHub',
+      public_repos: 42,
+      followers: 10000,
+      following: 5,
+      created_at: '2011-01-25T18:44:36Z',
+      html_url: 'https://github.com/octocat',
+      avatar_url: 'https://github.com/images/error/octocat_happy.gif',
+    };
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(mockUser),
+    }));
+
+    const result = await tool(plugin, 'github_user')({ username: 'octocat' }) as any;
+    expect(result.login).toBe('octocat');
+    expect(result.name).toBe('The Octocat');
+    expect(result.public_repos).toBe(42);
+    expect(result.followers).toBe(10000);
+    expect(result.url).toBe('https://github.com/octocat');
+  });
+
+  it('github_repo returns repository details', async () => {
+    const mockRepo = {
+      full_name: 'octocat/hello-world',
+      description: 'A Hello World repo',
+      language: 'JavaScript',
+      stargazers_count: 500,
+      forks_count: 100,
+      open_issues_count: 10,
+      license: { spdx_id: 'MIT' },
+      created_at: '2020-01-01T00:00:00Z',
+      updated_at: '2024-01-01T00:00:00Z',
+      default_branch: 'main',
+      html_url: 'https://github.com/octocat/hello-world',
+      topics: ['javascript', 'hello-world'],
+      private: false,
+    };
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(mockRepo),
+    }));
+
+    const result = await tool(plugin, 'github_repo')({ owner: 'octocat', repo: 'hello-world' }) as any;
+    expect(result.name).toBe('octocat/hello-world');
+    expect(result.language).toBe('JavaScript');
+    expect(result.stars).toBe(500);
+    expect(result.license).toBe('MIT');
+    expect(result.default_branch).toBe('main');
+    expect(result.private).toBe(false);
+  });
+
+  it('github_trending returns repositories matching query', async () => {
+    const mockData = {
+      items: [
+        {
+          full_name: 'trending/repo1',
+          description: 'Trending repo 1',
+          language: 'TypeScript',
+          stargazers_count: 1000,
+          forks_count: 200,
+          html_url: 'https://github.com/trending/repo1',
+        },
+        {
+          full_name: 'trending/repo2',
+          description: 'Trending repo 2',
+          language: 'Python',
+          stargazers_count: 800,
+          forks_count: 150,
+          html_url: 'https://github.com/trending/repo2',
+        },
+      ],
+    };
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(mockData),
+    }));
+
+    const result = await tool(plugin, 'github_trending')({ query: 'typescript cli' }) as any;
+    expect(Array.isArray(result)).toBe(true);
+    expect(result).toHaveLength(2);
+    expect(result[0].name).toBe('trending/repo1');
+    expect(result[0].stars).toBe(1000);
+  });
+
+  it('github_issues returns issue list', async () => {
+    const mockIssues = [
+      {
+        number: 1,
+        title: 'Test issue',
+        state: 'open',
+        user: { login: 'alice' },
+        assignees: [{ login: 'bob' }],
+        labels: [{ name: 'bug' }],
+        comments: 3,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-06-01T00:00:00Z',
+        html_url: 'https://github.com/owner/repo/issues/1',
+        // no pull_request field = it's an issue
+      },
+    ];
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(mockIssues),
+    }));
+
+    const result = await tool(plugin, 'github_issues')({ owner: 'owner', repo: 'repo' }) as any;
+    expect(result).toHaveLength(1);
+    expect(result[0].number).toBe(1);
+    expect(result[0].title).toBe('Test issue');
+    expect(result[0].labels).toEqual(['bug']);
+  });
+
+  it('github_commits returns commit list', async () => {
+    const mockCommits = [
+      {
+        sha: 'abc123def456',
+        commit: {
+          message: 'fix: resolve bug\n\nMore details here',
+          author: { name: 'Alice', date: '2024-06-01T00:00:00Z' },
+        },
+        html_url: 'https://github.com/owner/repo/commit/abc123',
+      },
+    ];
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(mockCommits),
+    }));
+
+    const result = await tool(plugin, 'github_commits')({ owner: 'owner', repo: 'repo' }) as any;
+    expect(result).toHaveLength(1);
+    expect(result[0].sha).toBe('abc123d');
+    expect(result[0].message).toBe('fix: resolve bug');
+    expect(result[0].author).toBe('Alice');
+  });
+
+  it('github_releases returns release list', async () => {
+    const mockReleases = [
+      {
+        id: 1001,
+        tag_name: 'v1.0.0',
+        name: 'Release 1.0.0',
+        prerelease: false,
+        draft: false,
+        body: 'Initial release',
+        author: { login: 'alice' },
+        created_at: '2024-01-01T00:00:00Z',
+        published_at: '2024-01-02T00:00:00Z',
+        html_url: 'https://github.com/owner/repo/releases/tag/v1.0.0',
+        assets: [],
+      },
+    ];
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(mockReleases),
+    }));
+
+    const result = await tool(plugin, 'github_releases')({ owner: 'owner', repo: 'repo' }) as any;
+    expect(result).toHaveLength(1);
+    expect(result[0].tag).toBe('v1.0.0');
+    expect(result[0].name).toBe('Release 1.0.0');
+    expect(result[0].prerelease).toBe(false);
+  });
+});
+
+// ── Private tools (token required) ───────────────────────────────────────────
+
+describe('GitHub tools — private (token required)', () => {
+  beforeEach(async () => {
+    vi.spyOn(Keychain.prototype, 'get').mockResolvedValue('ghp_fake_token_abcdefghij');
+    plugin = new GitHubPlugin();
+    await plugin.initialize(makeConductor());
+  });
+
+  it('github_create_issue creates an issue with token', async () => {
+    const mockIssue = {
+      number: 42,
+      html_url: 'https://github.com/owner/repo/issues/42',
+      title: 'New bug report',
+    };
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: () => Promise.resolve(mockIssue),
+    }));
+
+    const result = await tool(plugin, 'github_create_issue')({
+      owner: 'owner',
+      repo: 'repo',
+      title: 'New bug report',
+      body: 'Something is broken',
+      labels: ['bug'],
+    }) as any;
+
+    expect(result.number).toBe(42);
+    expect(result.url).toBe('https://github.com/owner/repo/issues/42');
+    expect(result.title).toBe('New bug report');
+  });
+
+  it('github_create_issue sends Authorization header', async () => {
+    const mockIssue = { number: 1, html_url: 'https://github.com/o/r/issues/1', title: 'test' };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: () => Promise.resolve(mockIssue),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await tool(plugin, 'github_create_issue')({
+      owner: 'owner',
+      repo: 'repo',
+      title: 'test',
+    });
+
+    const callInit = fetchMock.mock.calls[0][1] as RequestInit;
+    const headers = callInit.headers as Record<string, string>;
+    expect(headers['Authorization']).toBe('Bearer ghp_fake_token_abcdefghij');
+  });
+
+  it('github_create_issue throws without token', async () => {
+    vi.spyOn(Keychain.prototype, 'get').mockResolvedValue(null);
+    plugin = new GitHubPlugin();
+    await plugin.initialize(makeConductor());
+
+    await expect(
+      tool(plugin, 'github_create_issue')({ owner: 'owner', repo: 'repo', title: 'Test' }),
+    ).rejects.toThrow(/token/i);
+  });
+
+  it('github_my_repos throws without token', async () => {
+    vi.spyOn(Keychain.prototype, 'get').mockResolvedValue(null);
+    plugin = new GitHubPlugin();
+    await plugin.initialize(makeConductor());
+
+    await expect(tool(plugin, 'github_my_repos')({})).rejects.toThrow(/token/i);
+  });
+
+  it('github_notifications throws without token', async () => {
+    vi.spyOn(Keychain.prototype, 'get').mockResolvedValue(null);
+    plugin = new GitHubPlugin();
+    await plugin.initialize(makeConductor());
+
+    await expect(tool(plugin, 'github_notifications')({})).rejects.toThrow(/token/i);
+  });
+
+  it('github_repos returns user repos with token', async () => {
+    const mockRepos = [
+      {
+        name: 'my-repo',
+        description: 'A repo',
+        language: 'TypeScript',
+        stargazers_count: 10,
+        forks_count: 2,
+        updated_at: '2024-06-01T00:00:00Z',
+        html_url: 'https://github.com/alice/my-repo',
+        private: false,
+      },
+    ];
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(mockRepos),
+    }));
+
+    const result = await tool(plugin, 'github_repos')({ username: 'alice' }) as any;
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe('my-repo');
+    expect(result[0].stars).toBe(10);
+  });
+});
+
+// ── Error handling ────────────────────────────────────────────────────────────
+
+describe('GitHub tools — error handling', () => {
+  it('github_user throws on 404', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      text: () => Promise.resolve('Not Found'),
+    }));
+
+    await expect(tool(plugin, 'github_user')({ username: 'nonexistent-xyz' })).rejects.toThrow(/404/);
+  });
+
+  it('github_repo throws on API error', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+      text: () => Promise.resolve('API rate limit exceeded'),
+    }));
+
+    await expect(
+      tool(plugin, 'github_repo')({ owner: 'owner', repo: 'repo' }),
+    ).rejects.toThrow(/403/);
+  });
+});

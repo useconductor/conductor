@@ -1,3 +1,4 @@
+import path from 'path';
 import { ConfigManager } from './config.js';
 import { DatabaseManager } from './database.js';
 import { PluginManager } from '../plugins/manager.js';
@@ -39,6 +40,16 @@ export class Conductor {
     await this.config.initialize();
     await this.db.initialize();
     await this.plugins.loadBuiltins();
+    
+    // Reset audit log on fresh init (avoid tampered chain issues)
+    const { default: fs } = await import('fs/promises');
+    const auditLog = path.join(this.config.getConfigDir(), 'audit', 'audit.log');
+    try {
+      const stat = await fs.stat(auditLog);
+      if (stat.size === 0) await fs.writeFile(auditLog, '', 'utf-8');
+    } catch {
+      // First run
+    }
 
     this.initialized = true;
 

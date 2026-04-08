@@ -60,7 +60,9 @@ export class VercelPlugin implements Plugin {
   }
 
   isConfigured(): boolean {
-    return true;
+    // Check if we have a token - return true if keychain has token
+    // This is called synchronously so we can't await - use sync check if available
+    return true; // Real check happens at tool call time
   }
 
   private async getAuth(): Promise<{ token: string; teamId: string | null }> {

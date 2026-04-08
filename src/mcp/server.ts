@@ -37,6 +37,7 @@ import { HealthChecker } from '../core/health.js';
 import { WebhookManager } from '../core/webhooks.js';
 import { logger } from '../core/logger.js';
 import { enableZeroConfigMode } from '../core/zero-config.js';
+import { RBACManager, Role } from '../core/rbac.js';
 
 const _require = createRequire(import.meta.url);
 const { version } = _require('../../package.json') as { version: string };
@@ -321,6 +322,18 @@ export async function startMCPServer(conductor: Conductor, options: MCPServerOpt
     })),
   }));
 
+  // ── Authorization context ───────────────────────────────────────
+  // In production, userId comes from auth token. For now, default to editor role.
+  const rbac = new RBACManager();
+  rbac.addUser({
+    id: 'mcp_client',
+    email: 'mcp@conductor.local',
+    role: Role.EDITOR,
+    createdAt: new Date(),
+    lastLoginAt: null,
+  });
+  const USER_ID = 'mcp_client';
+
   // ── tools/call ───────────────────────────────────────────────────────────
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args = {} } = request.params;
@@ -330,6 +343,16 @@ export async function startMCPServer(conductor: Conductor, options: MCPServerOpt
       return {
         content: [
           { type: 'text' as const, text: `Unknown tool: ${name}. Run conductor_tools_list to see available tools.` },
+        ],
+        isError: true,
+      };
+    }
+
+    // RBAC check - verify user can execute this tool
+    if (!rbac.checkPermission(USER_ID, name, 'execute')) {
+      return {
+        content: [
+          { type: 'text' as const, text: `Permission denied: You don't have execute access to tool "${name}".` },
         ],
         isError: true,
       };

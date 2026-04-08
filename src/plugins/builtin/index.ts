@@ -34,6 +34,8 @@ import { N8nPlugin } from './n8n.js';
 import { DockerPlugin } from './docker.js';
 import { DatabasePlugin } from './database.js';
 import { ShellPlugin } from './shell.js';
+import { AWSPlugin } from './aws.js';
+import { GCPPlugin } from './gcp.js';
 
 // ── Third-party services ───────────────────────────────────────────────────
 import { NotionPlugin } from './notion.js';
@@ -80,6 +82,8 @@ export function getAllBuiltinPlugins(): Plugin[] {
     new ShellPlugin(),
     new DockerPlugin(),
     new DatabasePlugin(),
+    new AWSPlugin(),
+    new GCPPlugin(),
 
     // ── Google (require Google OAuth) ──────────────────────────────────────
     new GmailPlugin(),

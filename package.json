@@ -1,7 +1,7 @@
 {
   "name": "@useconductor/conductor",
   "version": "1.0.1",
-  "description": "The AI Tool Hub — One MCP server. 100+ tools. Every AI agent.",
+  "description": "The AI Tool Hub — One MCP server. 255 tools. Every AI agent.",
   "main": "dist/index.js",
   "bin": {
     "conductor": "./dist/cli/index.js"
@@ -19,7 +19,9 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "publish": "npm run build && npm publish",
+    "publish:beta": "npm run build && npm publish --tag beta"
   },
   "publishConfig": {
     "access": "public",
@@ -44,8 +46,6 @@
   "license": "Apache-2.0",
   "type": "module",
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.74.0",
-    "@google/generative-ai": "^0.24.1",
     "@modelcontextprotocol/sdk": "^1.26.0",
     "@octokit/rest": "^22.0.1",
     "@slack/bolt": "^4.6.0",
@@ -59,7 +59,6 @@
     "inquirer": "^13.2.5",
     "mathjs": "^15.1.1",
     "open": "^11.0.0",
-    "openai": "^6.22.0",
     "ora": "^9.3.0",
     "pino": "^10.3.1",
     "pino-pretty": "^13.1.3",
@@ -85,5 +84,10 @@
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^4.1.2"
+  },
+  "optionalDependencies": {
+    "@anthropic-ai/sdk": "^0.86.1",
+    "@google/generative-ai": "^0.24.1",
+    "openai": "^6.34.0"
   }
 }
