@@ -1,6 +1,6 @@
 {
   "name": "@useconductor/conductor",
-  "version": "1.0.1",
+  "version": "2.0.0",
   "description": "The AI Tool Hub — One MCP server. 255 tools. Every AI agent.",
   "main": "dist/index.js",
   "bin": {
