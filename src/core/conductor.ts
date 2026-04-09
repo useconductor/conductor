@@ -8,6 +8,8 @@ import type { ConductorNotification } from './interfaces.js';
 export interface ConductorOptions {
   /** Suppress stdout output (required for MCP mode where stdout is protocol). */
   quiet?: boolean;
+  /** Conductor Cloud server URL for credential sync */
+  cloudServerUrl?: string;
 }
 
 export class Conductor {

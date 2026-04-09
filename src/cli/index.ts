@@ -600,5 +600,9 @@ circuit
     await circuitReset(conductor, tool);
   });
 
-// ── Run ──────────────────────────────────────────────────────────────
+// ── Cloud ───────────────────────────────────────────────────────────────────
+const { registerCloudCommands } = await import('./commands/cloud.js');
+registerCloudCommands(program);
+
+// ── Run ──────────────────────────────────────────────────────────────────────
 program.parse();
