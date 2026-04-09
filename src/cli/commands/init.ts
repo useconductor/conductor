@@ -2,15 +2,16 @@
  * conductor init — First-run setup wizard
  *
  * Gets a new user to a working MCP server in under 2 minutes:
- *   1. AI provider setup (Claude / OpenAI / Gemini / Ollama / skip)
- *   2. Plugin onboard TUI
- *   3. MCP client config (Claude Desktop / Cursor / Cline / skip)
- *   4. Final instructions
+ *   1. Zero-config MCP setup (no API keys needed)
+ *   2. Plugin onboard (optional)
+ *   3. AI client config (Claude Desktop / Cursor / Cline)
+ *
+ * The key insight: Conductor provides tools TO your AI, it doesn't need its own AI.
+ * Most users just need MCP + their existing Claude Desktop/Cursor.
  */
 
 import inquirer from 'inquirer';
 import { Conductor } from '../../core/conductor.js';
-import { AIManager } from '../../ai/manager.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { homedir } from 'os';
@@ -20,6 +21,7 @@ import { homedir } from 'os';
 const B = '\x1b[1m';
 const D = '\x1b[2m';
 const R = '\x1b[0m';
+const G = '\x1b[32m';
 
 function hr(width = 50) {
   process.stdout.write('  ' + '─'.repeat(width) + '\n');
@@ -52,21 +54,88 @@ function printBanner(): void {
   console.log(blank);
   console.log(line('Conductor — The AI Tool Hub'));
   console.log(blank);
-  console.log(dim('One MCP server. 100+ tools. Any AI agent.'));
-  console.log(dim('Setup takes under 2 minutes.'));
+  console.log(dim('One MCP server. 255 tools. Any AI agent.'));
+  console.log(dim('Connect Claude Desktop, Cursor, Cline to 255+ tools.'));
   console.log(blank);
   console.log(bot);
   console.log('');
 }
 
-// ── Step 1: AI Provider ────────────────────────────────────────────────────
+// ── Step 1: Quick Start vs Custom ─────────────────────────────────────────
+
+async function chooseSetupMode(): Promise<'quick' | 'custom'> {
+  console.log(`  ${B}How would you like to set up Conductor?${R}`);
+  console.log('');
+
+  const { mode } = await inquirer.prompt<{ mode: string }>([
+    {
+      type: 'list',
+      name: 'mode',
+      message: 'Select an option:',
+      choices: [
+        { name: 'Quick Start (recommended) — MCP server only, no API keys needed', value: 'quick' },
+        { name: 'Custom — Configure AI provider, plugins, and more', value: 'custom' },
+      ],
+    },
+  ]);
+
+  return mode as 'quick' | 'custom';
+}
+
+// ── Quick Start: Just MCP ─────────────────────────────────────────────────
+
+async function quickStart(conductor: Conductor): Promise<void> {
+  console.log('');
+  console.log(`  ${G}✓ Quick Start mode selected${R}`);
+  console.log('');
+  console.log(`  ${D}This sets up Conductor as an MCP server that your AI client${R}`);
+  console.log(`  ${D}(Claude Desktop, Cursor, Cline) can connect to.${R}`);
+  console.log('');
+  console.log(`  ${D}No API keys needed — Conductor provides TOOLS to your AI,${R}`);
+  console.log(`  ${D}it doesn't need its own AI key.${R}`);
+  console.log('');
+
+  await setupMCPClient(conductor);
+
+  console.log('');
+  console.log(`  ${G}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${R}`);
+  console.log(`  ${B}  You're ready to use Conductor!${R}`);
+  console.log(`  ${G}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${R}`);
+  console.log('');
+  console.log(`  ${B}Next steps:${R}`);
+  console.log(`    1. Start the MCP server: ${B}conductor mcp start${R}`);
+  console.log(`    2. Restart your AI client (Claude Desktop, Cursor, etc.)`);
+  console.log(`    3. Conductor will appear as a connected MCP server`);
+  console.log(`    4. Ask your AI: "What tools do you have access to?"`);
+  console.log('');
+  console.log(`  ${D}Need help? Run: conductor doctor${R}`);
+  console.log('');
+}
+
+// ── Custom Setup: AI Provider ───────────────────────────────────────────────
 
 async function setupAIProvider(conductor: Conductor): Promise<void> {
-  stepHeader(1, 3, 'AI Provider');
+  stepHeader(1, 4, 'AI Provider (Optional)');
 
-  console.log(`  ${D}Pick the AI provider Conductor uses for its own reasoning.${R}`);
-  console.log(`  ${D}(Separate from the AI agent that calls Conductor via MCP.)${R}`);
+  console.log(`  ${D}This is only needed if you want Conductor to use AI for its own${R}`);
+  console.log(`  ${D}reasoning (e.g., proactive alerts, context-aware suggestions).${R}`);
+  console.log(`  ${D}Most users can skip this — your AI client already has its own key.${R}`);
   console.log('');
+
+  const { enableAI } = await inquirer.prompt<{ enableAI: boolean }>([
+    {
+      type: 'confirm',
+      name: 'enableAI',
+      message: 'Configure an AI provider for Conductor?',
+      default: false,
+    },
+  ]);
+
+  if (!enableAI) {
+    console.log('');
+    console.log(`  ${D}Skipped. You can enable this later with: conductor ai setup${R}`);
+    return;
+  }
 
   const { provider } = await inquirer.prompt<{ provider: string }>([
     {
@@ -78,17 +147,11 @@ async function setupAIProvider(conductor: Conductor): Promise<void> {
         { name: 'OpenAI (GPT-4o)           — popular & capable', value: 'openai' },
         { name: 'Gemini (Google)           — fast & free tier', value: 'gemini' },
         { name: 'Ollama (local, private)   — no API key needed', value: 'ollama' },
-        { name: `${D}Skip — configure later with: conductor ai setup${R}`, value: 'skip' },
       ],
     },
   ]);
 
-  if (provider === 'skip') {
-    console.log('');
-    console.log(`  ${D}Skipped. Run: conductor ai setup${R}`);
-    return;
-  }
-
+  const { AIManager } = await import('../../ai/manager.js');
   const aiManager = new AIManager(conductor);
 
   switch (provider) {
@@ -100,7 +163,7 @@ async function setupAIProvider(conductor: Conductor): Promise<void> {
           validate: (v: string) => v.trim().length > 0 || 'API key is required' },
       ]);
       await aiManager.setupClaude(apiKey.trim());
-      console.log(`  ✓ Claude configured`);
+      console.log(`  ${G}✓${R} Claude configured`);
       break;
     }
     case 'openai': {
@@ -111,7 +174,7 @@ async function setupAIProvider(conductor: Conductor): Promise<void> {
           validate: (v: string) => v.trim().length > 0 || 'API key is required' },
       ]);
       await aiManager.setupOpenAI(apiKey.trim());
-      console.log(`  ✓ OpenAI configured`);
+      console.log(`  ${G}✓${R} OpenAI configured`);
       break;
     }
     case 'gemini': {
@@ -122,7 +185,7 @@ async function setupAIProvider(conductor: Conductor): Promise<void> {
           validate: (v: string) => v.trim().length > 0 || 'API key is required' },
       ]);
       await aiManager.setupGemini(apiKey.trim());
-      console.log(`  ✓ Gemini configured`);
+      console.log(`  ${G}✓${R} Gemini configured`);
       break;
     }
     case 'ollama': {
@@ -132,7 +195,7 @@ async function setupAIProvider(conductor: Conductor): Promise<void> {
         { type: 'input', name: 'model', message: 'Which Ollama model?', default: 'llama3.2' },
       ]);
       await aiManager.setupOllama(model.trim());
-      console.log(`  ✓ Ollama configured (${model.trim()})`);
+      console.log(`  ${G}✓${R} Ollama configured (${model.trim()})`);
       break;
     }
   }
@@ -141,20 +204,24 @@ async function setupAIProvider(conductor: Conductor): Promise<void> {
 // ── Step 2: Plugins ────────────────────────────────────────────────────────
 
 async function setupPlugins(conductor: Conductor): Promise<void> {
-  stepHeader(2, 3, 'Plugins');
+  stepHeader(2, 4, 'Plugins');
+
+  console.log(`  ${D}Conductor ships with 15 zero-config tools that work immediately:${R}`);
+  console.log(`  ${D}File System, Shell, Git, Web Fetch, Database, Calculator, etc.${R}`);
+  console.log('');
 
   const { doOnboard } = await inquirer.prompt<{ doOnboard: boolean }>([
     {
       type: 'confirm',
       name: 'doOnboard',
-      message: 'Pick which plugins to enable (recommended)?',
-      default: true,
+      message: 'Enable additional plugins (GitHub, Slack, Gmail, etc.)?',
+      default: false,
     },
   ]);
 
   if (!doOnboard) {
     console.log('');
-    console.log(`  ${D}Skipped. Run: conductor onboard${R}`);
+    console.log(`  ${D}Skipped. You can enable more plugins later with: conductor plugins${R}`);
     return;
   }
 
@@ -162,7 +229,7 @@ async function setupPlugins(conductor: Conductor): Promise<void> {
   await onboard(conductor);
 }
 
-// ── Step 3: MCP client config ──────────────────────────────────────────────
+// ── Step 3: MCP client config ───────────────────────────────────────────────
 
 const MCP_CONFIG_PATHS: Record<string, string> = {
   claude: path.join(
@@ -190,7 +257,6 @@ const MCP_CONFIG_PATHS: Record<string, string> = {
 };
 
 async function writeClientConfig(configPath: string): Promise<void> {
-  // Use the conductor binary by name — robust across npm reinstalls and upgrades.
   const entry = { command: 'conductor', args: ['mcp', 'start'] };
 
   let config: Record<string, unknown> = {};
@@ -210,9 +276,9 @@ async function writeClientConfig(configPath: string): Promise<void> {
 }
 
 async function setupMCPClient(conductor: Conductor): Promise<void> {
-  stepHeader(3, 3, 'Connect your AI client');
+  stepHeader(3, 4, 'Connect your AI client');
 
-  console.log(`  ${D}Conductor will write the MCP server entry into your client's config.${R}`);
+  console.log(`  ${D}Conductor needs to be added to your AI client's MCP config.${R}`);
   console.log('');
 
   const { client } = await inquirer.prompt<{ client: string }>([
@@ -224,7 +290,7 @@ async function setupMCPClient(conductor: Conductor): Promise<void> {
         { name: 'Claude Desktop', value: 'claude' },
         { name: 'Cursor', value: 'cursor' },
         { name: 'Cline (VS Code extension)', value: 'cline' },
-        { name: `${D}Skip — I'll configure manually${R}`, value: 'skip' },
+        { name: "I don't see my client — skip for now", value: 'skip' },
       ],
     },
   ]);
@@ -232,7 +298,6 @@ async function setupMCPClient(conductor: Conductor): Promise<void> {
   if (client === 'skip') {
     console.log('');
     console.log(`  ${D}Skipped. Run: conductor mcp setup${R}`);
-    void conductor;
     return;
   }
 
@@ -242,7 +307,7 @@ async function setupMCPClient(conductor: Conductor): Promise<void> {
     await writeClientConfig(configPath);
     const clientName = client === 'claude' ? 'Claude Desktop' : client === 'cursor' ? 'Cursor' : 'Cline';
     console.log('');
-    console.log(`  ✓ ${clientName} configured`);
+    console.log(`  ${G}✓${R} ${clientName} configured`);
     console.log(`  ${D}  Config: ${configPath}${R}`);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -265,7 +330,7 @@ function printFinalInstructions(): void {
   console.log(`    ${B}conductor mcp start${R}`);
   console.log('');
   console.log(`  ${D}Then restart your AI client — Conductor will appear`);
-  console.log(`  as a connected MCP server with 100+ tools available.${R}`);
+  console.log(`  as a connected MCP server with 255+ tools available.${R}`);
   console.log('');
   console.log(`  ${D}conductor dashboard   — web UI with metrics and audit log${R}`);
   console.log(`  ${D}conductor doctor      — diagnose issues${R}`);
@@ -275,16 +340,21 @@ function printFinalInstructions(): void {
   console.log('');
 }
 
-// ── Entry point ────────────────────────────────────────────────────────────
+// ── Entry point ───────────────────────────────────────────────────────────
 
 export async function init(conductor: Conductor): Promise<void> {
   await conductor.initialize();
 
   printBanner();
 
-  await setupAIProvider(conductor);
-  await setupPlugins(conductor);
-  await setupMCPClient(conductor);
+  const mode = await chooseSetupMode();
 
-  printFinalInstructions();
+  if (mode === 'quick') {
+    await quickStart(conductor);
+  } else {
+    await setupAIProvider(conductor);
+    await setupPlugins(conductor);
+    await setupMCPClient(conductor);
+    printFinalInstructions();
+  }
 }

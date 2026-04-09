@@ -4,15 +4,11 @@ import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
 import crypto from 'crypto';
 import os from 'os';
-import { execFile } from 'child_process';
-import { promisify } from 'util';
 import rateLimit from 'express-rate-limit';
 import { ConfigManager } from '../core/config.js';
 import { DatabaseManager } from '../core/database.js';
 import { Keychain } from '../security/keychain.js';
 import type { Conductor } from '../core/conductor.js';
-
-const execFileAsync = promisify(execFile);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
