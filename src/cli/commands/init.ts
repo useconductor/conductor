@@ -275,7 +275,7 @@ async function writeClientConfig(configPath: string): Promise<void> {
   await fs.writeFile(configPath, JSON.stringify(config, null, 2));
 }
 
-async function setupMCPClient(conductor: Conductor): Promise<void> {
+async function setupMCPClient(_conductor: Conductor): Promise<void> {
   stepHeader(3, 4, 'Connect your AI client');
 
   console.log(`  ${D}Conductor needs to be added to your AI client's MCP config.${R}`);
