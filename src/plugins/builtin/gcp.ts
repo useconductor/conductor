@@ -1,6 +1,6 @@
 /**
  * GCP Plugin — Google Cloud Platform management
- * 
+ *
  * Tools:
  *   gcp_compute_list - List Compute Engine instances
  *   gcp_compute_start - Start instance
@@ -19,7 +19,7 @@ export class GCPPlugin implements Plugin {
   name = 'gcp';
   description = 'Google Cloud Platform compute, storage, and functions';
   version = '1.0.0';
-  
+
   private keychain?: Keychain;
 
   async initialize(conductor: Conductor): Promise<void> {
@@ -33,11 +33,11 @@ export class GCPPlugin implements Plugin {
   async getGCPCredentials(): Promise<{ project_id: string; credentials: string }> {
     const project_id = await this.keychain!.get('gcp', 'project_id');
     const credentials = await this.keychain!.get('gcp', 'credentials');
-    
+
     if (!project_id || !credentials) {
       throw new Error('GCP credentials not configured. Run: conductor plugins setup gcp');
     }
-    
+
     return { project_id, credentials };
   }
 

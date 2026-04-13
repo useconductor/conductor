@@ -54,10 +54,7 @@ export class EncryptionManager {
     const iv = crypto.randomBytes(IV_LENGTH);
 
     const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
-    const encrypted = Buffer.concat([
-      cipher.update(plaintext, 'utf8'),
-      cipher.final(),
-    ]);
+    const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
     const authTag = cipher.getAuthTag();
 
     // Format: iv + authTag + ciphertext (all base64)
@@ -79,10 +76,7 @@ export class EncryptionManager {
     const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
     decipher.setAuthTag(authTag);
 
-    const decrypted = Buffer.concat([
-      decipher.update(encrypted),
-      decipher.final(),
-    ]);
+    const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
 
     return decrypted.toString('utf8');
   }

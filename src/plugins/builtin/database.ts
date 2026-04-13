@@ -62,14 +62,18 @@ export class DatabasePlugin implements Plugin {
         try {
           const val = await kc.get('database', k);
           if (val) this.configuredUrls.add(k);
-        } catch { /* not stored */ }
+        } catch {
+          /* not stored */
+        }
       }
       // Also check environment variables as fallback
       if (process.env['DATABASE_URL'] || process.env['POSTGRES_URL']) this.configuredUrls.add('postgres_url');
       if (process.env['MYSQL_URL']) this.configuredUrls.add('mysql_url');
       if (process.env['MONGO_URL'] || process.env['MONGODB_URL']) this.configuredUrls.add('mongo_url');
       if (process.env['REDIS_URL']) this.configuredUrls.add('redis_url');
-    } catch { /* keychain not available */ }
+    } catch {
+      /* keychain not available */
+    }
   }
 
   isConfigured(): boolean {

@@ -1,10 +1,10 @@
 /**
  * Enterprise SSO/OIDC Auth Middleware
- * 
+ *
  * Supports:
  * - OIDC (Okta, Auth0, Google Workspace, Azure AD)
  * - Custom JWT
- * 
+ *
  * Usage:
  *   conductor config set security.auth.provider oidc
  *   conductor config set security.auth.clientId <id>
@@ -80,14 +80,12 @@ export class AuthMiddleware {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': `Basic ${Buffer.from(
-          `${this.config.clientId}:${this.config.clientSecret}`
-        ).toString('base64')}`,
+        Authorization: `Basic ${Buffer.from(`${this.config.clientId}:${this.config.clientSecret}`).toString('base64')}`,
       },
       body: `token=${token}`,
     });
 
-    const data = await response.json() as any;
+    const data = (await response.json()) as any;
     if (!data.active) throw new Error('Token inactive');
 
     return {
@@ -105,9 +103,7 @@ export function createAuthMiddleware(config: any) {
   return async (req: any, res: any, next: any) => {
     if (!auth.isEnabled()) return next();
 
-    const token =
-      req.headers.authorization?.replace('Bearer ', '') ||
-      req.headers['x-forwarded-auth'] || '';
+    const token = req.headers.authorization?.replace('Bearer ', '') || req.headers['x-forwarded-auth'] || '';
 
     if (!token) {
       return res.status(401).json({ error: 'Authentication required' });

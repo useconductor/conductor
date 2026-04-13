@@ -27,7 +27,11 @@ export class DockerPlugin implements Plugin {
       '\\\\.\\pipe\\docker_engine', // Windows
     ];
     return sockets.some((s) => {
-      try { return existsSync(s); } catch { return false; }
+      try {
+        return existsSync(s);
+      } catch {
+        return false;
+      }
     });
   }
 
