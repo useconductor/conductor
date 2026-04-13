@@ -119,7 +119,6 @@ export async function doctor(conductor: Conductor): Promise<void> {
   // Disk space
   const homeDir = os.homedir();
   try {
-     
     const si = await import('systeminformation');
     const fsInfo = await si.default.fsSize();
     const homeFs = fsInfo.find((f: any) => homeDir.startsWith(f.mount));

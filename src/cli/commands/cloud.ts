@@ -1,6 +1,6 @@
 /**
  * conductor cloud - Cloud sync and account management
- * 
+ *
  * Commands:
  *   cloud login    - Log in to Conductor Cloud and pair device
  *   cloud sync    - Sync credentials from cloud
@@ -51,13 +51,13 @@ async function apiRequest(
     method?: string;
     body?: unknown;
     sessionId?: string;
-  } = {}
+  } = {},
 ): Promise<Record<string, unknown>> {
   const url = `${serverUrl}${endpoint}`;
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
-  
+
   if (options.sessionId) {
     headers['Authorization'] = `Bearer ${options.sessionId}`;
   }
@@ -68,17 +68,15 @@ async function apiRequest(
       headers,
       body: options.body ? JSON.stringify(options.body) : undefined,
     });
-    
-    return await response.json() as Record<string, unknown>;
+
+    return (await response.json()) as Record<string, unknown>;
   } catch (error) {
     return { success: false, error: String(error) };
   }
 }
 
 export function registerCloudCommands(program: Command) {
-  const cloud = program
-    .command('cloud')
-    .description('Conductor Cloud - sync credentials across devices');
+  const cloud = program.command('cloud').description('Conductor Cloud - sync credentials across devices');
 
   // cloud login
   cloud
@@ -101,7 +99,7 @@ export function registerCloudCommands(program: Command) {
       // Generate device credentials
       const deviceId = crypto.randomUUID();
       const deviceName = process.env.HOSTNAME || 'My Computer';
-      
+
       // Create pairing request
       console.log(chalk.gray('  Creating device pairing request...'));
       const pairResult = await apiRequest(serverUrl, '/device/pair', {
@@ -111,10 +109,10 @@ export function registerCloudCommands(program: Command) {
 
       if (!pairResult.success) {
         console.log(chalk.red(`  ✗ Failed to create pairing request: ${pairResult.error}`));
-        
+
         // For demo mode, simulate success
         console.log(chalk.yellow('  ⚠ Running in demo mode (simulated)'));
-        
+
         const config: CloudConfig = {
           connected: true,
           deviceId,
@@ -124,11 +122,13 @@ export function registerCloudCommands(program: Command) {
           lastSync: Date.now(),
           sessionId: `demo_session_${Date.now()}`,
         };
-        
+
         await saveCloudConfig(config);
-        
+
         console.log(chalk.green('  ✓ Connected to Conductor Cloud!'));
-        console.log(chalk.gray('  Run ') + chalk.white('conductor cloud sync') + chalk.gray(' to download credentials.\n'));
+        console.log(
+          chalk.gray('  Run ') + chalk.white('conductor cloud sync') + chalk.gray(' to download credentials.\n'),
+        );
         return;
       }
 
@@ -151,21 +151,21 @@ export function registerCloudCommands(program: Command) {
       // Poll for approval
       let attempts = 0;
       const maxAttempts = 60;
-      
+
       while (attempts < maxAttempts) {
-        await new Promise(r => setTimeout(r, 2000));
-        
+        await new Promise((r) => setTimeout(r, 2000));
+
         const verifyResult = await apiRequest(serverUrl, `/device/pairing?requestId=${requestId}`, {
           sessionId: requestId,
         });
-        
+
         if (verifyResult.success && (verifyResult.requests as unknown[])?.length === 0) {
           // Device approved!
           break;
         }
-        
+
         attempts++;
-        
+
         if (attempts % 10 === 0) {
           console.log(chalk.gray(`  Waiting for approval... (${attempts * 2}s)`));
         }
@@ -185,11 +185,13 @@ export function registerCloudCommands(program: Command) {
         lastSync: Date.now(),
         sessionId: requestId,
       };
-      
+
       await saveCloudConfig(config);
 
       console.log(chalk.green('  ✓ Device paired successfully!'));
-      console.log(chalk.gray('  Run ') + chalk.white('conductor cloud sync') + chalk.gray(' to download credentials.\n'));
+      console.log(
+        chalk.gray('  Run ') + chalk.white('conductor cloud sync') + chalk.gray(' to download credentials.\n'),
+      );
     });
 
   // cloud sync
@@ -197,7 +199,7 @@ export function registerCloudCommands(program: Command) {
     .command('sync')
     .description('Sync credentials from Conductor Cloud')
     .option('--force', 'Force full sync')
-    .action(async (opts: { force?: boolean }) => {
+    .action(async (_opts: { force?: boolean }) => {
       const config = await loadCloudConfig();
 
       if (!config.connected || !config.serverUrl) {
@@ -283,7 +285,7 @@ export function registerCloudCommands(program: Command) {
       console.log(chalk.gray('  Server: ') + chalk.white(config.serverUrl || 'cloud.conductor.sh'));
       console.log(chalk.gray('  Email: ') + chalk.white(config.email || 'N/A'));
       console.log(chalk.gray('  Device: ') + chalk.white(config.deviceId?.substring(0, 8) || 'N/A'));
-      
+
       if (config.lastSync) {
         console.log(chalk.gray('  Last sync: ') + chalk.white(new Date(config.lastSync).toLocaleString()));
       }
@@ -312,7 +314,7 @@ export function registerCloudCommands(program: Command) {
       console.log(chalk.gray('  ' + '─'.repeat(50)));
 
       const devices = (result.devices as unknown[]) || [];
-      
+
       if (devices.length === 0) {
         console.log(chalk.gray('  Only this device connected.\n'));
         return;

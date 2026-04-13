@@ -37,9 +37,9 @@ function stepHeader(n: number, total: number, label: string): void {
 
 function printBanner(): void {
   const W = 50;
-  const top =    '  ┌' + '─'.repeat(W) + '┐';
-  const bot =    '  └' + '─'.repeat(W) + '┘';
-  const blank =  '  │' + ' '.repeat(W) + '│';
+  const top = '  ┌' + '─'.repeat(W) + '┐';
+  const bot = '  └' + '─'.repeat(W) + '┘';
+  const blank = '  │' + ' '.repeat(W) + '│';
   const line = (text: string) => {
     const pad = W - text.length - 1;
     return `  │ ${B}${text}${R}` + ' '.repeat(Math.max(0, pad)) + '│';
@@ -159,8 +159,13 @@ async function setupAIProvider(conductor: Conductor): Promise<void> {
       console.log('');
       console.log(`  ${D}Get your key at: https://console.anthropic.com${R}`);
       const { apiKey } = await inquirer.prompt<{ apiKey: string }>([
-        { type: 'password', name: 'apiKey', message: 'Anthropic API key:', mask: '*',
-          validate: (v: string) => v.trim().length > 0 || 'API key is required' },
+        {
+          type: 'password',
+          name: 'apiKey',
+          message: 'Anthropic API key:',
+          mask: '*',
+          validate: (v: string) => v.trim().length > 0 || 'API key is required',
+        },
       ]);
       await aiManager.setupClaude(apiKey.trim());
       console.log(`  ${G}✓${R} Claude configured`);
@@ -170,8 +175,13 @@ async function setupAIProvider(conductor: Conductor): Promise<void> {
       console.log('');
       console.log(`  ${D}Get your key at: https://platform.openai.com/api-keys${R}`);
       const { apiKey } = await inquirer.prompt<{ apiKey: string }>([
-        { type: 'password', name: 'apiKey', message: 'OpenAI API key:', mask: '*',
-          validate: (v: string) => v.trim().length > 0 || 'API key is required' },
+        {
+          type: 'password',
+          name: 'apiKey',
+          message: 'OpenAI API key:',
+          mask: '*',
+          validate: (v: string) => v.trim().length > 0 || 'API key is required',
+        },
       ]);
       await aiManager.setupOpenAI(apiKey.trim());
       console.log(`  ${G}✓${R} OpenAI configured`);
@@ -181,8 +191,13 @@ async function setupAIProvider(conductor: Conductor): Promise<void> {
       console.log('');
       console.log(`  ${D}Get your key at: https://aistudio.google.com/app/apikey${R}`);
       const { apiKey } = await inquirer.prompt<{ apiKey: string }>([
-        { type: 'password', name: 'apiKey', message: 'Gemini API key:', mask: '*',
-          validate: (v: string) => v.trim().length > 0 || 'API key is required' },
+        {
+          type: 'password',
+          name: 'apiKey',
+          message: 'Gemini API key:',
+          mask: '*',
+          validate: (v: string) => v.trim().length > 0 || 'API key is required',
+        },
       ]);
       await aiManager.setupGemini(apiKey.trim());
       console.log(`  ${G}✓${R} Gemini configured`);

@@ -42,7 +42,7 @@ export class Conductor {
     await this.config.initialize();
     await this.db.initialize();
     await this.plugins.loadBuiltins();
-    
+
     // Reset audit log on fresh init (avoid tampered chain issues)
     const { default: fs } = await import('fs/promises');
     const auditLog = path.join(this.config.getConfigDir(), 'audit', 'audit.log');

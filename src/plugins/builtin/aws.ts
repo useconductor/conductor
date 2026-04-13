@@ -1,6 +1,6 @@
 /**
  * AWS Plugin — EC2, S3, Lambda management
- * 
+ *
  * Tools:
  *   aws_ec2_list - List EC2 instances
  *   aws_ec2_start - Start instance
@@ -20,7 +20,7 @@ export class AWSPlugin implements Plugin {
   name = 'aws';
   description = 'AWS EC2, S3, and Lambda management';
   version = '1.0.0';
-  
+
   private keychain?: Keychain;
 
   async initialize(conductor: Conductor): Promise<void> {
@@ -34,12 +34,12 @@ export class AWSPlugin implements Plugin {
   async getAWSCredentials(): Promise<{ _accessKeyId: string; _secretAccessKey: string; region?: string }> {
     const _accessKeyId = await this.keychain!.get('aws', 'access_key_id');
     const _secretAccessKey = await this.keychain!.get('aws', 'secret_access_key');
-    const region = await this.keychain!.get('aws', 'region') || 'us-east-1';
-    
+    const region = (await this.keychain!.get('aws', 'region')) || 'us-east-1';
+
     if (!_accessKeyId || !_secretAccessKey) {
       throw new Error('AWS credentials not configured. Run: conductor plugins setup aws');
     }
-    
+
     return { _accessKeyId, _secretAccessKey, region };
   }
 
@@ -60,8 +60,8 @@ export class AWSPlugin implements Plugin {
           },
         },
         handler: async (args) => {
-          return this.awsRequest('DescribeInstances', { 
-            ...(args.state ? { InstanceState: args.state } : {}) 
+          return this.awsRequest('DescribeInstances', {
+            ...(args.state ? { InstanceState: args.state } : {}),
           });
         },
       },
@@ -117,10 +117,10 @@ export class AWSPlugin implements Plugin {
           required: ['bucket', 'key', 'body'],
         },
         handler: async (args) => {
-          return this.awsRequest('PutObject', { 
-            Bucket: args.bucket, 
-            Key: args.key, 
-            Body: args.body 
+          return this.awsRequest('PutObject', {
+            Bucket: args.bucket,
+            Key: args.key,
+            Body: args.body,
           });
         },
       },
@@ -147,9 +147,9 @@ export class AWSPlugin implements Plugin {
           required: ['function_name'],
         },
         handler: async (args) => {
-          return this.awsRequest('Invoke', { 
-            FunctionName: args.function_name, 
-            Payload: args.payload || '{}' 
+          return this.awsRequest('Invoke', {
+            FunctionName: args.function_name,
+            Payload: args.payload || '{}',
           });
         },
       },

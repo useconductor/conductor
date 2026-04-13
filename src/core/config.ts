@@ -127,7 +127,7 @@ export class ConfigManager {
     try {
       const data = await fs.readFile(this.configPath, 'utf-8');
       const parsed = JSON.parse(data);
-      this.config = await this.decryptSensitive(parsed) as ConductorConfig;
+      this.config = (await this.decryptSensitive(parsed)) as ConductorConfig;
     } catch {
       // Config doesn't exist yet — use defaults
       this.config = {

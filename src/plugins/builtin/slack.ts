@@ -33,7 +33,9 @@ export class SlackPlugin implements Plugin {
     try {
       const t = await this.keychain.get('slack', 'bot_token');
       this.hasToken = !!t;
-    } catch { this.hasToken = false; }
+    } catch {
+      this.hasToken = false;
+    }
   }
 
   isConfigured(): boolean {

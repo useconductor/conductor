@@ -1564,7 +1564,7 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
     const { HealthChecker } = await import('../core/health.js');
     const checker = new HealthChecker();
     const report = await checker.detailed();
-    
+
     const lines = [
       '# HELP conductor_build_info Conductor build information',
       '# TYPE conductor_build_info gauge',
@@ -1574,7 +1574,7 @@ export async function startDashboard(port = 4242, conductorInstance?: Conductor)
       '# TYPE conductor_health gauge',
       `conductor_health ${report.status === 'ok' ? 1 : 0}`,
     ];
-    
+
     res.type('text/plain').send(lines.join('\n'));
   });
 
