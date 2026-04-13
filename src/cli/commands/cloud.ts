@@ -197,7 +197,7 @@ export function registerCloudCommands(program: Command) {
     .command('sync')
     .description('Sync credentials from Conductor Cloud')
     .option('--force', 'Force full sync')
-    .action(async (opts: { force?: boolean }) => {
+    .action(async (_opts: { force?: boolean }) => {
       const config = await loadCloudConfig();
 
       if (!config.connected || !config.serverUrl) {
