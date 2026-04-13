@@ -1,6 +1,6 @@
 /**
  * Conductor Cloud - Zero-Knowledge Backend
- * 
+ *
  * Architecture:
  * - User auth via GitHub/Google OAuth
  * - Credentials encrypted client-side (AES-256-GCM)
@@ -48,6 +48,7 @@ export interface DevicePairingRequest {
   deviceId: string;
   deviceName: string;
   publicKey: string;
+  userId?: string;
   expiresAt: Date;
 }
 
@@ -73,9 +74,9 @@ export async function createUser(params: {
   providerId: string;
 }): Promise<User> {
   const existingUser = Array.from(users.values()).find(
-    u => u.provider === params.provider && u.providerId === params.providerId
+    (u) => u.provider === params.provider && u.providerId === params.providerId,
   );
-  
+
   if (existingUser) {
     return existingUser;
   }
@@ -98,9 +99,7 @@ export function getUserById(id: string): User | undefined {
 }
 
 export function getUserByProvider(provider: 'github' | 'google', providerId: string): User | undefined {
-  return Array.from(users.values()).find(
-    u => u.provider === provider && u.providerId === providerId
-  );
+  return Array.from(users.values()).find((u) => u.provider === provider && u.providerId === providerId);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -111,6 +110,7 @@ export async function createPairingRequest(params: {
   deviceId: string;
   deviceName: string;
   publicKey: string;
+  userId?: string;
 }): Promise<{ code: string; requestId: string }> {
   const code = Math.random().toString(36).substring(2, 8).toUpperCase();
   const requestId = randomUUID();
@@ -120,6 +120,7 @@ export async function createPairingRequest(params: {
     deviceId: params.deviceId,
     deviceName: params.deviceName,
     publicKey: params.publicKey,
+    userId: params.userId,
     expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes
   };
 
@@ -129,7 +130,7 @@ export async function createPairingRequest(params: {
 
 export async function approvePairing(requestId: string, userId: string): Promise<Device> {
   const request = pairingRequests.get(requestId);
-  
+
   if (!request) {
     throw new Error('Pairing request not found');
   }
@@ -155,7 +156,7 @@ export async function approvePairing(requestId: string, userId: string): Promise
 }
 
 export function getPendingPairingRequests(userId: string): DevicePairingRequest[] {
-  return Array.from(pairingRequests.values()).filter(r => r.expiresAt > new Date());
+  return Array.from(pairingRequests.values()).filter((r) => r.expiresAt > new Date() && r.userId === userId);
 }
 
 export function getDevice(id: string): Device | undefined {
@@ -163,7 +164,7 @@ export function getDevice(id: string): Device | undefined {
 }
 
 export function getUserDevices(userId: string): Device[] {
-  return Array.from(devices.values()).filter(d => d.userId === userId && d.approved);
+  return Array.from(devices.values()).filter((d) => d.userId === userId && d.approved);
 }
 
 export function revokeDevice(deviceId: string): void {
@@ -184,7 +185,7 @@ export async function storeCredential(params: {
 }): Promise<EncryptedCredential> {
   // Find existing or create new
   const existing = Array.from(credentials.values()).find(
-    c => c.userId === params.userId && c.plugin === params.plugin
+    (c) => c.userId === params.userId && c.plugin === params.plugin,
   );
 
   const credential: EncryptedCredential = {
@@ -204,7 +205,7 @@ export async function storeCredential(params: {
 }
 
 export function getUserCredentials(userId: string): EncryptedCredential[] {
-  return Array.from(credentials.values()).filter(c => c.userId === userId);
+  return Array.from(credentials.values()).filter((c) => c.userId === userId);
 }
 
 export function getCredentialsForDevice(deviceId: string): EncryptedCredential[] {
@@ -214,9 +215,7 @@ export function getCredentialsForDevice(deviceId: string): EncryptedCredential[]
 }
 
 export async function deleteCredential(userId: string, plugin: string): Promise<void> {
-  const credential = Array.from(credentials.values()).find(
-    c => c.userId === userId && c.plugin === plugin
-  );
+  const credential = Array.from(credentials.values()).find((c) => c.userId === userId && c.plugin === plugin);
   if (credential) {
     credentials.delete(credential.id);
   }
@@ -258,8 +257,7 @@ export function getCredentialsForSync(deviceId: string, since: number): Encrypte
   const device = devices.get(deviceId);
   if (!device || !device.approved) return [];
 
-  return Array.from(credentials.values())
-    .filter(c => c.userId === device.userId && c.updatedAt.getTime() > since);
+  return Array.from(credentials.values()).filter((c) => c.userId === device.userId && c.updatedAt.getTime() > since);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -279,11 +277,11 @@ export function createCloudApp(): express.Express {
   // Auth callback (called by OAuth provider)
   app.post('/auth/callback', async (req, res) => {
     try {
-      const { provider, providerId, email, accessToken } = req.body;
-      
+      const { provider, providerId, email, accessToken: _accessToken } = req.body;
+
       // In production, verify the access token with the provider
       // For now, trust the client (should verify in production!)
-      
+
       const user = await createUser({
         email,
         provider: provider as 'github' | 'google',
@@ -291,7 +289,7 @@ export function createCloudApp(): express.Express {
       });
 
       const sessionId = createSession(user.id);
-      
+
       res.json({
         success: true,
         sessionId,
@@ -306,29 +304,36 @@ export function createCloudApp(): express.Express {
   // Create device pairing request
   app.post('/device/pair', async (req, res) => {
     try {
-      const { deviceId, deviceName, publicKey } = req.body;
-      const result = await createPairingRequest({ deviceId, deviceName, publicKey });
+      const { deviceId, deviceName, publicKey, userId } = req.body;
+      const result = await createPairingRequest({ deviceId, deviceName, publicKey, userId });
       res.json({ success: true, ...result });
     } catch (error) {
       res.status(500).json({ success: false, error: String(error) });
     }
   });
 
-  // Get pending pairing requests for user
+  // Get pending pairing requests for user (or check device request status)
   app.get('/device/pairing', async (req, res) => {
     try {
-      const sessionId = req.headers.authorization?.replace('Bearer ', '');
-      if (!sessionId) {
+      const auth = req.headers.authorization?.replace('Bearer ', '');
+      if (!auth) {
         return res.status(401).json({ success: false, error: 'Unauthorized' });
       }
 
-      const session = validateSession(sessionId);
-      if (!session) {
-        return res.status(401).json({ success: false, error: 'Invalid session' });
+      // Check if this is a session or a requestId
+      const session = validateSession(auth);
+      if (session) {
+        const requests = getPendingPairingRequests(session.userId);
+        return res.json({ success: true, requests });
       }
 
-      const requests = getPendingPairingRequests(session.userId);
-      res.json({ success: true, requests });
+      // Fallback: check if it's a requestId for device polling
+      const request = pairingRequests.get(auth);
+      if (request) {
+        return res.json({ success: true, requests: [request] });
+      }
+
+      return res.status(401).json({ success: false, error: 'Invalid session' });
     } catch (error) {
       res.status(500).json({ success: false, error: String(error) });
     }
@@ -452,15 +457,15 @@ export function createCloudApp(): express.Express {
       }
 
       const userCredentials = getUserCredentials(session.userId);
-      res.json({ 
-        success: true, 
-        credentials: userCredentials.map(c => ({
+      res.json({
+        success: true,
+        credentials: userCredentials.map((c) => ({
           id: c.id,
           plugin: c.plugin,
           createdAt: c.createdAt,
           updatedAt: c.updatedAt,
           // Don't send encrypted data - client will fetch on demand
-        }))
+        })),
       });
     } catch (error) {
       res.status(500).json({ success: false, error: String(error) });
@@ -489,20 +494,20 @@ export function createCloudApp(): express.Express {
       }
 
       const userCredentials = getUserCredentials(session.userId);
-      const credential = userCredentials.find(c => c.plugin === req.params.plugin);
-      
+      const credential = userCredentials.find((c) => c.plugin === req.params.plugin);
+
       if (!credential) {
         return res.status(404).json({ success: false, error: 'Credential not found' });
       }
 
-      res.json({ 
-        success: true, 
+      res.json({
+        success: true,
         credential: {
           plugin: credential.plugin,
           encryptedData: credential.encryptedData,
           iv: credential.iv,
           authTag: credential.authTag,
-        }
+        },
       });
     } catch (error) {
       res.status(500).json({ success: false, error: String(error) });
@@ -549,16 +554,16 @@ export function createCloudApp(): express.Express {
 
       const since = parseInt(req.query.since as string) || 0;
       const creds = getCredentialsForSync(session.deviceId, since);
-      
-      res.json({ 
-        success: true, 
-        credentials: creds.map(c => ({
+
+      res.json({
+        success: true,
+        credentials: creds.map((c) => ({
           plugin: c.plugin,
           encryptedData: c.encryptedData,
           iv: c.iv,
           authTag: c.authTag,
           updatedAt: c.updatedAt,
-        }))
+        })),
       });
     } catch (error) {
       res.status(500).json({ success: false, error: String(error) });
@@ -598,7 +603,7 @@ export class CloudManager {
   async login(): Promise<void> {
     // Generate device credentials
     const deviceId = randomUUID();
-    const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
+    const { publicKey, privateKey: _privateKey } = crypto.generateKeyPairSync('rsa', {
       modulusLength: 2048,
       publicKeyEncoding: { type: 'spki', format: 'pem' },
       privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
@@ -619,8 +624,8 @@ export class CloudManager {
       throw new Error('Failed to create pairing request');
     }
 
-      const data = await response.json() as { code: string; requestId: string };
-      const { code, requestId } = data;
+    const data = (await response.json()) as { code: string; requestId: string };
+    const { code, requestId } = data;
 
     console.log('\n  ╔═══════════════════════════════════════════╗');
     console.log('  ║       CONDUCTOR CLOUD PAIRING              ║');
@@ -633,13 +638,13 @@ export class CloudManager {
     // Poll for approval
     let attempts = 0;
     while (attempts < 60) {
-      await new Promise(r => setTimeout(r, 2000));
-      
+      await new Promise((r) => setTimeout(r, 2000));
+
       const verifyRes = await fetch(`${this.baseUrl}/device/pairing`, {
-        headers: { 'Authorization': `Bearer ${requestId}` },
+        headers: { Authorization: `Bearer ${requestId}` },
       });
-      
-      const verifyData = await verifyRes.json() as { requests?: unknown[] };
+
+      const verifyData = (await verifyRes.json()) as { requests?: unknown[] };
       if (verifyData.requests?.length === 0) {
         // Approved!
         break;
