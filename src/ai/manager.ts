@@ -27,6 +27,11 @@ export class AIManager {
     this.conductor = conductor;
     this.keychain = new Keychain(conductor.getConfig().getConfigDir());
   }
+  private missingApiKey(provider: string, envVar: string): Error {
+    return new Error(
+      `Missing API key for ${provider}.\nRun: conductor ai setup → choose your provider and enter your key.\nOr set ${envVar} in your environment.`,
+    );
+  }
 
   /** Get (or lazily initialize) the current AI provider. */
   async getCurrentProvider(): Promise<AIProvider | null> {
@@ -46,7 +51,7 @@ export class AIManager {
       case 'anthropic': {
         const apiKey =
           (await this.keychain.get('anthropic', 'api_key')) || (await this.keychain.get('claude', 'api_key'));
-        if (!apiKey) throw new Error('Claude API key not found');
+        if (!apiKey?.trim()) throw this.missingApiKey('Claude', 'ANTHROPIC_API_KEY');
 
         const provider = new ClaudeProvider({
           model: this.conductor.getConfig().get<string>('ai.model'),
@@ -58,7 +63,7 @@ export class AIManager {
 
       case 'openai': {
         const apiKey = await this.keychain.get('openai', 'api_key');
-        if (!apiKey) throw new Error('OpenAI API key not found');
+        if (!apiKey?.trim()) throw this.missingApiKey('OpenAI', 'OPENAI_API_KEY');
 
         const provider = new OpenAIProvider({
           model: this.conductor.getConfig().get<string>('ai.model'),
@@ -70,7 +75,7 @@ export class AIManager {
 
       case 'gemini': {
         const googleTokens = await this.keychain.get('google', 'access_token');
-        if (googleTokens) {
+        if (googleTokens?.trim()) {
           const provider = new GeminiProvider({
             model: this.conductor.getConfig().get<string>('ai.model'),
           });
@@ -80,7 +85,7 @@ export class AIManager {
         }
 
         const apiKey = await this.keychain.get('gemini', 'api_key');
-        if (apiKey) {
+        if (apiKey?.trim()) {
           const provider = new GeminiProvider({
             model: this.conductor.getConfig().get<string>('ai.model'),
           });
@@ -90,7 +95,7 @@ export class AIManager {
         }
 
         const accessToken = await this.keychain.get('gemini', 'access_token');
-        if (accessToken) {
+        if (accessToken?.trim()) {
           const provider = new GeminiProvider({
             model: this.conductor.getConfig().get<string>('ai.model'),
           });
@@ -99,12 +104,12 @@ export class AIManager {
           return provider;
         }
 
-        throw new Error('Gemini not configured. Run: conductor auth google');
+        throw this.missingApiKey('Gemini', 'GEMINI_API_KEY');
       }
 
       case 'openrouter': {
         const apiKey = await this.keychain.get('openrouter', 'api_key');
-        if (!apiKey) throw new Error('OpenRouter API key not found');
+        if (!apiKey?.trim()) throw this.missingApiKey('OpenRouter', 'OPENROUTER_API_KEY');
 
         const provider = new OpenRouterProvider({
           model: this.conductor.getConfig().get<string>('ai.model'),
